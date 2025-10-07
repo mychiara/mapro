@@ -619,11 +619,10 @@ document.addEventListener('DOMContentLoaded', function() {
         `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="data-dukung-link"><i class="bi bi-link-45deg"></i> Lihat Data Dukung</a>` : '';
 
       html += `<tr>
-<td>
-  <strong class="text-dark">${r.ID_Kelompok}}</strong><br>
-  <strong class="text-dark">${r.Nama_Kelompok}</strong><br>
-  <div class="small text-muted mt-1">ID Ajuan: ${r.ID_Ajuan}</div>
-</td>
+        <td>
+          <strong>${r.ID_Kelompok} - ${escapeHtml(r.Nama_Kelompok}</strong>
+          <div class="small text-muted">ID Ajuan: ${r.ID_Ajuan}</div>
+        </td>
         <td>${escapeHtml(r.Nama_Prodi || r.ID_Prodi)}</td>
         <td>
           <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
@@ -844,6 +843,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
+
 
 
 
