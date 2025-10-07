@@ -118,21 +118,27 @@
 
       <!-- Daftar Ajuan Tab -->
       <div class="tab-pane fade" id="tab-daftar" role="tabpanel">
-        <div class="d-flex flex-wrap gap-2 mb-3">
-          <select id="filterProdi" class="form-select" style="display:none; width: auto; flex-grow: 1; min-width: 150px;" title="Filter berdasarkan Prodi">
-            <option value="">Semua Prodi</option>
-          </select>
-          <select id="filterKelompok" class="form-select" style="width: auto; flex-grow: 1; min-width: 150px;" title="Filter berdasarkan Kelompok Ajuan">
-            <option value="">Semua Kelompok</option>
-          </select>
-          <select id="filterStatus" class="form-select" style="width: auto; flex-grow: 1; min-width: 150px;" title="Filter berdasarkan Status">
-            <option value="">Semua Status</option>
-            <option>Menunggu Review</option>
-            <option>Diterima</option>
-            <option>Ditolak</option>
-            <option>Revisi</option>
-          </select>
-          <button id="btn-refresh" class="btn btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+        <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+            <div class="flex-grow-1 d-flex flex-wrap gap-2">
+                <select id="filterProdi" class="form-select" style="display:none; width: auto; flex-basis: 200px;" title="Filter berdasarkan Prodi">
+                    <option value="">Semua Prodi</option>
+                </select>
+                <select id="filterKelompok" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Kelompok Ajuan">
+                    <option value="">Semua Kelompok</option>
+                </select>
+                <select id="filterStatus" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Status">
+                    <option value="">Semua Status</option>
+                    <option>Menunggu Review</option>
+                    <option>Diterima</option>
+                    <option>Ditolak</option>
+                    <option>Revisi</option>
+                </select>
+            </div>
+            <div class="d-flex gap-2">
+                <button id="btn-refresh" class="btn btn-outline-primary" title="Refresh Data"><i class="bi bi-arrow-clockwise"></i></button>
+                <button id="btn-export-pdf" class="btn btn-outline-danger" title="Export ke PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+                <button id="btn-export-excel" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+            </div>
         </div>
         <div class="table-responsive">
           <div id="tableAjuan"><div class="text-center text-muted p-5">Memuat data...</div></div>
@@ -228,6 +234,9 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- jsPDF for PDF Export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -623,6 +632,106 @@ document.addEventListener('DOMContentLoaded', function() {
       refreshAjuanTable();
     }
   });
+
+  // --- EXPORT FUNCTIONS ---
+  document.getElementById('btn-export-excel').addEventListener('click', exportToExcel);
+  document.getElementById('btn-export-pdf').addEventListener('click', exportToPdf);
+
+  async function getCurrentFilteredData() {
+    let params = {};
+    if (STATE.role === 'prodi') {
+      params.id_prodi = STATE.id;
+    } else {
+      const prodi = document.getElementById('filterProdi').value;
+      if (prodi) params.id_prodi = prodi;
+    }
+    const kelompok = document.getElementById('filterKelompok').value;
+    if (kelompok) params.id_kelompok = kelompok;
+
+    const status = document.getElementById('filterStatus').value;
+    if (status) params.status = status;
+    
+    const res = await api('getAjuan', params);
+    return (res.ok && res.data) ? res.data : [];
+  }
+
+  async function exportToExcel() {
+    const data = await getCurrentFilteredData();
+    if (data.length === 0) {
+      showToast('Tidak ada data untuk diekspor.', 'warning');
+      return;
+    }
+    
+    const headers = ['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL'];
+    // Using Prodi ID for AKUN, and Nama Ajuan for Program/RO/KRO as a logical mapping
+    const rows = data.map(r => [
+      r.ID_Prodi,
+      r.Nama_Ajuan,
+      r.Jumlah,
+      r.Satuan,
+      r.Harga_Satuan,
+      r.Total
+    ]);
+
+    let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" 
+      + rows.map(e => e.join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "rekap_ajuan.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  async function exportToPdf() {
+      const data = await getCurrentFilteredData();
+      if (data.length === 0) {
+        showToast('Tidak ada data untuk diekspor.', 'warning');
+        return;
+      }
+      
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      
+      const tableHeaders = [['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL']];
+      const tableBody = data.map(r => [
+          r.ID_Prodi,
+          r.Nama_Ajuan,
+          r.Jumlah,
+          r.Satuan,
+          Number(r.Harga_Satuan).toLocaleString('id-ID'),
+          Number(r.Total).toLocaleString('id-ID')
+      ]);
+
+      const grandTotal = data.reduce((sum, r) => sum + Number(r.Total), 0);
+      tableBody.push(['', '', '', '', 'GRAND TOTAL', Number(grandTotal).toLocaleString('id-ID')]);
+
+      doc.setFontSize(16);
+      doc.text("Rekapitulasi Ajuan Prodi", 14, 22);
+      
+      doc.autoTable({
+          startY: 30,
+          head: tableHeaders,
+          body: tableBody,
+          theme: 'grid',
+          didDrawPage: function (data) {
+              // Footer
+              doc.setFontSize(10);
+              doc.text('Laporan dihasilkan oleh Aplikasi MAPRO', data.settings.margin.left, doc.internal.pageSize.height - 10);
+          },
+          headStyles: { fillColor: [22, 160, 133] }, // A green header
+          foot: [['', '', '', '', 'GRAND TOTAL', Number(grandTotal).toLocaleString('id-ID')]],
+          footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
+          columnStyles: {
+            4: { halign: 'right' }, // Harga Satuan
+            5: { halign: 'right' }  // Total
+          }
+      });
+      
+      doc.save('rekap_ajuan.pdf');
+  }
 
 });
 </script>
