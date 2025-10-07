@@ -654,16 +654,17 @@ document.addEventListener('DOMContentLoaded', function() {
         <th>Kelompok Ajuan</th>
         <th>Prodi</th>
         <th>Detail Ajuan</th>
-        <th>Total Biaya</th>
+        <th class="text-end">Total Biaya</th>
+        <th class="text-center">Dakung</th>
         <th>Status</th>
         <th>Catatan Reviewer</th>
         <th class="text-end">Aksi</th>
       </tr></thead><tbody>`;
     rows.forEach(r => {
-      const dataDukungLink = r.Data_Dukung ? 
-        `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="data-dukung-link"><i class="bi bi-link-45deg"></i> Lihat Data Dukung</a>` : '';
+      const dataDukungLink = r.Data_Dukung 
+        ? `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Lihat Data Dukung"><i class="bi bi-box-arrow-up-right"></i></a>` 
+        : `<span class="text-muted small fst-italic">Tidak ada</span>`;
 
-      // [BARU] Logika untuk Review Reminder
       const ageInDays = (new Date() - new Date(r.Timestamp)) / (1000 * 60 * 60 * 24);
       let reminderHtml = '';
       if (r.Status === 'Menunggu Review' && ageInDays > 3) {
@@ -681,9 +682,9 @@ document.addEventListener('DOMContentLoaded', function() {
           <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
           <div class="small text-muted">${r.Jumlah} ${escapeHtml(r.Satuan)} @ Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div>
           <div class="badge bg-info-subtle text-info-emphasis fw-normal mt-1">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</div>
-          ${dataDukungLink}
         </td>
-        <td><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td>
+        <td class="text-end text-nowrap"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td>
+        <td class="text-center">${dataDukungLink}</td>
         <td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span>${reminderHtml}</td>
         <td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td>
         <td class="text-end action-buttons">${renderActionsForRow(r)}</td>
