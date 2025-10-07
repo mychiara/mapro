@@ -44,12 +44,22 @@
 
 <div class="container mt-4 mb-5">
   <header class="text-center mb-4 d-flex justify-content-center align-items-center">
-    <a href="#"><i class="bi bi-buildings-fill text-secondary me-2 fs-2"></i></a>
+    <!-- Ganti ikon dengan gambar -->
+    <a href="#">
+      <img 
+        "<img src="LOGO POLTEKKES KEMENKES KUPANG.png"
+        alt="Logo MAPRO" 
+        class="me-3"
+        style="width: 200px; height: 100px; object-fit: contain;"
+      >
+    </a>
+
     <div>
       <h1 class="display-6 m-0">MAPRO</h1>
       <p class="lead text-body-secondary m-0">Aplikasi Manajemen Ajuan Prodi</p>
     </div>
   </header>
+</div>
 
   <!-- Login Card -->
   <div class="card p-3 p-md-4 mx-auto" id="card-login" style="max-width: 600px;">
@@ -619,9 +629,9 @@ document.addEventListener('DOMContentLoaded', function() {
       html += `<tr>
         <td>
           <strong>${escapeHtml(r.Nama_Kelompok || r.ID_Kelompok)}</strong>
-          <div class="small text-muted">${r.Nama_Kelompok}</div>
+          <div class="small text-muted">${r.ID_Ajuan}</div>
         </td>
-        <td>${escapeHtml(r.Nama_Prodi || r.Nama_Prodi)}</td>
+        <td>${escapeHtml(r.Nama_Prodi || r.ID_Prodi)}</td>
         <td>
           <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
           <div class="small text-muted">${r.Jumlah} ${escapeHtml(r.Satuan)} @ Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div>
@@ -848,4 +858,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
-
