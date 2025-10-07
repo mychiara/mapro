@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="id" data-bs-theme="light">
 <head>
-<meta charset="utf-8" />
+<meta charset="utf-t" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>MAPRO - Aplikasi Ajuan Prodi</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -147,8 +147,21 @@
             <label for="dataDukung" class="form-label">Data Dukung (Link)</label>
             <input type="text" id="dataDukung" class="form-control" placeholder="https://docs.google.com/..." />
           </div>
-          <div class="col-md-4">
-            <button id="btn-submit-ajuan" class="btn btn-success w-100 mt-2"><i class="bi bi-send-fill"></i> Kirim Ajuan</button>
+          <!-- [BARU] Tombol Aksi: Download Template, Upload, dan Kirim Form -->
+          <div class="col-12 mt-3">
+            <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center border-top pt-3">
+                <a id="btn-download-template" href="#" class="btn btn-outline-info" download="template_ajuan.xlsx">
+                    <i class="bi bi-download"></i> Download Template
+                </a>
+                <label for="input-upload-excel" class="btn btn-outline-success mb-0">
+                    <i class="bi bi-file-earmark-arrow-up"></i> Upload via Excel
+                </label>
+                <input type="file" id="input-upload-excel" class="d-none" accept=".xlsx, .xls, .csv">
+                
+                <button id="btn-submit-ajuan" class="btn btn-primary">
+                    <i class="bi bi-send-fill"></i> Kirim Ajuan dari Form
+                </button>
+            </div>
           </div>
         </div>
       </div>
@@ -293,12 +306,18 @@
 <!-- jsPDF for PDF Export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<!-- [BARU] SheetJS for Excel Upload -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 
   /* --- Ganti API_URL dengan Web App URL hasil deploy Apps Script --- */
   const API_URL = "https://script.google.com/macros/s/AKfycbwzEMZQbXpJBhNPeTK0IgizeXrr1O3qQUZooy0AFuUywohm3X6jAItie0U6y2AafeBX8A/exec"; // JANGAN LUPA GANTI INI
+  
+  /* --- [BARU] Ganti UPLOAD_TEMPLATE_URL dengan link file template Excel Anda --- */
+  const UPLOAD_TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/1aBcDefGHIjklMnoPQRSTUVWxyz/export?format=xlsx"; // GANTI DENGAN LINK ANDA
 
   // --- GLOBAL STATE & ELEMENTS ---
   let STATE = { role: null, id: null, allKelompok: [], allProdi: [] };
@@ -307,6 +326,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const EDIT_MODAL = new bootstrap.Modal(document.getElementById('editAjuanModal'));
   const REVIEW_MODAL = new bootstrap.Modal(document.getElementById('reviewAjuanModal'));
 
+  // Set link download template
+  document.getElementById('btn-download-template').href = UPLOAD_TEMPLATE_URL;
 
   // --- API HELPER ---
   async function api(action, data) {
@@ -429,6 +450,77 @@ document.addEventListener('DOMContentLoaded', function() {
       new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-daftar"]')).show();
     }
   });
+  
+  // --- [BARU] UPLOAD AJUAN VIA EXCEL ---
+  document.getElementById('input-upload-excel').addEventListener('change', handleExcelUpload);
+  
+  async function handleExcelUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (STATE.role !== 'prodi') {
+        showToast('Hanya role prodi yang dapat mengupload ajuan.', 'danger');
+        return;
+    }
+    showLoader(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+            if (jsonData.length === 0) {
+                showToast('File Excel kosong atau format tidak sesuai.', 'warning');
+                return;
+            }
+
+            // Memvalidasi dan memformat data dari Excel
+            const ajuanList = jsonData.map(row => {
+                return {
+                    ID_Prodi: STATE.id, // Otomatis dari user yang login
+                    ID_Kelompok: row.ID_Kelompok || '',
+                    Nama_Ajuan: row.Nama_Ajuan || '',
+                    Jumlah: Number(row.Jumlah || 0),
+                    Satuan: row.Satuan || '',
+                    Harga_Satuan: Number(row.Harga_Satuan || 0),
+                    Keterangan: row.Keterangan || '',
+                    Status_Revisi: row.Status_Revisi || 'Ajuan Baru',
+                    Data_Dukung: row.Data_Dukung || '',
+                };
+            }).filter(ajuan => ajuan.Nama_Ajuan && ajuan.Jumlah > 0 && ajuan.ID_Kelompok); // Filter baris yang tidak valid
+
+            if (ajuanList.length === 0) {
+                 showToast('Tidak ada data ajuan yang valid ditemukan di dalam file. Pastikan kolom "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi.', 'warning');
+                 return;
+            }
+            
+            // Mengirim data ke backend. Pastikan backend Anda memiliki action 'addAjuanBulk'.
+            const res = await api('addAjuanBulk', { ajuanList });
+            if (res.ok) {
+                showToast(`${res.count || ajuanList.length} ajuan berhasil diupload.`);
+                refreshAjuanTable();
+                new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-daftar"]')).show();
+            }
+
+        } catch (error) {
+            console.error('Error processing Excel file:', error);
+            showToast(`Gagal memproses file: ${error.message}`, 'danger');
+        } finally {
+            showLoader(false);
+            event.target.value = ''; // Reset input file agar bisa upload file yang sama lagi
+        }
+    };
+    reader.onerror = (error) => {
+        showLoader(false);
+        showToast('Gagal membaca file.', 'danger');
+        console.error('FileReader error:', error);
+        event.target.value = '';
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
 
   function clearAjuanForm() {
     ['namaAjuan', 'jumlah', 'satuan', 'hargaSatuan', 'total', 'keterangan', 'dataDukung'].forEach(id => document.getElementById(id).value = '');
@@ -843,10 +935,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
-
-
-
-
-
-
-
