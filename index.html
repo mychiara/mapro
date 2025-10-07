@@ -60,7 +60,6 @@
     </div>
   </header>
 </div>
-
   </header>
 
   <!-- Login Card -->
@@ -172,7 +171,6 @@
                 </select>
             </div>
             
-            <!-- [DIUBAH] Kontainer baru untuk semua total -->
             <div id="summary-display" class="d-flex flex-wrap gap-3 p-2 border rounded bg-light me-auto" style="display: none;">
               <div id="grand-total-display"></div>
               <div id="accepted-total-display"></div>
@@ -572,7 +570,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (res.ok) renderAjuanTable(res.data || []);
   }
 
-  // [DIUBAH] Merender tabel dan semua total
   function renderAjuanTable(rows) {
     const container = document.getElementById('tableAjuan');
     const summaryContainer = document.getElementById('summary-display');
@@ -587,7 +584,6 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    // Kalkulasi semua total dalam satu loop untuk efisiensi
     let grandTotal = 0;
     let acceptedTotal = 0;
     let rejectedTotal = 0;
@@ -601,7 +597,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
-    // Menampilkan semua total
     totalDisplayEl.innerHTML = `<strong>Total Diajukan:</strong> Rp ${grandTotal.toLocaleString('id-ID')}`;
     acceptedDisplayEl.innerHTML = `<strong class="text-success">Total Diterima:</strong> Rp ${acceptedTotal.toLocaleString('id-ID')}`;
     rejectedDisplayEl.innerHTML = `<strong class="text-danger">Total Ditolak:</strong> Rp ${rejectedTotal.toLocaleString('id-ID')}`;
@@ -769,6 +764,7 @@ document.addEventListener('DOMContentLoaded', function() {
     return (res.ok && res.data) ? res.data : [];
   }
 
+  // [DIUBAH] Menambahkan kolom baru ke export Excel
   async function exportToExcel() {
     const data = await getCurrentFilteredData();
     if (data.length === 0) {
@@ -776,14 +772,17 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    const headers = ['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL'];
+    const headers = ['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL', 'Status', 'Catatan Reviewer', 'Status Revisi'];
     const rows = data.map(r => [
-      r.ID_Kelompok,
-      r.Nama_Prodi,
+      `"${r.ID_Kelompok}"`,
+      `"${r.Nama_Prodi}"`,
       r.Jumlah,
-      r.Satuan,
+      `"${r.Satuan}"`,
       r.Harga_Satuan,
-      r.Total
+      r.Total,
+      `"${r.Status}"`,
+      `"${(r.Catatan_Reviewer || '').replace(/"/g, '""')}"`, // Handle kutip di dalam catatan
+      `"${r.Status_Revisi || 'Ajuan Baru'}"`
     ]);
 
     let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" 
@@ -798,6 +797,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.removeChild(link);
   }
 
+  // [DIUBAH] Menambahkan kolom baru ke export PDF
   async function exportToPdf() {
       const data = await getCurrentFilteredData();
       if (data.length === 0) {
@@ -806,16 +806,20 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
+      // Gunakan orientasi landscape agar muat
+      const doc = new jsPDF({ orientation: 'landscape' });
       
-      const tableHeaders = [['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL']];
+      const tableHeaders = [['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL', 'Status', 'Catatan Reviewer', 'Status Revisi']];
       const tableBody = data.map(r => [
           r.ID_Kelompok,
           r.Nama_Prodi,
           r.Jumlah,
           r.Satuan,
           Number(r.Harga_Satuan).toLocaleString('id-ID'),
-          Number(r.Total).toLocaleString('id-ID')
+          Number(r.Total).toLocaleString('id-ID'),
+          r.Status,
+          r.Catatan_Reviewer || '',
+          r.Status_Revisi || 'Ajuan Baru'
       ]);
 
       const grandTotal = data.reduce((sum, r) => sum + Number(r.Total), 0);
@@ -829,16 +833,16 @@ document.addEventListener('DOMContentLoaded', function() {
           body: tableBody,
           theme: 'grid',
           didDrawPage: function (data) {
-              // Footer
               doc.setFontSize(10);
               doc.text('Laporan dihasilkan oleh Aplikasi MAPRO', data.settings.margin.left, doc.internal.pageSize.height - 10);
           },
-          headStyles: { fillColor: [74, 85, 104] }, // A neutral dark gray header
-          foot: [['', '', '', '', 'GRAND TOTAL', Number(grandTotal).toLocaleString('id-ID')]],
+          headStyles: { fillColor: [74, 85, 104] }, 
+          // [DIUBAH] Menambahkan kolom kosong agar footer sejajar
+          foot: [['', '', '', '', 'GRAND TOTAL', Number(grandTotal).toLocaleString('id-ID'), '', '', '']],
           footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
           columnStyles: {
-            4: { halign: 'right' }, // Harga Satuan
-            5: { halign: 'right' }  // Total
+            4: { halign: 'right' }, 
+            5: { halign: 'right' } 
           }
       });
       
@@ -850,7 +854,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
-
-
-
-
