@@ -134,6 +134,7 @@
                     <option>Revisi</option>
                 </select>
             </div>
+            <div id="grand-total-display" class="p-2 border rounded bg-light me-2" style="display: none;"></div>
             <div class="d-flex gap-2">
                 <button id="btn-refresh" class="btn btn-outline-primary" title="Refresh Data"><i class="bi bi-arrow-clockwise"></i></button>
                 <button id="btn-export-pdf" class="btn btn-outline-danger" title="Export ke PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
@@ -492,6 +493,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   async function refreshAjuanTable() {
     document.getElementById('tableAjuan').innerHTML = `<div class="text-center text-muted p-5">Memuat data...</div>`;
+    document.getElementById('grand-total-display').style.display = 'none';
+    
     let params = {};
     if (STATE.role === 'prodi') {
       params.id_prodi = STATE.id;
@@ -511,10 +514,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function renderAjuanTable(rows) {
     const container = document.getElementById('tableAjuan');
+    const totalDisplayEl = document.getElementById('grand-total-display');
+
     if (rows.length === 0) {
       container.innerHTML = '<div class="text-center text-muted p-5">Belum ada ajuan yang sesuai.</div>';
+      totalDisplayEl.style.display = 'none';
       return;
     }
+
+    const grandTotal = rows.reduce((sum, r) => sum + Number(r.Total), 0);
+    totalDisplayEl.innerHTML = `<strong>Total Ajuan:</strong> Rp ${grandTotal.toLocaleString('id-ID')}`;
+    totalDisplayEl.style.display = 'block';
+
     const statusClass = {
         "Menunggu Review": "status-menunggu-review", "Diterima": "status-diterima",
         "Ditolak": "status-ditolak", "Revisi": "status-revisi"
@@ -527,7 +538,7 @@ document.addEventListener('DOMContentLoaded', function() {
     rows.forEach(r => {
       html += `<tr>
         <td>
-          ${escapeHtml(r.Nama_Kelompok || r.ID_Kelompok)}
+          <strong>${escapeHtml(r.ID_Kelompok)}</strong>
           <div class="small text-muted">${r.ID_Ajuan}</div>
         </td>
         <td>${escapeHtml(r.Nama_Prodi || r.ID_Prodi)}</td>
@@ -663,10 +674,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     const headers = ['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL'];
-    // Using Prodi ID for AKUN, and Nama Ajuan for Program/RO/KRO as a logical mapping
     const rows = data.map(r => [
-      r.ID_Prodi,
-      r.Nama_Ajuan,
+      r.ID_Kelompok,
+      r.Nama_Prodi,
       r.Jumlah,
       r.Satuan,
       r.Harga_Satuan,
@@ -697,8 +707,8 @@ document.addEventListener('DOMContentLoaded', function() {
       
       const tableHeaders = [['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL']];
       const tableBody = data.map(r => [
-          r.ID_Prodi,
-          r.Nama_Ajuan,
+          r.ID_Kelompok,
+          r.Nama_Prodi,
           r.Jumlah,
           r.Satuan,
           Number(r.Harga_Satuan).toLocaleString('id-ID'),
@@ -706,8 +716,7 @@ document.addEventListener('DOMContentLoaded', function() {
       ]);
 
       const grandTotal = data.reduce((sum, r) => sum + Number(r.Total), 0);
-      tableBody.push(['', '', '', '', 'GRAND TOTAL', Number(grandTotal).toLocaleString('id-ID')]);
-
+      
       doc.setFontSize(16);
       doc.text("Rekapitulasi Ajuan Prodi", 14, 22);
       
@@ -721,7 +730,7 @@ document.addEventListener('DOMContentLoaded', function() {
               doc.setFontSize(10);
               doc.text('Laporan dihasilkan oleh Aplikasi MAPRO', data.settings.margin.left, doc.internal.pageSize.height - 10);
           },
-          headStyles: { fillColor: [22, 160, 133] }, // A green header
+          headStyles: { fillColor: [74, 85, 104] }, // A neutral dark gray header
           foot: [['', '', '', '', 'GRAND TOTAL', Number(grandTotal).toLocaleString('id-ID')]],
           footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
           columnStyles: {
