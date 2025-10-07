@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="id" data-bs-theme="light">
 <head>
-<meta charset="utf--8" />
+<meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Si-Pandai - Sistem Pengajuan dan Data Ajuan Institusi</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -31,7 +31,7 @@
   }
   #summary-display > div { font-size: 0.9rem; }
 
-  /* --- [BARU] CSS Untuk Fitur Baru --- */
+  /* --- CSS Untuk Fitur Baru --- */
   .reminder-icon { 
     color: #dc3545; 
     animation: blinker 1.5s linear infinite; 
@@ -73,12 +73,12 @@
     </div>
   </header>
 
-  <!-- Login Card -->
+  <!-- [DIUBAH] Login Card -->
   <div class="card p-3 p-md-4 mx-auto" id="card-login" style="max-width: 600px;">
-    <h5 class="card-title text-center mb-3">Login</h5>
+    <h5 class="card-title text-center mb-3">Login Pengguna</h5>
     <div class="row g-3 align-items-end">
-      <div class="col-md-5"><label for="input-role" class="form-label">Role</label><select id="input-role" class="form-select"><option value="prodi">Prodi</option><option value="direktorat">Direktorat</option></select></div>
-      <div class="col-md-7"><label for="input-id" class="form-label">ID (contoh: P01 / D01)</label><input id="input-id" class="form-control" placeholder="Masukkan ID Pengguna" /></div>
+      <div class="col-12"><label for="input-user-id" class="form-label">Pengguna</label><select id="input-user-id" class="form-select"><option value="">Memuat pengguna...</option></select></div>
+      <div class="col-12"><label for="input-password" class="form-label">Password</label><input type="password" id="input-password" class="form-control" placeholder="Masukkan Password" /></div>
       <div class="col-12"><button id="btn-login" class="btn btn-primary w-100"><i class="bi bi-box-arrow-in-right"></i> Masuk</button></div>
     </div>
   </div>
@@ -92,7 +92,6 @@
 
     <!-- Tabs -->
     <ul class="nav nav-tabs" id="mainTabs" role="tablist">
-      <!-- [BARU] Tab Dashboard (hanya untuk direktorat) -->
       <li class="nav-item" role="presentation" id="tab-dashboard-link" style="display:none;"><button class="nav-link" data-bs-target="#tab-dashboard" data-bs-toggle="tab"><i class="bi bi-bar-chart-line"></i> Dashboard</button></li>
       <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-target="#tab-ajuan" data-bs-toggle="tab"><i class="bi bi-plus-circle"></i> Buat Ajuan</button></li>
       <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-daftar" data-bs-toggle="tab"><i class="bi bi-list-task"></i> Daftar Ajuan</button></li>
@@ -100,7 +99,7 @@
     </ul>
 
     <div class="tab-content card p-3 p-md-4" id="myTabContent">
-      <!-- [BARU] Dashboard Tab -->
+      <!-- Dashboard Tab -->
       <div class="tab-pane fade" id="tab-dashboard" role="tabpanel">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h5 class="m-0"><i class="bi bi-graph-up"></i> Dashboard Monitoring</h5>
@@ -161,10 +160,10 @@
         <div class="table-responsive"><div id="tableAjuan"><div class="text-center text-muted p-5">Memuat data...</div></div></div>
       </div>
 
-      <!-- Manajemen Tab -->
+      <!-- [DIUBAH] Manajemen Tab -->
       <div class="tab-pane fade" id="tab-manage" role="tabpanel">
         <div class="row g-4">
-          <div class="col-lg-6"><div class="card h-100 p-3"><h6 class="card-title"><i class="bi bi-people-fill"></i> Manajemen Pengguna</h6><div class="mb-3 p-3 bg-light rounded-2"><input id="mp_ID" class="form-control mb-2" placeholder="ID (kosong untuk buat baru)" /><input id="mp_Nama" class="form-control mb-2" placeholder="Nama Prodi / Direktorat" /><input id="mp_Email" class="form-control mb-2" placeholder="Email" /><select id="mp_Role" class="form-select mb-2"><option value="prodi">prodi</option><option value="direktorat">direktorat</option></select><button id="btn-save-prodi" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Pengguna</button></div><h6 class="small text-muted">Daftar Pengguna</h6><div id="listProdi" class="overflow-auto" style="max-height: 300px;"></div></div></div>
+          <div class="col-lg-6"><div class="card h-100 p-3"><h6 class="card-title"><i class="bi bi-people-fill"></i> Manajemen Pengguna</h6><div class="mb-3 p-3 bg-light rounded-2"><input id="mp_ID" class="form-control mb-2" placeholder="ID (kosong untuk buat baru)" /><input id="mp_Nama" class="form-control mb-2" placeholder="Nama Prodi / Direktorat" /><input id="mp_Email" class="form-control mb-2" placeholder="Email" /><select id="mp_Role" class="form-select mb-2"><option value="prodi">prodi</option><option value="direktorat">direktorat</option></select><input type="password" id="mp_Password" class="form-control mb-2" placeholder="Password (isi untuk mengubah)" /><button id="btn-save-prodi" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Pengguna</button></div><h6 class="small text-muted">Daftar Pengguna</h6><div id="listProdi" class="overflow-auto" style="max-height: 300px;"></div></div></div>
           <div class="col-lg-6"><div class="card h-100 p-3"><h6 class="card-title"><i class="bi bi-tags-fill"></i> Manajemen Kelompok Ajuan</h6><div class="mb-3 p-3 bg-light rounded-2"><input id="mk_ID" class="form-control mb-2" placeholder="ID (kosong untuk buat baru)" /><input id="mk_Nama" class="form-control mb-2" placeholder="Nama Kelompok" /><button id="btn-save-kelompok" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Kelompok</button></div><h6 class="small text-muted">Daftar Kelompok</h6><div id="listKelompok" class="overflow-auto" style="max-height: 300px;"></div></div></div>
         </div>
       </div>
@@ -211,7 +210,7 @@
   </div>
 </div>
 
-<!-- [BARU] Komentar Modal -->
+<!-- Komentar Modal -->
 <div class="modal fade" id="komentarModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -238,7 +237,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<!-- [BARU] Chart.js for Dashboard -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 
@@ -246,24 +244,22 @@
 document.addEventListener('DOMContentLoaded', function() {
 
   /* --- Ganti API_URL dengan Web App URL hasil deploy Apps Script --- */
-  const API_URL = "https://script.google.com/macros/s/AKfycbznyLNe_8phfKkl4oORlUtD6qVIo6ywLsgEUsbiZVkIaqwfIMkHP0zdLkxLnQr7G_Bz/exec"; // JANGAN LUPA GANTI INI
+  const API_URL = "https://script.google.com/macros/s/AKfycbyoeAJlxQkNkm4kqAFEvo9MX4sL1F-75tCqus04SOzPXLX4TPYPGAJiBaH3GQcgcte2/exec"; // JANGAN LUPA GANTI INI
   
   /* --- Ganti UPLOAD_TEMPLATE_URL dengan link file template Excel Anda --- */
   const UPLOAD_TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/14w_apgCjUqDub5ph1K6iIhhbLlxqkTtU/export?format=xlsx"; // GANTI DENGAN LINK ANDA
 
   // --- GLOBAL STATE & ELEMENTS ---
   let STATE = { role: null, id: null, allKelompok: [], allProdi: [] };
-  let CHARTS = {}; // [BARU] Untuk menyimpan instance chart
+  let CHARTS = {};
   const LOADER = document.getElementById('loading-overlay');
   const TOAST_CONTAINER = document.querySelector('.toast-container');
   const EDIT_MODAL = new bootstrap.Modal(document.getElementById('editAjuanModal'));
   const REVIEW_MODAL = new bootstrap.Modal(document.getElementById('reviewAjuanModal'));
-  const KOMENTAR_MODAL = new bootstrap.Modal(document.getElementById('komentarModal')); // [BARU]
+  const KOMENTAR_MODAL = new bootstrap.Modal(document.getElementById('komentarModal'));
 
   document.getElementById('btn-download-template').href = UPLOAD_TEMPLATE_URL;
-  // Link untuk direktorat akan mengarah ke G-Sheet langsung, bukan download
   document.getElementById('btn-download-template-dir').href = UPLOAD_TEMPLATE_URL.replace('/export?format=xlsx', '/edit?usp=sharing');
-
 
   // --- API HELPER ---
   async function api(action, data) {
@@ -310,21 +306,56 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>`;
     TOAST_CONTAINER.insertAdjacentHTML('beforeend', toastHTML);
     const toastEl = document.getElementById(toastId);
-    const toast = new bootstrap.Toast(toastEl, { delay: 5000 }); // Durasi toast lebih lama
+    const toast = new bootstrap.Toast(toastEl, { delay: 5000 });
     toast.show();
     toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
   }
   function escapeHtml(s) { if (!s) return ''; return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-  // --- LOGIN & LOGOUT ---
+  // --- [DIUBAH] LOGIN & LOGOUT ---
+  async function populateLoginDropdown() {
+      const res = await api('getUsersForLogin');
+      const selectEl = document.getElementById('input-user-id');
+      if (res.ok && res.data) {
+          selectEl.innerHTML = '<option value="">-- Pilih Pengguna --</option>';
+          res.data.forEach(user => {
+              const opt = document.createElement('option');
+              opt.value = user.ID_Prodi;
+              opt.textContent = `${user.ID_Prodi} - ${user.Nama_Prodi}`;
+              selectEl.appendChild(opt);
+          });
+      } else {
+          selectEl.innerHTML = '<option value="">Gagal memuat pengguna</option>';
+      }
+  }
+  
+  // Panggil fungsi ini saat halaman dimuat
+  populateLoginDropdown();
+
   document.getElementById('btn-login').addEventListener('click', async () => {
-    const role = document.getElementById('input-role').value;
-    const id = document.getElementById('input-id').value.trim().toUpperCase();
-    if (!id) { showToast('ID Pengguna harus diisi!', 'warning'); return; }
-    STATE.role = role; STATE.id = id;
+    const id = document.getElementById('input-user-id').value;
+    const password = document.getElementById('input-password').value;
+    
+    if (!id || !password) { 
+        showToast('ID Pengguna dan Password harus diisi!', 'warning'); 
+        return; 
+    }
+    
+    const res = await api('login', { id, password });
+    
+    if (!res.ok) {
+        showToast(res.error || 'Login gagal.', 'danger');
+        return;
+    }
+    
+    // Login berhasil
+    const userData = res.data;
+    STATE.role = userData.Role; 
+    STATE.id = userData.ID_Prodi;
+    
     document.getElementById('card-login').style.display = 'none';
     document.getElementById('app-area').style.display = 'block';
-    document.getElementById('welcome').innerHTML = `<span class="badge bg-secondary me-2">${role.toUpperCase()}</span> <strong>${id}</strong>`;
+    document.getElementById('welcome').innerHTML = `<span class="badge bg-secondary me-2">${STATE.role.toUpperCase()}</span> <strong>${STATE.id} - ${userData.Nama_Prodi}</strong>`;
     
     const tabAjuanEl = document.querySelector('[data-bs-target="#tab-ajuan"]');
     const filterProdiEl = document.getElementById('filterProdi');
@@ -333,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabDashboardLink = document.getElementById('tab-dashboard-link');
     const tabManageLink = document.getElementById('tab-manage-link');
     
-    if (role === 'prodi') {
+    if (STATE.role === 'prodi') {
       tabDashboardLink.style.display = 'none';
       tabAjuanEl.parentElement.style.display = 'block';
       tabManageLink.style.display = 'none';
@@ -358,11 +389,13 @@ document.addEventListener('DOMContentLoaded', function() {
     STATE = { role: null, id: null, allKelompok: [], allProdi: [] };
     document.getElementById('card-login').style.display = 'block';
     document.getElementById('app-area').style.display = 'none';
-    document.getElementById('input-id').value = '';
+    document.getElementById('input-user-id').value = '';
+    document.getElementById('input-password').value = ''; // Kosongkan password saat logout
     document.querySelector('[data-bs-target="#tab-ajuan"]').parentElement.style.display = 'block';
     document.getElementById('btn-download-template-dir').style.display = 'none';
     document.getElementById('label-upload-excel-dir').style.display = 'none';
     document.getElementById('tab-dashboard-link').style.display = 'none';
+    populateLoginDropdown(); // Muat ulang daftar pengguna
   });
 
   // --- CALCULATE TOTAL ---
@@ -441,7 +474,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }).filter(ajuan => ajuan && ajuan.ID_Prodi && ajuan.Nama_Ajuan && ajuan.Jumlah > 0 && ajuan.ID_Kelompok); 
 
             if (ajuanList.length > 0) {
-                 // [BARU] Hitung total anggaran dari file yang diupload
                  const totalAnggaranUpload = ajuanList.reduce((sum, ajuan) => sum + ((ajuan.Jumlah || 0) * (ajuan.Harga_Satuan || 0)), 0);
                  showToast(`Total anggaran dari file: Rp ${totalAnggaranUpload.toLocaleString('id-ID')}. Mengirim data...`, 'info');
             } else {
@@ -456,7 +488,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (res.ok) {
                 showToast(`${res.count || ajuanList.length} ajuan berhasil diupload.`);
                 refreshAjuanTable();
-                if (STATE.role === 'direktorat') loadDashboardData(); // [BARU] Refresh dashboard
+                if (STATE.role === 'direktorat') loadDashboardData();
                 new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-daftar"]')).show();
             }
 
@@ -518,7 +550,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const sel = document.getElementById('filterProdi');
     sel.innerHTML = '<option value="">Semua Prodi</option>';
     (list || []).forEach(it => {
-        if(it.Role !== 'prodi') return; // Only show prodi in filter
+        if(it.Role !== 'prodi') return;
         const opt = document.createElement('option');
         opt.value = it.ID_Prodi;
         opt.text = `${it.ID_Prodi} - ${it.Nama_Prodi}`;
@@ -537,7 +569,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
   }
 
-  // --- MANAGEMENT FUNCTIONS ---
+  // --- [DIUBAH] MANAGEMENT FUNCTIONS ---
   function populateProdiList(list) {
     const container = document.getElementById('listProdi');
     container.innerHTML = (list || []).map(p => `
@@ -563,11 +595,22 @@ document.addEventListener('DOMContentLoaded', function() {
       ID_Prodi: document.getElementById('mp_ID').value.trim().toUpperCase() || undefined,
       Nama_Prodi: document.getElementById('mp_Nama').value.trim(),
       Email: document.getElementById('mp_Email').value.trim(),
-      Role: document.getElementById('mp_Role').value
+      Role: document.getElementById('mp_Role').value,
+      Password: document.getElementById('mp_Password').value // Kirim password baru
     };
     if(!data.Nama_Prodi) { showToast('Nama Pengguna harus diisi', 'warning'); return; }
+    
+    // Untuk pengguna baru, password wajib diisi
+    if (!data.ID_Prodi && !data.Password) {
+        showToast('Password wajib diisi untuk pengguna baru.', 'warning'); return;
+    }
+
     const res = await api('addEditProdi', data);
-    if (res.ok) { showToast('Data Pengguna berhasil disimpan.'); ['mp_ID', 'mp_Nama', 'mp_Email'].forEach(id => document.getElementById(id).value = ''); loadInitialData(); }
+    if (res.ok) { 
+        showToast('Data Pengguna berhasil disimpan.'); 
+        ['mp_ID', 'mp_Nama', 'mp_Email', 'mp_Password'].forEach(id => document.getElementById(id).value = ''); 
+        loadInitialData(); 
+    }
   });
 
   document.getElementById('btn-save-kelompok').addEventListener('click', async () => {
@@ -585,6 +628,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('mp_Nama').value = nama;
     document.getElementById('mp_Email').value = email;
     document.getElementById('mp_Role').value = role;
+    document.getElementById('mp_Password').value = ''; // Kosongkan password saat edit
   }
   window.fillEditKelompok = (id, nama) => {
     document.getElementById('mk_ID').value = id;
@@ -700,7 +744,6 @@ document.addEventListener('DOMContentLoaded', function() {
   
   function renderActionsForRow(r) {
     let actions = '';
-    // [BARU] Tombol komentar untuk semua role
     actions += `<button class="btn btn-sm btn-outline-info" onclick="window.openKomentarModal('${r.ID_Ajuan}', '${escapeHtml(r.Nama_Ajuan)}')" title="Diskusi/Komentar"><i class="bi bi-chat-dots-fill"></i></button>`;
 
     if (STATE.role === 'prodi' && String(r.ID_Prodi) === String(STATE.id)) {
@@ -800,7 +843,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
-  // --- [BARU] FUNGSI KOMENTAR ---
+  // --- FUNGSI KOMENTAR ---
   window.openKomentarModal = async (id, nama) => {
     document.getElementById('komentar-id-ajuan').value = id;
     document.getElementById('komentarModalAjuanId').innerText = id;
@@ -855,8 +898,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
   });
 
-
-  // --- [BARU] FUNGSI DASHBOARD ---
+  // --- FUNGSI DASHBOARD ---
   document.getElementById('btn-refresh-dashboard').addEventListener('click', loadDashboardData);
 
   async function loadDashboardData() {
@@ -926,6 +968,9 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // --- EXPORT FUNCTIONS ---
+  document.getElementById('btn-export-excel').addEventListener('click', exportToExcel);
+  document.getElementById('btn-export-pdf').addEventListener('click', exportToPdf);
+  
   async function getCurrentFilteredData() {
     let params = {};
     if (STATE.role === 'prodi') {
