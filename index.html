@@ -61,6 +61,8 @@
   </header>
 </div>
 
+  </header>
+
   <!-- Login Card -->
   <div class="card p-3 p-md-4 mx-auto" id="card-login" style="max-width: 600px;">
     <h5 class="card-title text-center mb-3">Login Sederhana</h5>
@@ -170,6 +172,7 @@
                 </select>
             </div>
             
+            <!-- [DIUBAH] Kontainer baru untuk semua total -->
             <div id="summary-display" class="d-flex flex-wrap gap-3 p-2 border rounded bg-light me-auto" style="display: none;">
               <div id="grand-total-display"></div>
               <div id="accepted-total-display"></div>
@@ -569,7 +572,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (res.ok) renderAjuanTable(res.data || []);
   }
 
-  // [DIUBAH] Merender tabel dengan layout baru
+  // [DIUBAH] Merender tabel dan semua total
   function renderAjuanTable(rows) {
     const container = document.getElementById('tableAjuan');
     const summaryContainer = document.getElementById('summary-display');
@@ -577,12 +580,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const acceptedDisplayEl = document.getElementById('accepted-total-display');
     const rejectedDisplayEl = document.getElementById('rejected-total-display');
 
+
     if (rows.length === 0) {
       container.innerHTML = '<div class="text-center text-muted p-5">Belum ada ajuan yang sesuai.</div>';
       summaryContainer.style.display = 'none';
       return;
     }
 
+    // Kalkulasi semua total dalam satu loop untuk efisiensi
     let grandTotal = 0;
     let acceptedTotal = 0;
     let rejectedTotal = 0;
@@ -596,6 +601,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
+    // Menampilkan semua total
     totalDisplayEl.innerHTML = `<strong>Total Diajukan:</strong> Rp ${grandTotal.toLocaleString('id-ID')}`;
     acceptedDisplayEl.innerHTML = `<strong class="text-success">Total Diterima:</strong> Rp ${acceptedTotal.toLocaleString('id-ID')}`;
     rejectedDisplayEl.innerHTML = `<strong class="text-danger">Total Ditolak:</strong> Rp ${rejectedTotal.toLocaleString('id-ID')}`;
@@ -606,39 +612,34 @@ document.addEventListener('DOMContentLoaded', function() {
         "Menunggu Review": "status-menunggu-review", "Diterima": "status-diterima",
         "Ditolak": "status-ditolak", "Revisi": "status-revisi"
     };
-    
-    // [DIUBAH] Header tabel baru
     let html = `<table class="table table-hover align-middle">
       <thead class="table-light"><tr>
         <th>Kelompok Ajuan</th>
         <th>Prodi</th>
         <th>Detail Ajuan</th>
-        <th class="text-center">Total Biaya</th>
-        <th class="text-center">Data Dukung</th>
+        <th>Total Biaya</th>
         <th>Status</th>
         <th>Catatan Reviewer</th>
         <th class="text-end">Aksi</th>
       </tr></thead><tbody>`;
-
     rows.forEach(r => {
-      // [DIUBAH] Tombol untuk Data Dukung
-      const dataDukungButton = r.Data_Dukung ? 
-        `<button class="btn btn-sm btn-outline-info" onclick="window.open('${escapeHtml(r.Data_Dukung)}', '_blank')" title="Lihat Data Dukung"><i class="bi bi-link-45deg"></i></button>` : '-';
-      
-      // [DIUBAH] Struktur baris tabel baru
+      const dataDukungLink = r.Data_Dukung ? 
+        `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="data-dukung-link"><i class="bi bi-link-45deg"></i> Lihat Data Dukung</a>` : '';
+
       html += `<tr>
         <td>
           <strong>${escapeHtml(r.Nama_Kelompok || r.ID_Kelompok)}</strong>
-          <div class="small text-muted">${r.ID_Ajuan}</div>
+          ${r.Nama_Kelompok ? `<div class="small text-muted">${r.ID_Kelompok}</div>` : ''}
         </td>
         <td>${escapeHtml(r.Nama_Prodi || r.ID_Prodi)}</td>
         <td>
           <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
+          <div class="small text-muted">${r.ID_Ajuan}</div>
           <div class="small text-muted">${r.Jumlah} ${escapeHtml(r.Satuan)} @ Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div>
           <div class="badge bg-info-subtle text-info-emphasis fw-normal">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</div>
+          ${dataDukungLink}
         </td>
-        <td class="text-center"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td>
-        <td class="text-center">${dataDukungButton}</td>
+        <td><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td>
         <td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span></td>
         <td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td>
         <td class="text-end action-buttons">${renderActionsForRow(r)}</td>
@@ -769,7 +770,6 @@ document.addEventListener('DOMContentLoaded', function() {
     return (res.ok && res.data) ? res.data : [];
   }
 
-  // [DIUBAH] Menyesuaikan format ekspor Excel
   async function exportToExcel() {
     const data = await getCurrentFilteredData();
     if (data.length === 0) {
@@ -777,17 +777,14 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    const headers = ['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL', 'Status', 'Catatan Reviewer', 'Status Revisi'];
+    const headers = ['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL'];
     const rows = data.map(r => [
-      `"${r.ID_Kelompok}"`,
-      `"${(r.Nama_Ajuan || '').replace(/"/g, '""')}"`,
+      r.ID_Kelompok,
+      r.Nama_Prodi,
       r.Jumlah,
-      `"${r.Satuan}"`,
+      r.Satuan,
       r.Harga_Satuan,
-      r.Total,
-      `"${r.Status}"`,
-      `"${(r.Catatan_Reviewer || '').replace(/"/g, '""')}"`,
-      `"${r.Status_Revisi || 'Ajuan Baru'}"`
+      r.Total
     ]);
 
     let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" 
@@ -802,7 +799,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.removeChild(link);
   }
 
-  // [DIUBAH] Menyesuaikan format ekspor PDF
   async function exportToPdf() {
       const data = await getCurrentFilteredData();
       if (data.length === 0) {
@@ -811,19 +807,16 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation: 'landscape' });
+      const doc = new jsPDF();
       
-      const tableHeaders = [['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL', 'Status', 'Catatan Reviewer', 'Status Revisi']];
+      const tableHeaders = [['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL']];
       const tableBody = data.map(r => [
           r.ID_Kelompok,
-          r.Nama_Ajuan,
+          r.Nama_Prodi,
           r.Jumlah,
           r.Satuan,
           Number(r.Harga_Satuan).toLocaleString('id-ID'),
-          Number(r.Total).toLocaleString('id-ID'),
-          r.Status,
-          r.Catatan_Reviewer || '',
-          r.Status_Revisi || 'Ajuan Baru'
+          Number(r.Total).toLocaleString('id-ID')
       ]);
 
       const grandTotal = data.reduce((sum, r) => sum + Number(r.Total), 0);
@@ -837,14 +830,14 @@ document.addEventListener('DOMContentLoaded', function() {
           body: tableBody,
           theme: 'grid',
           didDrawPage: function (data) {
+              // Footer
               doc.setFontSize(10);
               doc.text('Laporan dihasilkan oleh Aplikasi MAPRO', data.settings.margin.left, doc.internal.pageSize.height - 10);
           },
-          headStyles: { fillColor: [74, 85, 104] },
-          foot: [['', '', '', '', 'GRAND TOTAL', Number(grandTotal).toLocaleString('id-ID'), '', '', '']],
+          headStyles: { fillColor: [74, 85, 104] }, // A neutral dark gray header
+          foot: [['', '', '', '', 'GRAND TOTAL', Number(grandTotal).toLocaleString('id-ID')]],
           footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
           columnStyles: {
-            2: { halign: 'right' }, // Vol
             4: { halign: 'right' }, // Harga Satuan
             5: { halign: 'right' }  // Total
           }
