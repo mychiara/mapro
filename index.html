@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="id" data-bs-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>MAPRO - Aplikasi Ajuan Prodi</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+  body { background-color: #f8f9fa; }
+  .container { max-width: 1200px; }
+  .card { border: 0; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075); }
+  .nav-tabs .nav-link { color: #6c757d; }
+  .nav-tabs .nav-link.active { color: #000; border-color: #dee2e6 #dee2e6 #fff; }
+  .status-badge { font-size: 0.8em; padding: 0.4em 0.7em; }
+  .status-menunggu-review { background-color: #ffc107 !important; color:#000; }
+  .status-diterima { background-color: #198754 !important; }
+  .status-ditolak { background-color: #dc3545 !important; }
+  .status-revisi { background-color: #fd7e14 !important; }
+  .table-hover tbody tr:hover { background-color: rgba(0,0,0,.05); }
+  .action-buttons .btn { margin-left: 5px; }
+  #loading-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255, 255, 255, 0.7);
+    z-index: 9999; display: none;
+    justify-content: center; align-items: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+<div class="container mt-4 mb-5">
+  <header class="text-center mb-4">
+    <h1 class="display-6"><i class="bi bi-file-earmark-check-fill text-primary"></i> MAPRO</h1>
+    <p class="lead text-body-secondary">Aplikasi Manajemen Ajuan Prodi</p>
+  </header>
+
+  <!-- Login Card -->
+  <div class="card p-3 p-md-4 mx-auto" id="card-login" style="max-width: 600px;">
+    <h5 class="card-title text-center mb-3">Login Sederhana</h5>
+    <div class="row g-3 align-items-end">
+      <div class="col-md-5">
+        <label for="input-role" class="form-label">Role</label>
+        <select id="input-role" class="form-select">
+          <option value="prodi">Prodi</option>
+          <option value="direktorat">Direktorat</option>
+        </select>
+      </div>
+      <div class="col-md-7">
+        <label for="input-id" class="form-label">ID (contoh: P01 / D01)</label>
+        <input id="input-id" class="form-control" placeholder="Masukkan ID Pengguna" />
+      </div>
+      <div class="col-12">
+        <button id="btn-login" class="btn btn-primary w-100"><i class="bi bi-box-arrow-in-right"></i> Masuk</button>
+      </div>
+    </div>
+    <div class="mt-3 form-text text-center">(Ini login sederhana untuk demo — tidak aman untuk produksi.)</div>
+  </div>
+
+  <!-- Main App Area -->
+  <div id="app-area" style="display:none;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div id="welcome" class="text-muted"></div>
+      <button id="btn-logout" class="btn btn-outline-secondary"><i class="bi bi-box-arrow-right"></i> Logout</button>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+      <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-target="#tab-ajuan" data-bs-toggle="tab"><i class="bi bi-plus-circle"></i> Buat Ajuan</button></li>
+      <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-daftar" data-bs-toggle="tab"><i class="bi bi-list-task"></i> Daftar Ajuan</button></li>
+      <li class="nav-item" role="presentation" id="tab-manage-link" style="display:none;"><button class="nav-link" data-bs-target="#tab-manage" data-bs-toggle="tab"><i class="bi bi-gear"></i> Manajemen</button></li>
+    </ul>
+
+    <div class="tab-content card p-3 p-md-4" id="myTabContent">
+      <!-- Pengajuan Tab -->
+      <div class="tab-pane fade show active" id="tab-ajuan" role="tabpanel">
+        <h5 class="mb-3"><i class="bi bi-pencil-square"></i> Formulir Ajuan Baru</h5>
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label for="namaAjuan" class="form-label">Nama Ajuan</label>
+            <input id="namaAjuan" class="form-control" />
+          </div>
+          <div class="col-md-4">
+            <label for="selectKelompok" class="form-label">Kelompok</label>
+            <select id="selectKelompok" class="form-select"></select>
+          </div>
+          <div class="col-md-3 col-6">
+            <label for="jumlah" class="form-label">Jumlah</label>
+            <input id="jumlah" type="number" class="form-control" min="1" />
+          </div>
+           <div class="col-md-3 col-6">
+            <label for="satuan" class="form-label">Satuan</label>
+            <input id="satuan" class="form-control" placeholder="pcs/lbr/pack" />
+          </div>
+          <div class="col-md-3">
+            <label for="hargaSatuan" class="form-label">Harga Satuan (Rp)</label>
+            <input id="hargaSatuan" type="number" class="form-control" min="0" />
+          </div>
+          <div class="col-md-3">
+            <label for="total" class="form-label">Total (Rp)</label>
+            <input id="total" class="form-control" readonly disabled />
+          </div>
+          <div class="col-12">
+            <label for="keterangan" class="form-label">Keterangan / Justifikasi</label>
+            <textarea id="keterangan" class="form-control" rows="3"></textarea>
+          </div>
+          <div class="col-md-4">
+            <button id="btn-submit-ajuan" class="btn btn-success w-100 mt-2"><i class="bi bi-send-fill"></i> Kirim Ajuan</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daftar Ajuan Tab -->
+      <div class="tab-pane fade" id="tab-daftar" role="tabpanel">
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <div class="flex-grow-1">
+            <select id="filterStatus" class="form-select" style="max-width: 200px;">
+              <option value="">Semua Status</option>
+              <option>Menunggu Review</option>
+              <option>Diterima</option>
+              <option>Ditolak</option>
+              <option>Revisi</option>
+            </select>
+          </div>
+          <button id="btn-refresh" class="btn btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+        </div>
+        <div class="table-responsive">
+          <div id="tableAjuan"><div class="text-center text-muted p-5">Memuat data...</div></div>
+        </div>
+      </div>
+
+      <!-- Manajemen Tab -->
+      <div class="tab-pane fade" id="tab-manage" role="tabpanel">
+        <div class="row g-4">
+          <div class="col-lg-6">
+            <div class="card h-100 p-3">
+              <h6 class="card-title"><i class="bi bi-people-fill"></i> Manajemen Pengguna</h6>
+              <div class="mb-3 p-3 bg-light rounded-2">
+                <input id="mp_ID" class="form-control mb-2" placeholder="ID (kosong untuk buat baru)" />
+                <input id="mp_Nama" class="form-control mb-2" placeholder="Nama Prodi / Direktorat" />
+                <input id="mp_Email" class="form-control mb-2" placeholder="Email" />
+                <select id="mp_Role" class="form-select mb-2"><option value="prodi">prodi</option><option value="direktorat">direktorat</option></select>
+                <button id="btn-save-prodi" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Pengguna</button>
+              </div>
+              <h6 class="small text-muted">Daftar Pengguna</h6>
+              <div id="listProdi" class="overflow-auto" style="max-height: 300px;"></div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="card h-100 p-3">
+              <h6 class="card-title"><i class="bi bi-tags-fill"></i> Manajemen Kelompok Ajuan</h6>
+              <div class="mb-3 p-3 bg-light rounded-2">
+                <input id="mk_ID" class="form-control mb-2" placeholder="ID (kosong untuk buat baru)" />
+                <input id="mk_Nama" class="form-control mb-2" placeholder="Nama Kelompok" />
+                <button id="btn-save-kelompok" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Kelompok</button>
+              </div>
+              <h6 class="small text-muted">Daftar Kelompok</h6>
+              <div id="listKelompok" class="overflow-auto" style="max-height: 300px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Ajuan Modal -->
+<div class="modal fade" id="editAjuanModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Ajuan - <span id="editModalAjuanId"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-id-ajuan">
+        <div class="row g-3">
+          <div class="col-md-8"><label class="form-label">Nama Ajuan</label><input id="edit-namaAjuan" class="form-control" /></div>
+          <div class="col-md-4"><label class="form-label">Kelompok</label><select id="edit-selectKelompok" class="form-select"></select></div>
+          <div class="col-md-3 col-6"><label class="form-label">Jumlah</label><input id="edit-jumlah" type="number" class="form-control" min="1" /></div>
+          <div class="col-md-3 col-6"><label class="form-label">Satuan</label><input id="edit-satuan" class="form-control" /></div>
+          <div class="col-md-3"><label class="form-label">Harga Satuan</label><input id="edit-hargaSatuan" type="number" class="form-control" min="0" /></div>
+          <div class="col-md-3"><label class="form-label">Total</label><input id="edit-total" class="form-control" readonly disabled/></div>
+          <div class="col-12"><label class="form-label">Keterangan</label><textarea id="edit-keterangan" class="form-control" rows="3"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+        <button type="button" id="btn-update-ajuan" class="btn btn-primary"><i class="bi bi-save"></i> Simpan Perubahan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Review Ajuan Modal -->
+<div class="modal fade" id="reviewAjuanModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Review Ajuan - <span id="reviewModalAjuanId"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="review-id-ajuan">
+        <input type="hidden" id="review-action">
+        <p>Anda akan mengubah status ajuan menjadi: <strong id="review-action-text"></strong></p>
+        <div class="mb-3">
+          <label for="review-catatan" class="form-label">Catatan (Opsional)</label>
+          <textarea id="review-catatan" class="form-control" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+        <button type="button" id="btn-submit-review" class="btn btn-primary"><i class="bi bi-check-circle"></i> Kirim Review</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+  /* --- Ganti API_URL dengan Web App URL hasil deploy Apps Script --- */
+  const API_URL = "https://script.google.com/macros/s/AKfycbxH0FkK9evsox-Zt-Mh-_ceGT9VCloqJebXgHjfKT51sTOAZLUw3Dl6XvDg9F-GQ-Titw/exec";
+
+  // --- GLOBAL STATE & ELEMENTS ---
+  let STATE = { role: null, id: null, allKelompok: [] };
+  const LOADER = document.getElementById('loading-overlay');
+  const TOAST_CONTAINER = document.querySelector('.toast-container');
+  const EDIT_MODAL = new bootstrap.Modal(document.getElementById('editAjuanModal'));
+  const REVIEW_MODAL = new bootstrap.Modal(document.getElementById('reviewAjuanModal'));
+
+
+  // --- API HELPER ---
+  async function api(action, data) {
+    showLoader(true);
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, data }),
+        redirect: 'follow' // <-- PERUBAHAN DI SINI
+      });
+
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+          const result = await response.json();
+          if (result.error) throw new Error(result.error);
+          return result;
+      } else {
+          const text = await response.text();
+          // Cek jika ada pesan error dari halaman login Google
+          if (text.includes("accounts.google.com")) {
+            throw new Error("Script requires authorization. Please re-deploy and grant permissions.");
+          }
+          throw new Error("Server error: " + text);
+      }
+    } catch (error) {
+      console.error('API Error:', error);
+      showToast(`Error: ${error.message}`, 'danger');
+      return { ok: false, error: error.message };
+    } finally {
+      showLoader(false);
+    }
+  }
+
+  // --- UI HELPERS ---
+  function showLoader(show) { LOADER.style.display = show ? 'flex' : 'none'; }
+  function showToast(message, type = 'success') {
+    const toastId = 'toast-' + Date.now();
+    const toastHTML = `
+      <div id="${toastId}" class="toast align-items-center text-bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body">${message}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>`;
+    TOAST_CONTAINER.insertAdjacentHTML('beforeend', toastHTML);
+    const toastEl = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+    toast.show();
+    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+  }
+  function escapeHtml(s) { if (!s) return ''; return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  // --- LOGIN & LOGOUT ---
+  document.getElementById('btn-login').addEventListener('click', async () => {
+    const role = document.getElementById('input-role').value;
+    const id = document.getElementById('input-id').value.trim();
+    if (!id) { showToast('ID Pengguna harus diisi!', 'warning'); return; }
+    STATE.role = role; STATE.id = id;
+    document.getElementById('card-login').style.display = 'none';
+    document.getElementById('app-area').style.display = 'block';
+    document.getElementById('welcome').innerHTML = `<span class="badge bg-secondary me-2">${role.toUpperCase()}</span> <strong>${id}</strong>`;
+    
+    const tabAjuanEl = document.querySelector('[data-bs-target="#tab-ajuan"]');
+    const tabDaftarEl = document.querySelector('[data-bs-target="#tab-daftar"]');
+    
+    if (role === 'prodi') {
+      tabAjuanEl.parentElement.style.display = 'block';
+      document.getElementById('tab-manage-link').style.display = 'none';
+      new bootstrap.Tab(tabAjuanEl).show();
+    } else { // direktorat
+      tabAjuanEl.parentElement.style.display = 'none';
+      document.getElementById('tab-manage-link').style.display = 'block';
+      new bootstrap.Tab(tabDaftarEl).show();
+    }
+    loadInitialData();
+  });
+
+  document.getElementById('btn-logout').addEventListener('click', () => {
+    STATE = { role: null, id: null, allKelompok: [] };
+    document.getElementById('card-login').style.display = 'block';
+    document.getElementById('app-area').style.display = 'none';
+    document.getElementById('input-id').value = '';
+    document.querySelector('[data-bs-target="#tab-ajuan"]').parentElement.style.display = 'block';
+  });
+
+  // --- CALCULATE TOTAL ---
+  function calculateTotal(prefix = '') {
+    const j = Number(document.getElementById(`${prefix}jumlah`).value || 0);
+    const h = Number(document.getElementById(`${prefix}hargaSatuan`).value || 0);
+    document.getElementById(`${prefix}total`).value = (j * h).toLocaleString('id-ID');
+  }
+  ['jumlah', 'hargaSatuan'].forEach(id => document.getElementById(id).addEventListener('input', () => calculateTotal()));
+  ['edit-jumlah', 'edit-hargaSatuan'].forEach(id => document.getElementById(id).addEventListener('input', () => calculateTotal('edit-')));
+
+  // --- SUBMIT AJUAN ---
+  document.getElementById('btn-submit-ajuan').addEventListener('click', async () => {
+    if (STATE.role !== 'prodi') { showToast('Hanya role prodi yang dapat mengajukan.', 'danger'); return; }
+    const payload = {
+      ID_Prodi: STATE.id,
+      ID_Kelompok: document.getElementById('selectKelompok').value,
+      Nama_Ajuan: document.getElementById('namaAjuan').value,
+      Jumlah: Number(document.getElementById('jumlah').value || 0),
+      Satuan: document.getElementById('satuan').value,
+      Harga_Satuan: Number(document.getElementById('hargaSatuan').value || 0),
+      Keterangan: document.getElementById('keterangan').value
+    };
+    if(!payload.Nama_Ajuan || payload.Jumlah <= 0 || !payload.Satuan || payload.Harga_Satuan < 0){
+      showToast('Harap isi Nama Ajuan, Jumlah, Satuan dan Harga.', 'warning'); return;
+    }
+    const res = await api('addAjuan', payload);
+    if (res.ok) {
+      showToast(`Ajuan berhasil dikirim (ID: ${res.id})`);
+      clearAjuanForm();
+      refreshAjuanTable();
+      new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-daftar"]')).show();
+    }
+  });
+
+  function clearAjuanForm() {
+    ['namaAjuan', 'jumlah', 'satuan', 'hargaSatuan', 'total', 'keterangan'].forEach(id => document.getElementById(id).value = '');
+  }
+
+  // --- INITIAL DATA & POPULATION ---
+  async function loadInitialData() {
+    const k = await api('getKelompok', {});
+    if (k.ok) {
+      STATE.allKelompok = k.data || [];
+      populateKelompok(STATE.allKelompok);
+    }
+    if (STATE.role === 'direktorat') {
+      const p = await api('getProdi', {});
+      if (p.ok) populateProdiList(p.data || []);
+      populateKelompokList(STATE.allKelompok);
+    }
+    refreshAjuanTable();
+  }
+
+  function populateKelompok(list, selectId = 'selectKelompok') {
+    const sel = document.getElementById(selectId);
+    sel.innerHTML = '<option value="">-- Pilih Kelompok --</option>';
+    (list || []).forEach(it => {
+      const opt = document.createElement('option');
+      opt.value = it.ID_Kelompok;
+      opt.text = it.Nama_Kelompok;
+      sel.appendChild(opt);
+    });
+  }
+
+  // --- MANAGEMENT FUNCTIONS ---
+  function populateProdiList(list) {
+    const container = document.getElementById('listProdi');
+    container.innerHTML = (list || []).map(p => `
+      <div class="border p-2 mb-2 rounded-2 d-flex justify-content-between align-items-center">
+        <div>
+          <strong>${p.ID_Prodi}</strong> - ${escapeHtml(p.Nama_Prodi)} <span class="badge bg-secondary">${p.Role}</span>
+          <div class="small text-muted">${p.Email || ''}</div>
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" onclick="window.fillEditProdi('${p.ID_Prodi}','${escapeHtml(p.Nama_Prodi)}','${p.Email}','${p.Role}')"><i class="bi bi-pencil"></i></button>
+      </div>`).join('');
+  }
+  function populateKelompokList(list) {
+    const container = document.getElementById('listKelompok');
+    container.innerHTML = (list || []).map(k => `
+      <div class="border p-2 mb-2 rounded-2 d-flex justify-content-between align-items-center">
+        <div><strong>${k.ID_Kelompok}</strong> - ${escapeHtml(k.Nama_Kelompok)}</div>
+        <button class="btn btn-sm btn-outline-secondary" onclick="window.fillEditKelompok('${k.ID_Kelompok}','${escapeHtml(k.Nama_Kelompok)}')"><i class="bi bi-pencil"></i></button>
+      </div>`).join('');
+  }
+
+  document.getElementById('btn-save-prodi').addEventListener('click', async () => {
+    const data = {
+      ID_Prodi: document.getElementById('mp_ID').value.trim() || undefined,
+      Nama_Prodi: document.getElementById('mp_Nama').value.trim(),
+      Email: document.getElementById('mp_Email').value.trim(),
+      Role: document.getElementById('mp_Role').value
+    };
+    if(!data.Nama_Prodi) { showToast('Nama Pengguna harus diisi', 'warning'); return; }
+    const res = await api('addEditProdi', data);
+    if (res.ok) { showToast('Data Pengguna berhasil disimpan.'); ['mp_ID', 'mp_Nama', 'mp_Email'].forEach(id => document.getElementById(id).value = ''); loadInitialData(); }
+  });
+
+  document.getElementById('btn-save-kelompok').addEventListener('click', async () => {
+    const data = {
+      ID_Kelompok: document.getElementById('mk_ID').value.trim() || undefined,
+      Nama_Kelompok: document.getElementById('mk_Nama').value.trim()
+    };
+    if(!data.Nama_Kelompok) { showToast('Nama Kelompok harus diisi', 'warning'); return; }
+    const res = await api('addEditKelompok', data);
+    if (res.ok) { showToast('Data Kelompok berhasil disimpan.'); ['mk_ID', 'mk_Nama'].forEach(id => document.getElementById(id).value = ''); loadInitialData(); }
+  });
+
+  window.fillEditProdi = (id, nama, email, role) => {
+    document.getElementById('mp_ID').value = id;
+    document.getElementById('mp_Nama').value = nama;
+    document.getElementById('mp_Email').value = email;
+    document.getElementById('mp_Role').value = role;
+  }
+  window.fillEditKelompok = (id, nama) => {
+    document.getElementById('mk_ID').value = id;
+    document.getElementById('mk_Nama').value = nama;
+  }
+
+  // --- AJUAN TABLE ---
+  document.getElementById('btn-refresh').addEventListener('click', refreshAjuanTable);
+  document.getElementById('filterStatus').addEventListener('change', refreshAjuanTable);
+
+  async function refreshAjuanTable() {
+    document.getElementById('tableAjuan').innerHTML = `<div class="text-center text-muted p-5">Memuat data...</div>`;
+    let params = {};
+    if (STATE.role === 'prodi') params.id_prodi = STATE.id;
+    const status = document.getElementById('filterStatus').value;
+    if (status) params.status = status;
+    const res = await api('getAjuan', params);
+    if (res.ok) renderAjuanTable(res.data || []);
+  }
+
+  function renderAjuanTable(rows) {
+    const container = document.getElementById('tableAjuan');
+    if (rows.length === 0) {
+      container.innerHTML = '<div class="text-center text-muted p-5">Belum ada ajuan yang sesuai.</div>';
+      return;
+    }
+    const statusClass = {
+        "Menunggu Review": "status-menunggu-review", "Diterima": "status-diterima",
+        "Ditolak": "status-ditolak", "Revisi": "status-revisi"
+    };
+    let html = `<table class="table table-hover align-middle">
+      <thead class="table-light"><tr>
+        <th>ID Ajuan</th><th>Prodi</th><th>Ajuan</th>
+        <th>Total Biaya</th><th>Status</th><th class="text-end">Aksi</th>
+      </tr></thead><tbody>`;
+    rows.forEach(r => {
+      html += `<tr>
+        <td><small class="text-muted">${r.ID_Ajuan}</small></td>
+        <td>${r.ID_Prodi}</td>
+        <td>
+          <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
+          <div class="small text-muted">${r.Jumlah} ${r.Satuan} @ Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div>
+        </td>
+        <td><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td>
+        <td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span></td>
+        <td class="text-end action-buttons">${renderActionsForRow(r)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+
+  function renderActionsForRow(r) {
+    let actions = '';
+    if (STATE.role === 'prodi' && String(r.ID_Prodi) === String(STATE.id)) {
+      if (r.Status === 'Revisi' || r.Status === 'Menunggu Review') {
+        actions += `<button class="btn btn-sm btn-outline-primary" onclick="window.openEditModal('${r.ID_Ajuan}')" title="Edit"><i class="bi bi-pencil-fill"></i></button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="window.deleteAjuan('${r.ID_Ajuan}')" title="Hapus"><i class="bi bi-trash-fill"></i></button>`;
+      }
+    }
+    if (STATE.role === 'direktorat') {
+        let buttons = (r.Status === "Menunggu Review" || r.Status === "Revisi") ?
+          `<button class="btn btn-sm btn-success" onclick="window.openReviewModal('${r.ID_Ajuan}','Diterima')" title="Terima"><i class="bi bi-check-lg"></i></button>
+           <button class="btn btn-sm btn-danger" onclick="window.openReviewModal('${r.ID_Ajuan}','Ditolak')" title="Tolak"><i class="bi bi-x-lg"></i></button>
+           <button class="btn btn-sm btn-warning text-dark" onclick="window.openReviewModal('${r.ID_Ajuan}','Revisi')" title="Revisi"><i class="bi bi-arrow-return-left"></i></button>` : '';
+        actions += `${buttons}<div class="small text-muted mt-1 fst-italic w-100 text-end" style="max-width: 150px;">${escapeHtml(r.Catatan_Reviewer || '')}</div>`;
+    }
+    return actions || '-';
+  }
+
+  // --- AJUAN EDIT & DELETE (MODAL) ---
+  window.openEditModal = async (id) => {
+    const res = await api('getAjuan', { id_ajuan: id });
+    if (!res.ok || !res.data || res.data.length === 0) { showToast('Gagal memuat data ajuan.', 'danger'); return; }
+    const r = res.data[0];
+    document.getElementById('edit-id-ajuan').value = r.ID_Ajuan;
+    document.getElementById('editModalAjuanId').innerText = r.ID_Ajuan;
+    document.getElementById('edit-namaAjuan').value = r.Nama_Ajuan;
+    populateKelompok(STATE.allKelompok, 'edit-selectKelompok');
+    document.getElementById('edit-selectKelompok').value = r.ID_Kelompok;
+    document.getElementById('edit-jumlah').value = r.Jumlah;
+    document.getElementById('edit-satuan').value = r.Satuan;
+    document.getElementById('edit-hargaSatuan').value = r.Harga_Satuan;
+    document.getElementById('edit-keterangan').value = r.Keterangan;
+    calculateTotal('edit-');
+    EDIT_MODAL.show();
+  };
+
+  document.getElementById('btn-update-ajuan').addEventListener('click', async () => {
+    const data = {
+      ID_Ajuan: document.getElementById('edit-id-ajuan').value,
+      Nama_Ajuan: document.getElementById('edit-namaAjuan').value,
+      ID_Kelompok: document.getElementById('edit-selectKelompok').value,
+      Jumlah: Number(document.getElementById('edit-jumlah').value),
+      Satuan: document.getElementById('edit-satuan').value,
+      Harga_Satuan: Number(document.getElementById('edit-hargaSatuan').value),
+      Keterangan: document.getElementById('edit-keterangan').value,
+    };
+    const res = await api('updateAjuan', data);
+    if (res.ok) {
+      showToast('Ajuan berhasil diperbarui.');
+      EDIT_MODAL.hide();
+      refreshAjuanTable();
+    }
+  });
+
+  window.deleteAjuan = async (id) => {
+    if (confirm(`Apakah Anda yakin ingin menghapus ajuan dengan ID: ${id}?`)) {
+      const res = await api('deleteAjuan', { ID_Ajuan: id, by: STATE.id });
+      if (res.ok) {
+        showToast('Ajuan berhasil dihapus.');
+        refreshAjuanTable();
+      }
+    }
+  };
+
+  // --- REVIEW (MODAL) ---
+  window.openReviewModal = (id, action) => {
+    document.getElementById('review-id-ajuan').value = id;
+    document.getElementById('review-action').value = action;
+    document.getElementById('reviewModalAjuanId').innerText = id;
+    document.getElementById('review-action-text').innerText = action;
+    document.getElementById('review-catatan').value = '';
+    REVIEW_MODAL.show();
+  };
+
+  document.getElementById('btn-submit-review').addEventListener('click', async () => {
+    const data = {
+      ID_Ajuan: document.getElementById('review-id-ajuan').value,
+      action: document.getElementById('review-action').value,
+      catatan: document.getElementById('review-catatan').value,
+      by: STATE.id
+    };
+    const res = await api('reviewAjuan', data);
+    if (res.ok) {
+      showToast('Review berhasil dikirim.');
+      REVIEW_MODAL.hide();
+      refreshAjuanTable();
+    }
+  });
+
+});
+</script>
+
+</body>
+</html>
