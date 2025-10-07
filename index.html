@@ -29,6 +29,9 @@
     font-size: 0.8rem;
     font-style: italic;
   }
+  #summary-display > div {
+    font-size: 0.9rem;
+  }
 </style>
 </head>
 <body>
@@ -41,7 +44,6 @@
 
 <div class="container mt-4 mb-5">
   <header class="text-center mb-4 d-flex justify-content-center align-items-center">
-    <!-- [BARU] Menambahkan ikon di sebelah MAPRO -->
     <a href="#"><i class="bi bi-buildings-fill text-secondary me-2 fs-2"></i></a>
     <div>
       <h1 class="display-6 m-0">MAPRO</h1>
@@ -98,7 +100,6 @@
             <label for="selectKelompok" class="form-label">Kelompok</label>
             <select id="selectKelompok" class="form-select"></select>
           </div>
-          <!-- [BARU] Field Status Revisi -->
           <div class="col-md-4">
              <label for="selectRevisi" class="form-label">Status Revisi</label>
              <select id="selectRevisi" class="form-select">
@@ -130,7 +131,6 @@
             <label for="keterangan" class="form-label">Keterangan / Justifikasi</label>
             <textarea id="keterangan" class="form-control" rows="3"></textarea>
           </div>
-          <!-- [BARU] Field Data Dukung -->
           <div class="col-12">
             <label for="dataDukung" class="form-label">Data Dukung (Link)</label>
             <input type="text" id="dataDukung" class="form-control" placeholder="https://docs.google.com/..." />
@@ -159,7 +159,14 @@
                     <option>Revisi</option>
                 </select>
             </div>
-            <div id="grand-total-display" class="p-2 border rounded bg-light me-auto" style="display: none;"></div>
+            
+            <!-- [DIUBAH] Kontainer baru untuk semua total -->
+            <div id="summary-display" class="d-flex flex-wrap gap-3 p-2 border rounded bg-light me-auto" style="display: none;">
+              <div id="grand-total-display"></div>
+              <div id="accepted-total-display"></div>
+              <div id="rejected-total-display"></div>
+            </div>
+
             <div class="d-flex gap-2">
                 <button id="btn-refresh" class="btn btn-outline-primary" title="Refresh Data"><i class="bi bi-arrow-clockwise"></i></button>
                 <button id="btn-export-pdf" class="btn btn-outline-danger" title="Export ke PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
@@ -219,7 +226,6 @@
         <div class="row g-3">
           <div class="col-md-8"><label class="form-label">Nama Ajuan</label><input id="edit-namaAjuan" class="form-control" /></div>
           <div class="col-md-4"><label class="form-label">Kelompok</label><select id="edit-selectKelompok" class="form-select"></select></div>
-          <!-- [BARU] Field Edit Status Revisi -->
           <div class="col-md-4">
              <label for="edit-selectRevisi" class="form-label">Status Revisi</label>
              <select id="edit-selectRevisi" class="form-select">
@@ -236,7 +242,6 @@
           <div class="col-md-2"><label class="form-label">Harga Satuan</label><input id="edit-hargaSatuan" type="number" class="form-control" min="0" /></div>
           <div class="col-md-2"><label class="form-label">Total</label><input id="edit-total" class="form-control" readonly disabled/></div>
           <div class="col-12"><label class="form-label">Keterangan</label><textarea id="edit-keterangan" class="form-control" rows="3"></textarea></div>
-          <!-- [BARU] Field Edit Data Dukung -->
           <div class="col-12"><label class="form-label">Data Dukung (Link)</label><input type="text" id="edit-dataDukung" class="form-control" /></div>
         </div>
       </div>
@@ -282,7 +287,7 @@
 document.addEventListener('DOMContentLoaded', function() {
 
   /* --- Ganti API_URL dengan Web App URL hasil deploy Apps Script --- */
-  const API_URL = "https://script.google.com/macros/s/AKfycbzv5UGbf0iM5qZSEwosbufaCzsXs-22W-FKncodOobpqFSzCdGDrXapdG8kg-2rBqG0kg/exec"; // JANGAN LUPA GANTI INI
+  const API_URL = "https://script.google.com/macros/s/AKfycbwzEMZQbXpJBhNPeTK0IgizeXrr1O3qQUZooy0AFuUywohm3X6jAItie0U6y2AafeBX8A/exec"; // JANGAN LUPA GANTI INI
 
   // --- GLOBAL STATE & ELEMENTS ---
   let STATE = { role: null, id: null, allKelompok: [], allProdi: [] };
@@ -389,7 +394,6 @@ document.addEventListener('DOMContentLoaded', function() {
   ['edit-jumlah', 'edit-hargaSatuan'].forEach(id => document.getElementById(id).addEventListener('input', () => calculateTotal('edit-')));
 
   // --- SUBMIT AJUAN ---
-  // [DIUBAH] Menambahkan Status_Revisi dan Data_Dukung ke payload
   document.getElementById('btn-submit-ajuan').addEventListener('click', async () => {
     if (STATE.role !== 'prodi') { showToast('Hanya role prodi yang dapat mengajukan.', 'danger'); return; }
     const payload = {
@@ -400,8 +404,8 @@ document.addEventListener('DOMContentLoaded', function() {
       Satuan: document.getElementById('satuan').value,
       Harga_Satuan: Number(document.getElementById('hargaSatuan').value || 0),
       Keterangan: document.getElementById('keterangan').value,
-      Status_Revisi: document.getElementById('selectRevisi').value, // <-- BARU
-      Data_Dukung: document.getElementById('dataDukung').value,     // <-- BARU
+      Status_Revisi: document.getElementById('selectRevisi').value, 
+      Data_Dukung: document.getElementById('dataDukung').value,
     };
     if(!payload.Nama_Ajuan || payload.Jumlah <= 0 || !payload.Satuan || payload.Harga_Satuan < 0 || !payload.ID_Kelompok){
       showToast('Harap lengkapi semua field yang wajib diisi (Nama, Kelompok, Jumlah, Satuan, Harga).', 'warning'); return;
@@ -415,7 +419,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // [DIUBAH] Membersihkan field baru
   function clearAjuanForm() {
     ['namaAjuan', 'jumlah', 'satuan', 'hargaSatuan', 'total', 'keterangan', 'dataDukung'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('selectKelompok').value = '';
@@ -538,7 +541,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   async function refreshAjuanTable() {
     document.getElementById('tableAjuan').innerHTML = `<div class="text-center text-muted p-5">Memuat data...</div>`;
-    document.getElementById('grand-total-display').style.display = 'none';
+    document.getElementById('summary-display').style.display = 'none';
     
     let params = {};
     if (STATE.role === 'prodi') {
@@ -557,20 +560,41 @@ document.addEventListener('DOMContentLoaded', function() {
     if (res.ok) renderAjuanTable(res.data || []);
   }
 
-  // [DIUBAH] Merender tabel dengan kolom dan informasi baru
+  // [DIUBAH] Merender tabel dan semua total
   function renderAjuanTable(rows) {
     const container = document.getElementById('tableAjuan');
+    const summaryContainer = document.getElementById('summary-display');
     const totalDisplayEl = document.getElementById('grand-total-display');
+    const acceptedDisplayEl = document.getElementById('accepted-total-display');
+    const rejectedDisplayEl = document.getElementById('rejected-total-display');
+
 
     if (rows.length === 0) {
       container.innerHTML = '<div class="text-center text-muted p-5">Belum ada ajuan yang sesuai.</div>';
-      totalDisplayEl.style.display = 'none';
+      summaryContainer.style.display = 'none';
       return;
     }
 
-    const grandTotal = rows.reduce((sum, r) => sum + Number(r.Total), 0);
-    totalDisplayEl.innerHTML = `<strong>Total Ajuan:</strong> Rp ${grandTotal.toLocaleString('id-ID')}`;
-    totalDisplayEl.style.display = 'block';
+    // Kalkulasi semua total dalam satu loop untuk efisiensi
+    let grandTotal = 0;
+    let acceptedTotal = 0;
+    let rejectedTotal = 0;
+    rows.forEach(r => {
+      const totalValue = Number(r.Total) || 0;
+      grandTotal += totalValue;
+      if (r.Status === 'Diterima') {
+        acceptedTotal += totalValue;
+      } else if (r.Status === 'Ditolak') {
+        rejectedTotal += totalValue;
+      }
+    });
+
+    // Menampilkan semua total
+    totalDisplayEl.innerHTML = `<strong>Total Diajukan:</strong> Rp ${grandTotal.toLocaleString('id-ID')}`;
+    acceptedDisplayEl.innerHTML = `<strong class="text-success">Total Diterima:</strong> Rp ${acceptedTotal.toLocaleString('id-ID')}`;
+    rejectedDisplayEl.innerHTML = `<strong class="text-danger">Total Ditolak:</strong> Rp ${rejectedTotal.toLocaleString('id-ID')}`;
+    summaryContainer.style.display = 'flex';
+
 
     const statusClass = {
         "Menunggu Review": "status-menunggu-review", "Diterima": "status-diterima",
@@ -587,7 +611,6 @@ document.addEventListener('DOMContentLoaded', function() {
         <th class="text-end">Aksi</th>
       </tr></thead><tbody>`;
     rows.forEach(r => {
-      // Membuat link data dukung jika ada
       const dataDukungLink = r.Data_Dukung ? 
         `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="data-dukung-link"><i class="bi bi-link-45deg"></i> Lihat Data Dukung</a>` : '';
 
@@ -613,28 +636,23 @@ document.addEventListener('DOMContentLoaded', function() {
     container.innerHTML = html;
   }
   
-  // [DIUBAH] Menampilkan tombol hapus untuk direktorat
   function renderActionsForRow(r) {
     let actions = '';
-    // Aksi untuk Prodi pemilik ajuan
     if (STATE.role === 'prodi' && String(r.ID_Prodi) === String(STATE.id)) {
       if (r.Status === 'Revisi' || r.Status === 'Menunggu Review') {
         actions += `<button class="btn btn-sm btn-outline-primary" onclick="window.openEditModal('${r.ID_Ajuan}')" title="Edit"><i class="bi bi-pencil-fill"></i></button>`;
       }
     }
     
-    // Aksi untuk Direktorat
     if (STATE.role === 'direktorat') {
         if (r.Status === "Menunggu Review" || r.Status === "Revisi") {
           actions += `<button class="btn btn-sm btn-success" onclick="window.openReviewModal('${r.ID_Ajuan}','Diterima')" title="Terima"><i class="bi bi-check-lg"></i></button>
            <button class="btn btn-sm btn-danger" onclick="window.openReviewModal('${r.ID_Ajuan}','Ditolak')" title="Tolak"><i class="bi bi-x-lg"></i></button>
            <button class="btn btn-sm btn-warning text-dark" onclick="window.openReviewModal('${r.ID_Ajuan}','Revisi')" title="Revisi"><i class="bi bi-arrow-return-left"></i></button>`;
         }
-        // Tombol hapus untuk direktorat, selalu ada
         actions += `<button class="btn btn-sm btn-outline-danger" onclick="window.deleteAjuan('${r.ID_Ajuan}')" title="Hapus"><i class="bi bi-trash-fill"></i></button>`;
     }
     
-    // Jika tidak ada aksi dari direktorat, Prodi masih bisa menghapus ajuannya
     if (STATE.role === 'prodi' && String(r.ID_Prodi) === String(STATE.id) && (r.Status === 'Revisi' || r.Status === 'Menunggu Review')) {
          actions += ` <button class="btn btn-sm btn-outline-danger" onclick="window.deleteAjuan('${r.ID_Ajuan}')" title="Hapus"><i class="bi bi-trash-fill"></i></button>`;
     }
@@ -643,7 +661,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // --- AJUAN EDIT & DELETE (MODAL) ---
-  // [DIUBAH] Memuat data baru ke modal edit
   window.openEditModal = async (id) => {
     const res = await api('getAjuan', { id_ajuan: id });
     if (!res.ok || !res.data || res.data.length === 0) { showToast('Gagal memuat data ajuan.', 'danger'); return; }
@@ -653,8 +670,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('edit-namaAjuan').value = r.Nama_Ajuan;
     populateKelompok(STATE.allKelompok, 'edit-selectKelompok');
     document.getElementById('edit-selectKelompok').value = r.ID_Kelompok;
-    document.getElementById('edit-selectRevisi').value = r.Status_Revisi || 'Ajuan Baru'; // <-- BARU
-    document.getElementById('edit-dataDukung').value = r.Data_Dukung || '';                 // <-- BARU
+    document.getElementById('edit-selectRevisi').value = r.Status_Revisi || 'Ajuan Baru';
+    document.getElementById('edit-dataDukung').value = r.Data_Dukung || '';
     document.getElementById('edit-jumlah').value = r.Jumlah;
     document.getElementById('edit-satuan').value = r.Satuan;
     document.getElementById('edit-hargaSatuan').value = r.Harga_Satuan;
@@ -663,7 +680,6 @@ document.addEventListener('DOMContentLoaded', function() {
     EDIT_MODAL.show();
   };
 
-  // [DIUBAH] Mengirim data baru saat update
   document.getElementById('btn-update-ajuan').addEventListener('click', async () => {
     const data = {
       ID_Ajuan: document.getElementById('edit-id-ajuan').value,
@@ -673,8 +689,8 @@ document.addEventListener('DOMContentLoaded', function() {
       Satuan: document.getElementById('edit-satuan').value,
       Harga_Satuan: Number(document.getElementById('edit-hargaSatuan').value),
       Keterangan: document.getElementById('edit-keterangan').value,
-      Status_Revisi: document.getElementById('edit-selectRevisi').value, // <-- BARU
-      Data_Dukung: document.getElementById('edit-dataDukung').value,     // <-- BARU
+      Status_Revisi: document.getElementById('edit-selectRevisi').value,
+      Data_Dukung: document.getElementById('edit-dataDukung').value,
     };
     const res = await api('updateAjuan', data);
     if (res.ok) {
@@ -686,7 +702,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   window.deleteAjuan = async (id) => {
     if (confirm(`Apakah Anda yakin ingin menghapus ajuan dengan ID: ${id}?`)) {
-      // Mengirim 'by' agar backend tahu siapa yang menghapus
       const res = await api('deleteAjuan', { ID_Ajuan: id, by: STATE.id });
       if (res.ok) {
         showToast('Ajuan berhasil dihapus.');
