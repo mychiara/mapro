@@ -245,9 +245,10 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const response = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // FIX: Changed Content-Type to text/plain to avoid CORS preflight request issues with Google Apps Script.
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ action, data }),
-        redirect: 'follow' // <-- PERUBAHAN DI SINI
+        redirect: 'follow'
       });
 
       const contentType = response.headers.get("content-type");
