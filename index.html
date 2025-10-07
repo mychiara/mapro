@@ -44,22 +44,12 @@
 
 <div class="container mt-4 mb-5">
   <header class="text-center mb-4 d-flex justify-content-center align-items-center">
-    <!-- Ganti ikon dengan gambar -->
-    <a href="#">
-      <img 
-        "<img src="LOGO POLTEKKES KEMENKES KUPANG.png"
-        alt="Logo MAPRO" 
-        class="me-3"
-        style="width: 200px; height: 100px; object-fit: contain;"
-      >
-    </a>
-
+    <a href="#"><i class="bi bi-buildings-fill text-secondary me-2 fs-2"></i></a>
     <div>
       <h1 class="display-6 m-0">MAPRO</h1>
       <p class="lead text-body-secondary m-0">Aplikasi Manajemen Ajuan Prodi</p>
     </div>
   </header>
-
 
   <!-- Login Card -->
   <div class="card p-3 p-md-4 mx-auto" id="card-login" style="max-width: 600px;">
@@ -569,13 +559,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (res.ok) renderAjuanTable(res.data || []);
   }
 
+  // [DIUBAH] Merender tabel dengan layout baru
   function renderAjuanTable(rows) {
     const container = document.getElementById('tableAjuan');
     const summaryContainer = document.getElementById('summary-display');
     const totalDisplayEl = document.getElementById('grand-total-display');
     const acceptedDisplayEl = document.getElementById('accepted-total-display');
     const rejectedDisplayEl = document.getElementById('rejected-total-display');
-
 
     if (rows.length === 0) {
       container.innerHTML = '<div class="text-center text-muted p-5">Belum ada ajuan yang sesuai.</div>';
@@ -606,20 +596,26 @@ document.addEventListener('DOMContentLoaded', function() {
         "Menunggu Review": "status-menunggu-review", "Diterima": "status-diterima",
         "Ditolak": "status-ditolak", "Revisi": "status-revisi"
     };
+    
+    // [DIUBAH] Header tabel baru
     let html = `<table class="table table-hover align-middle">
       <thead class="table-light"><tr>
         <th>Kelompok Ajuan</th>
         <th>Prodi</th>
         <th>Detail Ajuan</th>
-        <th>Total Biaya</th>
+        <th class="text-center">Total Biaya</th>
+        <th class="text-center">Data Dukung</th>
         <th>Status</th>
         <th>Catatan Reviewer</th>
         <th class="text-end">Aksi</th>
       </tr></thead><tbody>`;
-    rows.forEach(r => {
-      const dataDukungLink = r.Data_Dukung ? 
-        `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="data-dukung-link"><i class="bi bi-link-45deg"></i> Lihat Data Dukung</a>` : '';
 
+    rows.forEach(r => {
+      // [DIUBAH] Tombol untuk Data Dukung
+      const dataDukungButton = r.Data_Dukung ? 
+        `<button class="btn btn-sm btn-outline-info" onclick="window.open('${escapeHtml(r.Data_Dukung)}', '_blank')" title="Lihat Data Dukung"><i class="bi bi-link-45deg"></i></button>` : '-';
+      
+      // [DIUBAH] Struktur baris tabel baru
       html += `<tr>
         <td>
           <strong>${escapeHtml(r.Nama_Kelompok || r.ID_Kelompok)}</strong>
@@ -630,9 +626,9 @@ document.addEventListener('DOMContentLoaded', function() {
           <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
           <div class="small text-muted">${r.Jumlah} ${escapeHtml(r.Satuan)} @ Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div>
           <div class="badge bg-info-subtle text-info-emphasis fw-normal">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</div>
-          ${dataDukungLink}
         </td>
-        <td><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td>
+        <td class="text-center"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td>
+        <td class="text-center">${dataDukungButton}</td>
         <td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span></td>
         <td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td>
         <td class="text-end action-buttons">${renderActionsForRow(r)}</td>
@@ -763,7 +759,7 @@ document.addEventListener('DOMContentLoaded', function() {
     return (res.ok && res.data) ? res.data : [];
   }
 
-  // [DIUBAH] Menambahkan kolom baru ke export Excel
+  // [DIUBAH] Menyesuaikan format ekspor Excel
   async function exportToExcel() {
     const data = await getCurrentFilteredData();
     if (data.length === 0) {
@@ -774,13 +770,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const headers = ['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL', 'Status', 'Catatan Reviewer', 'Status Revisi'];
     const rows = data.map(r => [
       `"${r.ID_Kelompok}"`,
-      `"${r.Nama_Prodi}"`,
+      `"${(r.Nama_Ajuan || '').replace(/"/g, '""')}"`,
       r.Jumlah,
       `"${r.Satuan}"`,
       r.Harga_Satuan,
       r.Total,
       `"${r.Status}"`,
-      `"${(r.Catatan_Reviewer || '').replace(/"/g, '""')}"`, // Handle kutip di dalam catatan
+      `"${(r.Catatan_Reviewer || '').replace(/"/g, '""')}"`,
       `"${r.Status_Revisi || 'Ajuan Baru'}"`
     ]);
 
@@ -796,7 +792,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.removeChild(link);
   }
 
-  // [DIUBAH] Menambahkan kolom baru ke export PDF
+  // [DIUBAH] Menyesuaikan format ekspor PDF
   async function exportToPdf() {
       const data = await getCurrentFilteredData();
       if (data.length === 0) {
@@ -805,13 +801,12 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       const { jsPDF } = window.jspdf;
-      // Gunakan orientasi landscape agar muat
       const doc = new jsPDF({ orientation: 'landscape' });
       
       const tableHeaders = [['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL', 'Status', 'Catatan Reviewer', 'Status Revisi']];
       const tableBody = data.map(r => [
           r.ID_Kelompok,
-          r.Nama_Prodi,
+          r.Nama_Ajuan,
           r.Jumlah,
           r.Satuan,
           Number(r.Harga_Satuan).toLocaleString('id-ID'),
@@ -835,13 +830,13 @@ document.addEventListener('DOMContentLoaded', function() {
               doc.setFontSize(10);
               doc.text('Laporan dihasilkan oleh Aplikasi MAPRO', data.settings.margin.left, doc.internal.pageSize.height - 10);
           },
-          headStyles: { fillColor: [74, 85, 104] }, 
-          // [DIUBAH] Menambahkan kolom kosong agar footer sejajar
+          headStyles: { fillColor: [74, 85, 104] },
           foot: [['', '', '', '', 'GRAND TOTAL', Number(grandTotal).toLocaleString('id-ID'), '', '', '']],
           footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
           columnStyles: {
-            4: { halign: 'right' }, 
-            5: { halign: 'right' } 
+            2: { halign: 'right' }, // Vol
+            4: { halign: 'right' }, // Harga Satuan
+            5: { halign: 'right' }  // Total
           }
       });
       
@@ -853,4 +848,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
-
