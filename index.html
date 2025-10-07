@@ -1,9 +1,11 @@
+--- START OF FILE index.html ---
+
 <!doctype html>
 <html lang="id" data-bs-theme="light">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>MAPRO - Aplikasi Ajuan Prodi</title>
+<title>Si-Pandai - Sistem Pengajuan dan Data Ajuan Institusi</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
@@ -48,14 +50,14 @@
     <a href="#">
       <img 
         src="LOGO POLTEKKES KEMENKES KUPANG.png"
-        alt="Logo MAPRO" 
+        alt="Logo Si-Pandai" 
         class="me-3"
         style="width: 200px; height: 100px; object-fit: contain;"
       >
     </a>
     <div>
-      <h1 class="display-6 m-0">MAPRO</h1>
-      <p class="lead text-body-secondary m-0">Aplikasi Manajemen Ajuan Prodi</p>
+      <h1 class="display-6 m-0">Si-Pandai</h1>
+      <p class="lead text-body-secondary m-0">Sistem Pengajuan dan Data Ajuan Institusi</p>
     </div>
   </header>
 
@@ -187,6 +189,15 @@
             </div>
 
             <div class="d-flex gap-2">
+                <!-- [MODIFIED] Buttons for Direktorat role -->
+                <a id="btn-download-template-dir" href="https://docs.google.com/spreadsheets/d/14w_apgCjUqDub5ph1K6iIhhbLlxqkTtU/edit?usp=sharing&ouid=104206553821826620168&rtpof=true&sd=true" class="btn btn-outline-info" download="template_ajuan_lengkap.xlsx" title="Download Template Excel (dengan kolom ID_Prodi)" style="display: none;">
+                    <i class="bi bi-download"></i> Template
+                </a>
+                <label id="label-upload-excel-dir" for="input-upload-excel-dir" class="btn btn-outline-success mb-0" title="Upload Ajuan dari banyak Prodi via Excel" style="display: none;">
+                    <i class="bi bi-file-earmark-arrow-up"></i> Upload
+                </label>
+                <input type="file" id="input-upload-excel-dir" class="d-none" accept=".xlsx, .xls, .csv">
+
                 <button id="btn-refresh" class="btn btn-outline-primary" title="Refresh Data"><i class="bi bi-arrow-clockwise"></i></button>
                 <button id="btn-export-pdf" class="btn btn-outline-danger" title="Export ke PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
                 <button id="btn-export-excel" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
@@ -389,15 +400,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabDaftarEl = document.querySelector('[data-bs-target="#tab-daftar"]');
     const filterProdiEl = document.getElementById('filterProdi');
     
+    /* [MODIFIED] Show/hide Direktorat specific upload buttons */
+    const btnDownloadDir = document.getElementById('btn-download-template-dir');
+    const labelUploadDir = document.getElementById('label-upload-excel-dir');
+    
     if (role === 'prodi') {
       tabAjuanEl.parentElement.style.display = 'block';
       document.getElementById('tab-manage-link').style.display = 'none';
       filterProdiEl.style.display = 'none';
+      btnDownloadDir.style.display = 'none';
+      labelUploadDir.style.display = 'none';
       new bootstrap.Tab(tabAjuanEl).show();
     } else { // direktorat
       tabAjuanEl.parentElement.style.display = 'none';
       document.getElementById('tab-manage-link').style.display = 'block';
       filterProdiEl.style.display = 'block';
+      btnDownloadDir.style.display = 'inline-block';
+      labelUploadDir.style.display = 'inline-block';
       new bootstrap.Tab(tabDaftarEl).show();
     }
     loadInitialData();
@@ -409,6 +428,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('app-area').style.display = 'none';
     document.getElementById('input-id').value = '';
     document.querySelector('[data-bs-target="#tab-ajuan"]').parentElement.style.display = 'block';
+    /* [MODIFIED] Hide Direktorat buttons on logout */
+    document.getElementById('btn-download-template-dir').style.display = 'none';
+    document.getElementById('label-upload-excel-dir').style.display = 'none';
   });
 
   // --- CALCULATE TOTAL ---
@@ -448,15 +470,13 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // --- [BARU] UPLOAD AJUAN VIA EXCEL ---
   document.getElementById('input-upload-excel').addEventListener('change', handleExcelUpload);
+  document.getElementById('input-upload-excel-dir').addEventListener('change', handleExcelUpload); /* [MODIFIED] Event listener for new button */
   
+  /* [MODIFIED] This function now handles uploads from both Prodi and Direktorat */
   async function handleExcelUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
-    if (STATE.role !== 'prodi') {
-        showToast('Hanya role prodi yang dapat mengupload ajuan.', 'danger');
-        event.target.value = '';
-        return;
-    }
+
     showLoader(true);
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -474,8 +494,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Memvalidasi dan memformat data dari Excel
             const ajuanList = jsonData.map(row => {
+                const prodiId = (STATE.role === 'direktorat') ? row.ID_Prodi : STATE.id;
+                
+                if (!prodiId) return null; // Skip rows without a valid Prodi ID.
+
                 return {
-                    ID_Prodi: STATE.id, // Otomatis dari user yang login
+                    ID_Prodi: prodiId,
                     ID_Kelompok: row.ID_Kelompok || '',
                     Nama_Ajuan: row.Nama_Ajuan || '',
                     Jumlah: Number(row.Jumlah || 0),
@@ -485,10 +509,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     Status_Revisi: row.Status_Revisi || 'Ajuan Baru',
                     Data_Dukung: row.Data_Dukung || '',
                 };
-            }).filter(ajuan => ajuan.Nama_Ajuan && ajuan.Jumlah > 0 && ajuan.ID_Kelompok); // Filter baris yang tidak valid
+            }).filter(ajuan => {
+                if (!ajuan) return false; // Filter out rows that were skipped
+                return ajuan.ID_Prodi && ajuan.Nama_Ajuan && ajuan.Jumlah > 0 && ajuan.ID_Kelompok;
+            }); 
 
             if (ajuanList.length === 0) {
-                 showToast('Tidak ada data ajuan yang valid ditemukan di dalam file. Pastikan kolom "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi.', 'warning');
+                 const errorMsg = STATE.role === 'direktorat'
+                    ? 'Tidak ada data ajuan yang valid ditemukan. Pastikan kolom "ID_Prodi", "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi dengan benar.'
+                    : 'Tidak ada data ajuan yang valid ditemukan di dalam file. Pastikan kolom "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi.';
+                 showToast(errorMsg, 'warning');
                  return;
             }
             
@@ -909,7 +939,7 @@ document.addEventListener('DOMContentLoaded', function() {
           theme: 'grid',
           didDrawPage: function (data) {
               doc.setFontSize(10);
-              doc.text('Laporan dihasilkan oleh Aplikasi MAPRO', data.settings.margin.left, doc.internal.pageSize.height - 10);
+              doc.text('Laporan dihasilkan oleh Aplikasi Si-Pandai', data.settings.margin.left, doc.internal.pageSize.height - 10);
           },
           headStyles: { fillColor: [74, 85, 104] },
           foot: [['', '', '', '', 'GRAND TOTAL', Number(grandTotal).toLocaleString('id-ID')]],
@@ -928,8 +958,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
-
-
-
-
-
