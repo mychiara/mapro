@@ -620,12 +620,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
       html += `<tr>
 <td>
-  <strong class="text-dark">${r.ID_Kelompok} - ${escapeHtml(r.Nama_Kelompok)}</strong><br>
-  <span class="text-secondary">${escapeHtml(r.Nama_Kelompok)}</span>
+  <strong class="text-dark">${r.ID_Kelompok}}</strong><br>
+  <strong class="text-dark">${r.Nama_Kelompok}</strong><br>
   <div class="small text-muted mt-1">ID Ajuan: ${r.ID_Ajuan}</div>
 </td>
-
-
         <td>${escapeHtml(r.Nama_Prodi || r.ID_Prodi)}</td>
         <td>
           <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
@@ -846,6 +844,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
+
 
 
 
