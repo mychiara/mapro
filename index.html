@@ -623,7 +623,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <strong>${r.ID_Kelompok} - ${escapeHtml(r.Nama_Kelompok)}</strong>
           <div class="small text-muted">ID Ajuan: ${r.ID_Ajuan}</div>
         </td>
-        <td>${escapeHtml(r.Nama_Prodi || r.ID_Prodi)}</td>
+        <td>${escapeHtml(r.ID_Prodi || r.Nama_Prodi)}</td>
         <td>
           <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
           <div class="small text-muted">${r.Jumlah} ${escapeHtml(r.Satuan)} @ Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div>
@@ -843,6 +843,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
+
 
 
 
