@@ -119,15 +119,19 @@
       <!-- Daftar Ajuan Tab -->
       <div class="tab-pane fade" id="tab-daftar" role="tabpanel">
         <div class="d-flex flex-wrap gap-2 mb-3">
-          <div class="flex-grow-1">
-            <select id="filterStatus" class="form-select" style="max-width: 200px;">
-              <option value="">Semua Status</option>
-              <option>Menunggu Review</option>
-              <option>Diterima</option>
-              <option>Ditolak</option>
-              <option>Revisi</option>
-            </select>
-          </div>
+          <select id="filterProdi" class="form-select" style="display:none; width: auto; flex-grow: 1; min-width: 150px;" title="Filter berdasarkan Prodi">
+            <option value="">Semua Prodi</option>
+          </select>
+          <select id="filterKelompok" class="form-select" style="width: auto; flex-grow: 1; min-width: 150px;" title="Filter berdasarkan Kelompok Ajuan">
+            <option value="">Semua Kelompok</option>
+          </select>
+          <select id="filterStatus" class="form-select" style="width: auto; flex-grow: 1; min-width: 150px;" title="Filter berdasarkan Status">
+            <option value="">Semua Status</option>
+            <option>Menunggu Review</option>
+            <option>Diterima</option>
+            <option>Ditolak</option>
+            <option>Revisi</option>
+          </select>
           <button id="btn-refresh" class="btn btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
         </div>
         <div class="table-responsive">
@@ -232,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const API_URL = "https://script.google.com/macros/s/AKfycbwzEMZQbXpJBhNPeTK0IgizeXrr1O3qQUZooy0AFuUywohm3X6jAItie0U6y2AafeBX8A/exec";
 
   // --- GLOBAL STATE & ELEMENTS ---
-  let STATE = { role: null, id: null, allKelompok: [] };
+  let STATE = { role: null, id: null, allKelompok: [], allProdi: [] };
   const LOADER = document.getElementById('loading-overlay');
   const TOAST_CONTAINER = document.querySelector('.toast-container');
   const EDIT_MODAL = new bootstrap.Modal(document.getElementById('editAjuanModal'));
@@ -245,7 +249,6 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const response = await fetch(API_URL, {
         method: 'POST',
-        // FIX: Changed Content-Type to text/plain to avoid CORS preflight request issues with Google Apps Script.
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ action, data }),
         redirect: 'follow'
@@ -258,7 +261,6 @@ document.addEventListener('DOMContentLoaded', function() {
           return result;
       } else {
           const text = await response.text();
-          // Cek jika ada pesan error dari halaman login Google
           if (text.includes("accounts.google.com")) {
             throw new Error("Script requires authorization. Please re-deploy and grant permissions.");
           }
@@ -304,21 +306,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const tabAjuanEl = document.querySelector('[data-bs-target="#tab-ajuan"]');
     const tabDaftarEl = document.querySelector('[data-bs-target="#tab-daftar"]');
+    const filterProdiEl = document.getElementById('filterProdi');
     
     if (role === 'prodi') {
       tabAjuanEl.parentElement.style.display = 'block';
       document.getElementById('tab-manage-link').style.display = 'none';
+      filterProdiEl.style.display = 'none';
       new bootstrap.Tab(tabAjuanEl).show();
     } else { // direktorat
       tabAjuanEl.parentElement.style.display = 'none';
       document.getElementById('tab-manage-link').style.display = 'block';
+      filterProdiEl.style.display = 'block';
       new bootstrap.Tab(tabDaftarEl).show();
     }
     loadInitialData();
   });
 
   document.getElementById('btn-logout').addEventListener('click', () => {
-    STATE = { role: null, id: null, allKelompok: [] };
+    STATE = { role: null, id: null, allKelompok: [], allProdi: [] };
     document.getElementById('card-login').style.display = 'block';
     document.getElementById('app-area').style.display = 'none';
     document.getElementById('input-id').value = '';
@@ -368,10 +373,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (k.ok) {
       STATE.allKelompok = k.data || [];
       populateKelompok(STATE.allKelompok);
+      populateKelompokFilter(STATE.allKelompok);
     }
     if (STATE.role === 'direktorat') {
       const p = await api('getProdi', {});
-      if (p.ok) populateProdiList(p.data || []);
+      if (p.ok) {
+        STATE.allProdi = p.data || [];
+        populateProdiList(STATE.allProdi);
+        populateProdiFilter(STATE.allProdi);
+      }
       populateKelompokList(STATE.allKelompok);
     }
     refreshAjuanTable();
@@ -386,6 +396,29 @@ document.addEventListener('DOMContentLoaded', function() {
       opt.text = it.Nama_Kelompok;
       sel.appendChild(opt);
     });
+  }
+
+  function populateProdiFilter(list) {
+    const sel = document.getElementById('filterProdi');
+    sel.innerHTML = '<option value="">Semua Prodi</option>';
+    (list || []).forEach(it => {
+        if(it.Role !== 'prodi') return; // Only show prodi in filter
+        const opt = document.createElement('option');
+        opt.value = it.ID_Prodi;
+        opt.text = `${it.ID_Prodi} - ${it.Nama_Prodi}`;
+        sel.appendChild(opt);
+    });
+  }
+
+  function populateKelompokFilter(list) {
+      const sel = document.getElementById('filterKelompok');
+      sel.innerHTML = '<option value="">Semua Kelompok</option>';
+      (list || []).forEach(it => {
+          const opt = document.createElement('option');
+          opt.value = it.ID_Kelompok;
+          opt.text = it.Nama_Kelompok;
+          sel.appendChild(opt);
+      });
   }
 
   // --- MANAGEMENT FUNCTIONS ---
@@ -445,13 +478,24 @@ document.addEventListener('DOMContentLoaded', function() {
   // --- AJUAN TABLE ---
   document.getElementById('btn-refresh').addEventListener('click', refreshAjuanTable);
   document.getElementById('filterStatus').addEventListener('change', refreshAjuanTable);
+  document.getElementById('filterProdi').addEventListener('change', refreshAjuanTable);
+  document.getElementById('filterKelompok').addEventListener('change', refreshAjuanTable);
 
   async function refreshAjuanTable() {
     document.getElementById('tableAjuan').innerHTML = `<div class="text-center text-muted p-5">Memuat data...</div>`;
     let params = {};
-    if (STATE.role === 'prodi') params.id_prodi = STATE.id;
+    if (STATE.role === 'prodi') {
+      params.id_prodi = STATE.id;
+    } else { // direktorat can filter
+      const prodi = document.getElementById('filterProdi').value;
+      if (prodi) params.id_prodi = prodi;
+    }
+    const kelompok = document.getElementById('filterKelompok').value;
+    if (kelompok) params.id_kelompok = kelompok;
+
     const status = document.getElementById('filterStatus').value;
     if (status) params.status = status;
+
     const res = await api('getAjuan', params);
     if (res.ok) renderAjuanTable(res.data || []);
   }
@@ -468,16 +512,19 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     let html = `<table class="table table-hover align-middle">
       <thead class="table-light"><tr>
-        <th>ID Ajuan</th><th>Prodi</th><th>Ajuan</th>
+        <th>Kelompok Ajuan</th><th>Prodi</th><th>Ajuan</th>
         <th>Total Biaya</th><th>Status</th><th class="text-end">Aksi</th>
       </tr></thead><tbody>`;
     rows.forEach(r => {
       html += `<tr>
-        <td><small class="text-muted">${r.ID_Ajuan}</small></td>
-        <td>${r.ID_Prodi}</td>
+        <td>
+          ${escapeHtml(r.Nama_Kelompok || r.ID_Kelompok)}
+          <div class="small text-muted">${r.ID_Ajuan}</div>
+        </td>
+        <td>${escapeHtml(r.Nama_Prodi || r.ID_Prodi)}</td>
         <td>
           <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
-          <div class="small text-muted">${r.Jumlah} ${r.Satuan} @ Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div>
+          <div class="small text-muted">${r.Jumlah} ${escapeHtml(r.Satuan)} @ Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div>
         </td>
         <td><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td>
         <td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span></td>
@@ -582,4 +629,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
-
