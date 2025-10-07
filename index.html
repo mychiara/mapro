@@ -1,14 +1,14 @@
 <!doctype html>
 <html lang="id" data-bs-theme="light">
 <head>
-<meta charset="utf-8" />
+<meta charset="utf--8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Si-Pandai - Sistem Pengajuan dan Data Ajuan Institusi</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
   body { background-color: #f8f9fa; }
-  .container { max-width: 1400px; } /* Wider container for the new table */
+  .container { max-width: 1400px; }
   .card { border: 0; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075); }
   .nav-tabs .nav-link { color: #6c757d; }
   .nav-tabs .nav-link.active { color: #000; border-color: #dee2e6 #dee2e6 #fff; }
@@ -29,9 +29,29 @@
     font-size: 0.8rem;
     font-style: italic;
   }
-  #summary-display > div {
-    font-size: 0.9rem;
+  #summary-display > div { font-size: 0.9rem; }
+
+  /* --- [BARU] CSS Untuk Fitur Baru --- */
+  .reminder-icon { 
+    color: #dc3545; 
+    animation: blinker 1.5s linear infinite; 
+    font-size: 1.1em;
+    vertical-align: middle;
   }
+  @keyframes blinker { 50% { opacity: 0.3; } }
+  
+  .comment-list { max-height: 300px; overflow-y: auto; }
+  .comment-bubble { 
+    padding: 10px 15px; 
+    border-radius: 15px; 
+    margin-bottom: 10px; 
+    max-width: 85%;
+    word-wrap: break-word;
+  }
+  .comment-bubble-user { background-color: #e0f0ff; align-self: flex-end; }
+  .comment-bubble-other { background-color: #f1f1f1; align-self: flex-start; }
+  .comment-bubble .author { font-weight: bold; font-size: 0.9rem; margin-bottom: 2px; }
+  .comment-bubble .timestamp { font-size: 0.75rem; color: #6c757d; margin-top: 5px; text-align: right; }
 </style>
 </head>
 <body>
@@ -44,14 +64,8 @@
 
 <div class="container mt-4 mb-5">
   <header class="text-center mb-4 d-flex justify-content-center align-items-center">
-    <!-- Ganti ikon dengan gambar -->
     <a href="#">
-      <img 
-        src="LOGO POLTEKKES KEMENKES KUPANG.png"
-        alt="Logo Si-Pandai" 
-        class="me-3"
-        style="width: 200px; height: 100px; object-fit: contain;"
-      >
+      <img src="LOGO POLTEKKES KEMENKES KUPANG.png" alt="Logo Si-Pandai" class="me-3" style="width: 200px; height: 100px; object-fit: contain;">
     </a>
     <div>
       <h1 class="display-6 m-0">Si-Pandai</h1>
@@ -63,24 +77,13 @@
   <div class="card p-3 p-md-4 mx-auto" id="card-login" style="max-width: 600px;">
     <h5 class="card-title text-center mb-3">Login</h5>
     <div class="row g-3 align-items-end">
-      <div class="col-md-5">
-        <label for="input-role" class="form-label">Role</label>
-        <select id="input-role" class="form-select">
-          <option value="prodi">Prodi</option>
-          <option value="direktorat">Direktorat</option>
-        </select>
-      </div>
-      <div class="col-md-7">
-        <label for="input-id" class="form-label">ID (contoh: P01 / D01)</label>
-        <input id="input-id" class="form-control" placeholder="Masukkan ID Pengguna" />
-      </div>
-      <div class="col-12">
-        <button id="btn-login" class="btn btn-primary w-100"><i class="bi bi-box-arrow-in-right"></i> Masuk</button>
-      </div>
+      <div class="col-md-5"><label for="input-role" class="form-label">Role</label><select id="input-role" class="form-select"><option value="prodi">Prodi</option><option value="direktorat">Direktorat</option></select></div>
+      <div class="col-md-7"><label for="input-id" class="form-label">ID (contoh: P01 / D01)</label><input id="input-id" class="form-control" placeholder="Masukkan ID Pengguna" /></div>
+      <div class="col-12"><button id="btn-login" class="btn btn-primary w-100"><i class="bi bi-box-arrow-in-right"></i> Masuk</button></div>
     </div>
   </div>
 
-    <!-- Main App Area -->
+  <!-- Main App Area -->
   <div id="app-area" style="display:none;">
     <div class="d-flex justify-content-between align-items-center mb-3">
       <div id="welcome" class="text-muted"></div>
@@ -89,73 +92,47 @@
 
     <!-- Tabs -->
     <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+      <!-- [BARU] Tab Dashboard (hanya untuk direktorat) -->
+      <li class="nav-item" role="presentation" id="tab-dashboard-link" style="display:none;"><button class="nav-link" data-bs-target="#tab-dashboard" data-bs-toggle="tab"><i class="bi bi-bar-chart-line"></i> Dashboard</button></li>
       <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-target="#tab-ajuan" data-bs-toggle="tab"><i class="bi bi-plus-circle"></i> Buat Ajuan</button></li>
       <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-daftar" data-bs-toggle="tab"><i class="bi bi-list-task"></i> Daftar Ajuan</button></li>
       <li class="nav-item" role="presentation" id="tab-manage-link" style="display:none;"><button class="nav-link" data-bs-target="#tab-manage" data-bs-toggle="tab"><i class="bi bi-gear"></i> Manajemen</button></li>
     </ul>
 
     <div class="tab-content card p-3 p-md-4" id="myTabContent">
+      <!-- [BARU] Dashboard Tab -->
+      <div class="tab-pane fade" id="tab-dashboard" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="m-0"><i class="bi bi-graph-up"></i> Dashboard Monitoring</h5>
+          <button id="btn-refresh-dashboard" class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> Refresh Dashboard</button>
+        </div>
+        <div class="row g-4">
+            <div class="col-lg-6"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Bulan</h6><canvas id="chartAjuanPerBulan"></canvas></div></div>
+            <div class="col-lg-6"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Status</h6><canvas id="chartAjuanPerStatus"></canvas></div></div>
+            <div class="col-lg-7"><div class="card p-3"><h6 class="card-title text-center">Total Anggaran Diajukan per Prodi</h6><canvas id="chartAnggaranPerProdi"></canvas></div></div>
+            <div class="col-lg-5"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Prodi</h6><canvas id="chartAjuanPerProdi"></canvas></div></div>
+        </div>
+      </div>
+      
       <!-- Pengajuan Tab -->
       <div class="tab-pane fade show active" id="tab-ajuan" role="tabpanel">
         <h5 class="mb-3"><i class="bi bi-pencil-square"></i> Formulir Ajuan Baru</h5>
         <div class="row g-3">
-          <div class="col-md-8">
-            <label for="namaAjuan" class="form-label">Nama Ajuan</label>
-            <input id="namaAjuan" class="form-control" />
-          </div>
-          <div class="col-md-4">
-            <label for="selectKelompok" class="form-label">Kelompok</label>
-            <select id="selectKelompok" class="form-select"></select>
-          </div>
-          <div class="col-md-4">
-             <label for="selectRevisi" class="form-label">Status Revisi</label>
-             <select id="selectRevisi" class="form-select">
-                <option>Ajuan Baru</option>
-                <option>Revisi 1</option>
-                <option>Revisi 2</option>
-                <option>Revisi 3</option>
-                <option>Revisi 4</option>
-                <option>Revisi 5</option>
-             </select>
-          </div>
-          <div class="col-md-2 col-6">
-            <label for="jumlah" class="form-label">Jumlah</label>
-            <input id="jumlah" type="number" class="form-control" min="1" />
-          </div>
-           <div class="col-md-2 col-6">
-            <label for="satuan" class="form-label">Satuan</label>
-            <input id="satuan" class="form-control" placeholder="pcs/lbr" />
-          </div>
-          <div class="col-md-2">
-            <label for="hargaSatuan" class="form-label">Harga Satuan (Rp)</label>
-            <input id="hargaSatuan" type="number" class="form-control" min="0" />
-          </div>
-          <div class="col-md-2">
-            <label for="total" class="form-label">Total (Rp)</label>
-            <input id="total" class="form-control" readonly disabled />
-          </div>
-          <div class="col-12">
-            <label for="keterangan" class="form-label">Keterangan / Justifikasi</label>
-            <textarea id="keterangan" class="form-control" rows="3"></textarea>
-          </div>
-          <div class="col-12">
-            <label for="dataDukung" class="form-label">Data Dukung (Link)</label>
-            <input type="text" id="dataDukung" class="form-control" placeholder="https://docs.google.com/..." />
-          </div>
-          <!-- [BARU] Tombol Aksi: Download Template, Upload, dan Kirim Form -->
+          <div class="col-md-8"><label for="namaAjuan" class="form-label">Nama Ajuan</label><input id="namaAjuan" class="form-control" /></div>
+          <div class="col-md-4"><label for="selectKelompok" class="form-label">Kelompok</label><select id="selectKelompok" class="form-select"></select></div>
+          <div class="col-md-4"><label for="selectRevisi" class="form-label">Status Revisi</label><select id="selectRevisi" class="form-select"><option>Ajuan Baru</option><option>Revisi 1</option><option>Revisi 2</option><option>Revisi 3</option><option>Revisi 4</option><option>Revisi 5</option></select></div>
+          <div class="col-md-2 col-6"><label for="jumlah" class="form-label">Jumlah</label><input id="jumlah" type="number" class="form-control" min="1" /></div>
+          <div class="col-md-2 col-6"><label for="satuan" class="form-label">Satuan</label><input id="satuan" class="form-control" placeholder="pcs/lbr" /></div>
+          <div class="col-md-2"><label for="hargaSatuan" class="form-label">Harga Satuan (Rp)</label><input id="hargaSatuan" type="number" class="form-control" min="0" /></div>
+          <div class="col-md-2"><label for="total" class="form-label">Total (Rp)</label><input id="total" class="form-control" readonly disabled /></div>
+          <div class="col-12"><label for="keterangan" class="form-label">Keterangan / Justifikasi</label><textarea id="keterangan" class="form-control" rows="3"></textarea></div>
+          <div class="col-12"><label for="dataDukung" class="form-label">Data Dukung (Link)</label><input type="text" id="dataDukung" class="form-control" placeholder="https://docs.google.com/..." /></div>
           <div class="col-12 mt-3">
             <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center border-top pt-3">
-                <a id="btn-download-template" href="https://docs.google.com/spreadsheets/d/14w_apgCjUqDub5ph1K6iIhhbLlxqkTtU/edit?usp=sharing&ouid=104206553821826620168&rtpof=true&sd=true" class="btn btn-outline-info" download="template_ajuan.xlsx">
-                    <i class="bi bi-download"></i> Download Template
-                </a>
-                <label for="input-upload-excel" class="btn btn-outline-success mb-0">
-                    <i class="bi bi-file-earmark-arrow-up"></i> Upload via Excel
-                </label>
+                <a id="btn-download-template" href="#" class="btn btn-outline-info" download="template_ajuan.xlsx"><i class="bi bi-download"></i> Download Template</a>
+                <label for="input-upload-excel" class="btn btn-outline-success mb-0"><i class="bi bi-file-earmark-arrow-up"></i> Upload via Excel</label>
                 <input type="file" id="input-upload-excel" class="d-none" accept=".xlsx, .xls, .csv">
-                
-                <button id="btn-submit-ajuan" class="btn btn-primary">
-                    <i class="bi bi-send-fill"></i> Kirim Ajuan dari Form
-                </button>
+                <button id="btn-submit-ajuan" class="btn btn-primary"><i class="bi bi-send-fill"></i> Kirim Ajuan dari Form</button>
             </div>
           </div>
         </div>
@@ -165,76 +142,30 @@
       <div class="tab-pane fade" id="tab-daftar" role="tabpanel">
         <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
             <div class="flex-grow-1 d-flex flex-wrap gap-2">
-                <select id="filterProdi" class="form-select" style="display:none; width: auto; flex-basis: 200px;" title="Filter berdasarkan Prodi">
-                    <option value="">Semua Prodi</option>
-                </select>
-                <select id="filterKelompok" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Kelompok Ajuan">
-                    <option value="">Semua Kelompok</option>
-                </select>
-                <select id="filterStatus" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Status">
-                    <option value="">Semua Status</option>
-                    <option>Menunggu Review</option>
-                    <option>Diterima</option>
-                    <option>Ditolak</option>
-                    <option>Revisi</option>
-                </select>
+                <select id="filterProdi" class="form-select" style="display:none; width: auto; flex-basis: 200px;" title="Filter berdasarkan Prodi"><option value="">Semua Prodi</option></select>
+                <select id="filterKelompok" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Kelompok Ajuan"><option value="">Semua Kelompok</option></select>
+                <select id="filterStatus" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Status"><option value="">Semua Status</option><option>Menunggu Review</option><option>Diterima</option><option>Ditolak</option><option>Revisi</option></select>
             </div>
-            
             <div id="summary-display" class="d-flex flex-wrap gap-3 p-2 border rounded bg-light me-auto" style="display: none;">
-              <div id="grand-total-display"></div>
-              <div id="accepted-total-display"></div>
-              <div id="rejected-total-display"></div>
+              <div id="grand-total-display"></div><div id="accepted-total-display"></div><div id="rejected-total-display"></div>
             </div>
-
             <div class="d-flex gap-2">
-                <!-- [MODIFIED] Buttons for Direktorat role -->
-                <a id="btn-download-template-dir" href="https://docs.google.com/spreadsheets/d/14w_apgCjUqDub5ph1K6iIhhbLlxqkTtU/edit?usp=sharing&ouid=104206553821826620168&rtpof=true&sd=true" class="btn btn-outline-info" download="template_ajuan_lengkap.xlsx" title="Download Template Excel (dengan kolom ID_Prodi)" style="display: none;">
-                    <i class="bi bi-download"></i> Template
-                </a>
-                <label id="label-upload-excel-dir" for="input-upload-excel-dir" class="btn btn-outline-success mb-0" title="Upload Ajuan dari banyak Prodi via Excel" style="display: none;">
-                    <i class="bi bi-file-earmark-arrow-up"></i> Upload
-                </label>
+                <a id="btn-download-template-dir" href="#" class="btn btn-outline-info" download="template_ajuan_lengkap.xlsx" title="Download Template Excel (dengan kolom ID_Prodi)" style="display: none;"><i class="bi bi-download"></i> Template</a>
+                <label id="label-upload-excel-dir" for="input-upload-excel-dir" class="btn btn-outline-success mb-0" title="Upload Ajuan dari banyak Prodi via Excel" style="display: none;"><i class="bi bi-file-earmark-arrow-up"></i> Upload</label>
                 <input type="file" id="input-upload-excel-dir" class="d-none" accept=".xlsx, .xls, .csv">
-
                 <button id="btn-refresh" class="btn btn-outline-primary" title="Refresh Data"><i class="bi bi-arrow-clockwise"></i></button>
                 <button id="btn-export-pdf" class="btn btn-outline-danger" title="Export ke PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
                 <button id="btn-export-excel" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
             </div>
         </div>
-        <div class="table-responsive">
-          <div id="tableAjuan"><div class="text-center text-muted p-5">Memuat data...</div></div>
-        </div>
+        <div class="table-responsive"><div id="tableAjuan"><div class="text-center text-muted p-5">Memuat data...</div></div></div>
       </div>
 
       <!-- Manajemen Tab -->
       <div class="tab-pane fade" id="tab-manage" role="tabpanel">
         <div class="row g-4">
-          <div class="col-lg-6">
-            <div class="card h-100 p-3">
-              <h6 class="card-title"><i class="bi bi-people-fill"></i> Manajemen Pengguna</h6>
-              <div class="mb-3 p-3 bg-light rounded-2">
-                <input id="mp_ID" class="form-control mb-2" placeholder="ID (kosong untuk buat baru)" />
-                <input id="mp_Nama" class="form-control mb-2" placeholder="Nama Prodi / Direktorat" />
-                <input id="mp_Email" class="form-control mb-2" placeholder="Email" />
-                <select id="mp_Role" class="form-select mb-2"><option value="prodi">prodi</option><option value="direktorat">direktorat</option></select>
-                <button id="btn-save-prodi" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Pengguna</button>
-              </div>
-              <h6 class="small text-muted">Daftar Pengguna</h6>
-              <div id="listProdi" class="overflow-auto" style="max-height: 300px;"></div>
-            </div>
-          </div>
-          <div class="col-lg-6">
-            <div class="card h-100 p-3">
-              <h6 class="card-title"><i class="bi bi-tags-fill"></i> Manajemen Kelompok Ajuan</h6>
-              <div class="mb-3 p-3 bg-light rounded-2">
-                <input id="mk_ID" class="form-control mb-2" placeholder="ID (kosong untuk buat baru)" />
-                <input id="mk_Nama" class="form-control mb-2" placeholder="Nama Kelompok" />
-                <button id="btn-save-kelompok" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Kelompok</button>
-              </div>
-              <h6 class="small text-muted">Daftar Kelompok</h6>
-              <div id="listKelompok" class="overflow-auto" style="max-height: 300px;"></div>
-            </div>
-          </div>
+          <div class="col-lg-6"><div class="card h-100 p-3"><h6 class="card-title"><i class="bi bi-people-fill"></i> Manajemen Pengguna</h6><div class="mb-3 p-3 bg-light rounded-2"><input id="mp_ID" class="form-control mb-2" placeholder="ID (kosong untuk buat baru)" /><input id="mp_Nama" class="form-control mb-2" placeholder="Nama Prodi / Direktorat" /><input id="mp_Email" class="form-control mb-2" placeholder="Email" /><select id="mp_Role" class="form-select mb-2"><option value="prodi">prodi</option><option value="direktorat">direktorat</option></select><button id="btn-save-prodi" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Pengguna</button></div><h6 class="small text-muted">Daftar Pengguna</h6><div id="listProdi" class="overflow-auto" style="max-height: 300px;"></div></div></div>
+          <div class="col-lg-6"><div class="card h-100 p-3"><h6 class="card-title"><i class="bi bi-tags-fill"></i> Manajemen Kelompok Ajuan</h6><div class="mb-3 p-3 bg-light rounded-2"><input id="mk_ID" class="form-control mb-2" placeholder="ID (kosong untuk buat baru)" /><input id="mk_Nama" class="form-control mb-2" placeholder="Nama Kelompok" /><button id="btn-save-kelompok" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Kelompok</button></div><h6 class="small text-muted">Daftar Kelompok</h6><div id="listKelompok" class="overflow-auto" style="max-height: 300px;"></div></div></div>
         </div>
       </div>
     </div>
@@ -245,26 +176,13 @@
 <div class="modal fade" id="editAjuanModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Edit Ajuan - <span id="editModalAjuanId"></span></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
+      <div class="modal-header"><h5 class="modal-title">Edit Ajuan - <span id="editModalAjuanId"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
         <input type="hidden" id="edit-id-ajuan">
         <div class="row g-3">
           <div class="col-md-8"><label class="form-label">Nama Ajuan</label><input id="edit-namaAjuan" class="form-control" /></div>
           <div class="col-md-4"><label class="form-label">Kelompok</label><select id="edit-selectKelompok" class="form-select"></select></div>
-          <div class="col-md-4">
-             <label for="edit-selectRevisi" class="form-label">Status Revisi</label>
-             <select id="edit-selectRevisi" class="form-select">
-                <option>Ajuan Baru</option>
-                <option>Revisi 1</option>
-                <option>Revisi 2</option>
-                <option>Revisi 3</option>
-                <option>Revisi 4</option>
-                <option>Revisi 5</option>
-             </select>
-          </div>
+          <div class="col-md-4"><label for="edit-selectRevisi" class="form-label">Status Revisi</label><select id="edit-selectRevisi" class="form-select"><option>Ajuan Baru</option><option>Revisi 1</option><option>Revisi 2</option><option>Revisi 3</option><option>Revisi 4</option><option>Revisi 5</option></select></div>
           <div class="col-md-2 col-6"><label class="form-label">Jumlah</label><input id="edit-jumlah" type="number" class="form-control" min="1" /></div>
           <div class="col-md-2 col-6"><label class="form-label">Satuan</label><input id="edit-satuan" class="form-control" /></div>
           <div class="col-md-2"><label class="form-label">Harga Satuan</label><input id="edit-hargaSatuan" type="number" class="form-control" min="0" /></div>
@@ -273,10 +191,7 @@
           <div class="col-12"><label class="form-label">Data Dukung (Link)</label><input type="text" id="edit-dataDukung" class="form-control" /></div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-        <button type="button" id="btn-update-ajuan" class="btn btn-primary"><i class="bi bi-save"></i> Simpan Perubahan</button>
-      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="button" id="btn-update-ajuan" class="btn btn-primary"><i class="bi bi-save"></i> Simpan Perubahan</button></div>
     </div>
   </div>
 </div>
@@ -285,53 +200,70 @@
 <div class="modal fade" id="reviewAjuanModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Review Ajuan - <span id="reviewModalAjuanId"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="review-id-ajuan"><input type="hidden" id="review-action">
+        <p>Anda akan mengubah status ajuan menjadi: <strong id="review-action-text"></strong></p>
+        <div class="mb-3"><label for="review-catatan" class="form-label">Catatan (Opsional)</label><textarea id="review-catatan" class="form-control" rows="3"></textarea></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="button" id="btn-submit-review" class="btn btn-primary"><i class="bi bi-check-circle"></i> Kirim Review</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- [BARU] Komentar Modal -->
+<div class="modal fade" id="komentarModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Review Ajuan - <span id="reviewModalAjuanId"></span></h5>
+        <h5 class="modal-title">Diskusi Ajuan - <span id="komentarModalAjuanId"></span></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <input type="hidden" id="review-id-ajuan">
-        <input type="hidden" id="review-action">
-        <p>Anda akan mengubah status ajuan menjadi: <strong id="review-action-text"></strong></p>
-        <div class="mb-3">
-          <label for="review-catatan" class="form-label">Catatan (Opsional)</label>
-          <textarea id="review-catatan" class="form-control" rows="3"></textarea>
+        <input type="hidden" id="komentar-id-ajuan">
+        <p class="small border-bottom pb-2 mb-2"><strong>Ajuan:</strong> <span id="komentarModalAjuanNama"></span></p>
+        <div id="komentar-list" class="comment-list d-flex flex-column p-2 mb-3 bg-light rounded">
+            <div class="text-center text-muted">Memuat komentar...</div>
         </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-        <button type="button" id="btn-submit-review" class="btn btn-primary"><i class="bi bi-check-circle"></i> Kirim Review</button>
+        <div>
+          <textarea id="komentar-input" class="form-control" rows="2" placeholder="Tulis komentar..."></textarea>
+          <button id="btn-submit-komentar" class="btn btn-primary btn-sm w-100 mt-2"><i class="bi bi-send"></i> Kirim</button>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<!-- jsPDF for PDF Export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<!-- [BARU] SheetJS for Excel Upload -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- [BARU] Chart.js for Dashboard -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 
   /* --- Ganti API_URL dengan Web App URL hasil deploy Apps Script --- */
-  const API_URL = "https://script.google.com/macros/s/AKfycbx3B8poao2Tjw3Q6rb0WxETOex64oLEcXWgSzN-KxqisdjXvSf_rT_NS8Xd-btMHXWMaw/exec"; // JANGAN LUPA GANTI INI
+  const API_URL = "https://script.google.com/macros/s/AKfycbznyLNe_8phfKkl4oORlUtD6qVIo6ywLsgEUsbiZVkIaqwfIMkHP0zdLkxLnQr7G_Bz/exec"; // JANGAN LUPA GANTI INI
   
-  /* --- [BARU] Ganti UPLOAD_TEMPLATE_URL dengan link file template Excel Anda --- */
-  const UPLOAD_TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/1aBcDefGHIjklMnoPQRSTUVWxyz/export?format=xlsx"; // GANTI DENGAN LINK ANDA
+  /* --- Ganti UPLOAD_TEMPLATE_URL dengan link file template Excel Anda --- */
+  const UPLOAD_TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/14w_apgCjUqDub5ph1K6iIhhbLlxqkTtU/export?format=xlsx"; // GANTI DENGAN LINK ANDA
 
   // --- GLOBAL STATE & ELEMENTS ---
   let STATE = { role: null, id: null, allKelompok: [], allProdi: [] };
+  let CHARTS = {}; // [BARU] Untuk menyimpan instance chart
   const LOADER = document.getElementById('loading-overlay');
   const TOAST_CONTAINER = document.querySelector('.toast-container');
   const EDIT_MODAL = new bootstrap.Modal(document.getElementById('editAjuanModal'));
   const REVIEW_MODAL = new bootstrap.Modal(document.getElementById('reviewAjuanModal'));
+  const KOMENTAR_MODAL = new bootstrap.Modal(document.getElementById('komentarModal')); // [BARU]
 
-  // Set link download template
   document.getElementById('btn-download-template').href = UPLOAD_TEMPLATE_URL;
+  // Link untuk direktorat akan mengarah ke G-Sheet langsung, bukan download
+  document.getElementById('btn-download-template-dir').href = UPLOAD_TEMPLATE_URL.replace('/export?format=xlsx', '/edit?usp=sharing');
+
 
   // --- API HELPER ---
   async function api(action, data) {
@@ -378,7 +310,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>`;
     TOAST_CONTAINER.insertAdjacentHTML('beforeend', toastHTML);
     const toastEl = document.getElementById(toastId);
-    const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+    const toast = new bootstrap.Toast(toastEl, { delay: 5000 }); // Durasi toast lebih lama
     toast.show();
     toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
   }
@@ -387,7 +319,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // --- LOGIN & LOGOUT ---
   document.getElementById('btn-login').addEventListener('click', async () => {
     const role = document.getElementById('input-role').value;
-    const id = document.getElementById('input-id').value.trim();
+    const id = document.getElementById('input-id').value.trim().toUpperCase();
     if (!id) { showToast('ID Pengguna harus diisi!', 'warning'); return; }
     STATE.role = role; STATE.id = id;
     document.getElementById('card-login').style.display = 'none';
@@ -395,27 +327,29 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('welcome').innerHTML = `<span class="badge bg-secondary me-2">${role.toUpperCase()}</span> <strong>${id}</strong>`;
     
     const tabAjuanEl = document.querySelector('[data-bs-target="#tab-ajuan"]');
-    const tabDaftarEl = document.querySelector('[data-bs-target="#tab-daftar"]');
     const filterProdiEl = document.getElementById('filterProdi');
-    
-    /* [MODIFIED] Show/hide Direktorat specific upload buttons */
     const btnDownloadDir = document.getElementById('btn-download-template-dir');
     const labelUploadDir = document.getElementById('label-upload-excel-dir');
+    const tabDashboardLink = document.getElementById('tab-dashboard-link');
+    const tabManageLink = document.getElementById('tab-manage-link');
     
     if (role === 'prodi') {
+      tabDashboardLink.style.display = 'none';
       tabAjuanEl.parentElement.style.display = 'block';
-      document.getElementById('tab-manage-link').style.display = 'none';
+      tabManageLink.style.display = 'none';
       filterProdiEl.style.display = 'none';
       btnDownloadDir.style.display = 'none';
       labelUploadDir.style.display = 'none';
       new bootstrap.Tab(tabAjuanEl).show();
     } else { // direktorat
+      tabDashboardLink.style.display = 'block';
       tabAjuanEl.parentElement.style.display = 'none';
-      document.getElementById('tab-manage-link').style.display = 'block';
+      tabManageLink.style.display = 'block';
       filterProdiEl.style.display = 'block';
       btnDownloadDir.style.display = 'inline-block';
       labelUploadDir.style.display = 'inline-block';
-      new bootstrap.Tab(tabDaftarEl).show();
+      loadDashboardData();
+      new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-dashboard"]')).show();
     }
     loadInitialData();
   });
@@ -426,9 +360,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('app-area').style.display = 'none';
     document.getElementById('input-id').value = '';
     document.querySelector('[data-bs-target="#tab-ajuan"]').parentElement.style.display = 'block';
-    /* [MODIFIED] Hide Direktorat buttons on logout */
     document.getElementById('btn-download-template-dir').style.display = 'none';
     document.getElementById('label-upload-excel-dir').style.display = 'none';
+    document.getElementById('tab-dashboard-link').style.display = 'none';
   });
 
   // --- CALCULATE TOTAL ---
@@ -466,11 +400,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
-  // --- [BARU] UPLOAD AJUAN VIA EXCEL ---
+  // --- UPLOAD AJUAN VIA EXCEL ---
   document.getElementById('input-upload-excel').addEventListener('change', handleExcelUpload);
-  document.getElementById('input-upload-excel-dir').addEventListener('change', handleExcelUpload); /* [MODIFIED] Event listener for new button */
+  document.getElementById('input-upload-excel-dir').addEventListener('change', handleExcelUpload);
   
-  /* [MODIFIED] This function now handles uploads from both Prodi and Direktorat */
   async function handleExcelUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -490,14 +423,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Memvalidasi dan memformat data dari Excel
             const ajuanList = jsonData.map(row => {
                 const prodiId = (STATE.role === 'direktorat') ? row.ID_Prodi : STATE.id;
-                
-                if (!prodiId) return null; // Skip rows without a valid Prodi ID.
+                if (!prodiId) return null;
 
                 return {
-                    ID_Prodi: prodiId,
+                    ID_Prodi: String(prodiId).toUpperCase(),
                     ID_Kelompok: row.ID_Kelompok || '',
                     Nama_Ajuan: row.Nama_Ajuan || '',
                     Jumlah: Number(row.Jumlah || 0),
@@ -507,24 +438,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     Status_Revisi: row.Status_Revisi || 'Ajuan Baru',
                     Data_Dukung: row.Data_Dukung || '',
                 };
-            }).filter(ajuan => {
-                if (!ajuan) return false; // Filter out rows that were skipped
-                return ajuan.ID_Prodi && ajuan.Nama_Ajuan && ajuan.Jumlah > 0 && ajuan.ID_Kelompok;
-            }); 
+            }).filter(ajuan => ajuan && ajuan.ID_Prodi && ajuan.Nama_Ajuan && ajuan.Jumlah > 0 && ajuan.ID_Kelompok); 
 
-            if (ajuanList.length === 0) {
+            if (ajuanList.length > 0) {
+                 // [BARU] Hitung total anggaran dari file yang diupload
+                 const totalAnggaranUpload = ajuanList.reduce((sum, ajuan) => sum + ((ajuan.Jumlah || 0) * (ajuan.Harga_Satuan || 0)), 0);
+                 showToast(`Total anggaran dari file: Rp ${totalAnggaranUpload.toLocaleString('id-ID')}. Mengirim data...`, 'info');
+            } else {
                  const errorMsg = STATE.role === 'direktorat'
-                    ? 'Tidak ada data ajuan yang valid ditemukan. Pastikan kolom "ID_Prodi", "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi dengan benar.'
-                    : 'Tidak ada data ajuan yang valid ditemukan di dalam file. Pastikan kolom "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi.';
+                    ? 'Tidak ada data ajuan yang valid. Pastikan kolom "ID_Prodi", "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi.'
+                    : 'Tidak ada data ajuan yang valid. Pastikan kolom "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi.';
                  showToast(errorMsg, 'warning');
                  return;
             }
             
-            // Mengirim data ke backend. Pastikan backend Anda memiliki action 'addAjuanBulk'.
             const res = await api('addAjuanBulk', { ajuanList });
             if (res.ok) {
                 showToast(`${res.count || ajuanList.length} ajuan berhasil diupload.`);
                 refreshAjuanTable();
+                if (STATE.role === 'direktorat') loadDashboardData(); // [BARU] Refresh dashboard
                 new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-daftar"]')).show();
             }
 
@@ -533,7 +465,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showToast(`Gagal memproses file: ${error.message}`, 'danger');
         } finally {
             showLoader(false);
-            event.target.value = ''; // Reset input file agar bisa upload file yang sama lagi
+            event.target.value = '';
         }
     };
     reader.onerror = (error) => {
@@ -544,7 +476,6 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     reader.readAsArrayBuffer(file);
   }
-
 
   function clearAjuanForm() {
     ['namaAjuan', 'jumlah', 'satuan', 'hargaSatuan', 'total', 'keterangan', 'dataDukung'].forEach(id => document.getElementById(id).value = '');
@@ -629,7 +560,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   document.getElementById('btn-save-prodi').addEventListener('click', async () => {
     const data = {
-      ID_Prodi: document.getElementById('mp_ID').value.trim() || undefined,
+      ID_Prodi: document.getElementById('mp_ID').value.trim().toUpperCase() || undefined,
       Nama_Prodi: document.getElementById('mp_Nama').value.trim(),
       Email: document.getElementById('mp_Email').value.trim(),
       Role: document.getElementById('mp_Role').value
@@ -673,7 +604,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let params = {};
     if (STATE.role === 'prodi') {
       params.id_prodi = STATE.id;
-    } else { // direktorat can filter
+    } else {
       const prodi = document.getElementById('filterProdi').value;
       if (prodi) params.id_prodi = prodi;
     }
@@ -694,14 +625,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const acceptedDisplayEl = document.getElementById('accepted-total-display');
     const rejectedDisplayEl = document.getElementById('rejected-total-display');
 
-
     if (rows.length === 0) {
       container.innerHTML = '<div class="text-center text-muted p-5">Belum ada ajuan yang sesuai.</div>';
       summaryContainer.style.display = 'none';
       return;
     }
 
-    let grandTotal = 0, acceptedTotal = 0, rejectedTotal = 0;
+    let grandTotal = 0, acceptedTotal = 0, rejectedTotal = 0, overdueCount = 0;
     rows.forEach(r => {
       const totalValue = Number(r.Total) || 0;
       grandTotal += totalValue;
@@ -733,6 +663,14 @@ document.addEventListener('DOMContentLoaded', function() {
       const dataDukungLink = r.Data_Dukung ? 
         `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="data-dukung-link"><i class="bi bi-link-45deg"></i> Lihat Data Dukung</a>` : '';
 
+      // [BARU] Logika untuk Review Reminder
+      const ageInDays = (new Date() - new Date(r.Timestamp)) / (1000 * 60 * 60 * 24);
+      let reminderHtml = '';
+      if (r.Status === 'Menunggu Review' && ageInDays > 3) {
+          reminderHtml = `<i class="bi bi-clock-history reminder-icon ms-2" title="Perlu direview > 3 hari"></i>`;
+          overdueCount++;
+      }
+
       html += `<tr>
         <td>
           <strong>${r.ID_Kelompok} - ${escapeHtml(r.Nama_Kelompok)}</strong>
@@ -746,17 +684,24 @@ document.addEventListener('DOMContentLoaded', function() {
           ${dataDukungLink}
         </td>
         <td><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td>
-        <td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span></td>
+        <td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span>${reminderHtml}</td>
         <td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td>
         <td class="text-end action-buttons">${renderActionsForRow(r)}</td>
       </tr>`;
     });
     html += '</tbody></table>';
     container.innerHTML = html;
+
+    if (overdueCount > 0 && STATE.role === 'direktorat') {
+        showToast(`Terdapat ${overdueCount} ajuan yang perlu segera direview.`, 'warning');
+    }
   }
   
   function renderActionsForRow(r) {
     let actions = '';
+    // [BARU] Tombol komentar untuk semua role
+    actions += `<button class="btn btn-sm btn-outline-info" onclick="window.openKomentarModal('${r.ID_Ajuan}', '${escapeHtml(r.Nama_Ajuan)}')" title="Diskusi/Komentar"><i class="bi bi-chat-dots-fill"></i></button>`;
+
     if (STATE.role === 'prodi' && String(r.ID_Prodi) === String(STATE.id)) {
       if (r.Status === 'Revisi' || r.Status === 'Menunggu Review') {
         actions += `<button class="btn btn-sm btn-outline-primary" onclick="window.openEditModal('${r.ID_Ajuan}')" title="Edit"><i class="bi bi-pencil-fill"></i></button>`;
@@ -853,11 +798,133 @@ document.addEventListener('DOMContentLoaded', function() {
       refreshAjuanTable();
     }
   });
+  
+  // --- [BARU] FUNGSI KOMENTAR ---
+  window.openKomentarModal = async (id, nama) => {
+    document.getElementById('komentar-id-ajuan').value = id;
+    document.getElementById('komentarModalAjuanId').innerText = id;
+    document.getElementById('komentarModalAjuanNama').innerText = nama;
+    const commentListEl = document.getElementById('komentar-list');
+    commentListEl.innerHTML = `<div class="text-center text-muted">Memuat komentar...</div>`;
+    KOMENTAR_MODAL.show();
+
+    const res = await api('getComments', { ID_Ajuan: id });
+    if (res.ok && res.data) {
+        renderComments(res.data);
+    } else {
+        commentListEl.innerHTML = `<div class="text-center text-muted">Gagal memuat atau belum ada komentar.</div>`;
+    }
+  };
+
+  function renderComments(comments) {
+      const container = document.getElementById('komentar-list');
+      if (!comments || comments.length === 0) {
+          container.innerHTML = `<div class="text-center text-muted fst-italic p-3">Belum ada komentar.</div>`;
+          return;
+      }
+      container.innerHTML = comments.map(c => {
+          const isUser = c.author === STATE.id;
+          const bubbleClass = isUser ? 'comment-bubble-user' : 'comment-bubble-other';
+          const authorName = isUser ? `Anda (${c.author})` : c.author;
+          const formattedTimestamp = new Date(c.timestamp).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+          return `
+              <div class="comment-bubble ${bubbleClass}">
+                  <div class="author">${escapeHtml(authorName)}</div>
+                  <div>${escapeHtml(c.text)}</div>
+                  <div class="timestamp">${formattedTimestamp}</div>
+              </div>
+          `;
+      }).join('');
+      container.scrollTop = container.scrollHeight;
+  }
+
+  document.getElementById('btn-submit-komentar').addEventListener('click', async () => {
+      const id = document.getElementById('komentar-id-ajuan').value;
+      const inputEl = document.getElementById('komentar-input');
+      const text = inputEl.value.trim();
+      if (!text) return;
+
+      const payload = { ID_Ajuan: id, text: text, author: STATE.id };
+      const res = await api('addComment', payload);
+      if (res.ok) {
+          inputEl.value = '';
+          window.openKomentarModal(id, document.getElementById('komentarModalAjuanNama').innerText);
+      } else {
+          showToast('Gagal mengirim komentar.', 'danger');
+      }
+  });
+
+
+  // --- [BARU] FUNGSI DASHBOARD ---
+  document.getElementById('btn-refresh-dashboard').addEventListener('click', loadDashboardData);
+
+  async function loadDashboardData() {
+    if (STATE.role !== 'direktorat') return;
+    showToast('Memuat data dashboard...', 'info');
+    const res = await api('getAjuan', {}); 
+    if (!res.ok || !res.data) {
+      showToast('Gagal memuat data dashboard.', 'danger');
+      return;
+    }
+    processDataForCharts(res.data);
+  }
+
+  function setupChart(canvasId, type, data, options) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    if (CHARTS[canvasId]) {
+      CHARTS[canvasId].destroy();
+    }
+    CHARTS[canvasId] = new Chart(ctx, { type, data, options });
+  }
+
+  function processDataForCharts(data) {
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
+    
+    // 1. Ajuan per Bulan
+    const ajuanPerBulan = Array(12).fill(0);
+    data.forEach(ajuan => {
+        const month = new Date(ajuan.Timestamp).getMonth();
+        if(month >= 0 && month < 12) ajuanPerBulan[month]++;
+    });
+    setupChart('chartAjuanPerBulan', 'bar', {
+      labels: monthNames,
+      datasets: [{ label: 'Jumlah Ajuan', data: ajuanPerBulan, backgroundColor: 'rgba(54, 162, 235, 0.6)', borderColor: 'rgba(54, 162, 235, 1)', borderWidth: 1 }]
+    }, { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } });
+
+    // 2. Ajuan per Status
+    const ajuanPerStatus = data.reduce((acc, ajuan) => {
+        acc[ajuan.Status] = (acc[ajuan.Status] || 0) + 1;
+        return acc;
+    }, {});
+    setupChart('chartAjuanPerStatus', 'doughnut', {
+      labels: Object.keys(ajuanPerStatus),
+      datasets: [{ data: Object.values(ajuanPerStatus), backgroundColor: ['#ffc107', '#198754', '#dc3545', '#fd7e14', '#6c757d'] }]
+    }, { responsive: true, plugins: { legend: { position: 'top' } } });
+
+    // 3. & 4. Anggaran & Jumlah Ajuan per Prodi
+    const perProdiStats = data.reduce((acc, ajuan) => {
+        const prodiId = ajuan.ID_Prodi || 'N/A';
+        if (!acc[prodiId]) acc[prodiId] = { count: 0, total: 0 };
+        acc[prodiId].count++;
+        acc[prodiId].total += Number(ajuan.Total) || 0;
+        return acc;
+    }, {});
+    const prodiLabels = Object.keys(perProdiStats).sort();
+    const anggaranPerProdiData = prodiLabels.map(id => perProdiStats[id].total);
+    const ajuanPerProdiData = prodiLabels.map(id => perProdiStats[id].count);
+
+    setupChart('chartAnggaranPerProdi', 'bar', {
+      labels: prodiLabels,
+      datasets: [{ label: 'Total Anggaran (Rp)', data: anggaranPerProdiData, backgroundColor: 'rgba(25, 135, 84, 0.6)', borderColor: 'rgba(25, 135, 84, 1)', borderWidth: 1 }]
+    }, { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } });
+
+    setupChart('chartAjuanPerProdi', 'pie', {
+      labels: prodiLabels,
+      datasets: [{ data: ajuanPerProdiData, backgroundColor: ['#0dcaf0', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#212529', '#ffc107'] }]
+    }, { responsive: true, plugins: { legend: { position: 'top' } } });
+  }
 
   // --- EXPORT FUNCTIONS ---
-  document.getElementById('btn-export-excel').addEventListener('click', exportToExcel);
-  document.getElementById('btn-export-pdf').addEventListener('click', exportToPdf);
-
   async function getCurrentFilteredData() {
     let params = {};
     if (STATE.role === 'prodi') {
@@ -883,26 +950,17 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    const headers = ['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL'];
-    const rows = data.map(r => [
-      r.ID_Kelompok,
-      r.Nama_Ajuan,
-      r.Jumlah,
-      r.Satuan,
-      r.Harga_Satuan,
-      r.Total
-    ]);
-
-    let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" 
-      + rows.map(e => e.join(",")).join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "rekap_ajuan.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const mappedData = data.map(r => ({
+      'ID Ajuan': r.ID_Ajuan, 'Prodi': r.ID_Prodi, 'Kelompok': r.ID_Kelompok, 'Nama Ajuan': r.Nama_Ajuan,
+      'Jumlah': r.Jumlah, 'Satuan': r.Satuan, 'Harga Satuan': r.Harga_Satuan, 'Total': r.Total,
+      'Status': r.Status, 'Status Revisi': r.Status_Revisi, 'Keterangan': r.Keterangan,
+      'Catatan Reviewer': r.Catatan_Reviewer, 'Timestamp': r.Timestamp
+    }));
+    
+    const worksheet = XLSX.utils.json_to_sheet(mappedData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data Ajuan");
+    XLSX.writeFile(workbook, "rekap_ajuan.xlsx");
   }
 
   async function exportToPdf() {
@@ -913,22 +971,20 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
+      const doc = new jsPDF({ orientation: "landscape" });
       
-      const tableHeaders = [['AKUN', 'Program/RO/KRO', 'Vol', 'Satuan', 'Harga Satuan', 'TOTAL']];
+      const tableHeaders = [['ID', 'Prodi', 'Nama Ajuan', 'Jumlah', 'Satuan', 'Harga (Rp)', 'Total (Rp)', 'Status']];
       const tableBody = data.map(r => [
-          r.ID_Kelompok,
-          r.Nama_Ajuan,
-          r.Jumlah,
-          r.Satuan,
+          r.ID_Ajuan, r.ID_Prodi, r.Nama_Ajuan, r.Jumlah, r.Satuan,
           Number(r.Harga_Satuan).toLocaleString('id-ID'),
-          Number(r.Total).toLocaleString('id-ID')
+          Number(r.Total).toLocaleString('id-ID'),
+          r.Status
       ]);
 
       const grandTotal = data.reduce((sum, r) => sum + Number(r.Total), 0);
       
       doc.setFontSize(16);
-      doc.text("Rekapitulasi Ajuan Prodi", 14, 22);
+      doc.text("Rekapitulasi Ajuan", 14, 22);
       
       doc.autoTable({
           startY: 30,
@@ -940,11 +996,11 @@ document.addEventListener('DOMContentLoaded', function() {
               doc.text('Laporan dihasilkan oleh Aplikasi Si-Pandai', data.settings.margin.left, doc.internal.pageSize.height - 10);
           },
           headStyles: { fillColor: [74, 85, 104] },
-          foot: [['', '', '', '', 'GRAND TOTAL', Number(grandTotal).toLocaleString('id-ID')]],
+          foot: [['', '', '', '', '', 'GRAND TOTAL', Number(grandTotal).toLocaleString('id-ID'), '']],
           footStyles: { fillColor: [230, 230, 230], textColor: 0, fontStyle: 'bold' },
           columnStyles: {
-            4: { halign: 'right' },
-            5: { halign: 'right' }
+            5: { halign: 'right' },
+            6: { halign: 'right' }
           }
       });
       
@@ -956,4 +1012,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
-
