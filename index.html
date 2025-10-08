@@ -1,32 +1,13 @@
 <!doctype html>
 <html lang="id" data-bs-theme="light">
 <head>
-<meta charset="utf-t" />
+<meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Si-Pandai - Sistem Pengajuan dan Data Ajuan Institusi</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-  /* --- [MODIFIKASI] Latar Belakang Kemenkes --- */
-  body { 
-    background-color: #e6f7ff; /* Warna biru muda lembut nuansa Kemenkes */
-  }
-  body::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-    background-image: url('https://kemkes.go.id/app_asset/image_content/167420049363ca45ad438f30.09191866.png');
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 500px; /* Ukuran logo di latar belakang */
-    opacity: 0.06; /* Tingkat transparansi logo */
-  }
-  /* --- END [MODIFIKASI] --- */
-
+  body { background-color: #f8f9fa; }
   .container { max-width: 1400px; }
   .card { border: 0; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075); }
   .nav-tabs .nav-link { color: #6c757d; }
@@ -71,6 +52,55 @@
   .comment-bubble-other { background-color: #f1f1f1; align-self: flex-start; }
   .comment-bubble .author { font-weight: bold; font-size: 0.9rem; margin-bottom: 2px; }
   .comment-bubble .timestamp { font-size: 0.75rem; color: #6c757d; margin-top: 5px; text-align: right; }
+  
+  .group-header-kelompok { background-color: #343a40 !important; color: white; }
+  .group-header-kegiatan { background-color: #e9ecef !important; }
+  
+  /* [REVISI] CSS untuk notifikasi komentar baru */
+  .comment-btn-wrapper { position: relative; display: inline-block; vertical-align: middle; }
+  .comment-notification-dot {
+    position: absolute;
+    top: -2px;
+    right: 2px;
+    width: 9px;
+    height: 9px;
+    background-color: #dc3545;
+    border-radius: 50%;
+    border: 1.5px solid white;
+    animation: blinker 1.5s linear infinite;
+  }
+
+  /* [REVISI] CSS untuk indikator warna Prodi */
+  .prodi-indicator {
+    border-left: 5px solid transparent;
+  }
+  
+  /* [REVISI] CSS untuk Bulk Action Bar */
+  #bulk-action-bar {
+    background-color: #e9ecef;
+    border-radius: 0.375rem;
+  }
+
+  /* [REVISI] CSS untuk Halaman Login Baru */
+  body.login-view {
+    background-image: linear-gradient(rgba(248, 249, 250, 0.92), rgba(248, 249, 250, 0.98)), url('https://kemkes.go.id/app_asset/image_content/167420049363ca45ad438f30.09191866.png');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+  body.login-view .container {
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  #card-login {
+    box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,.1);
+    border: 0;
+    border-radius: 0.75rem;
+  }
 </style>
 </head>
 <body>
@@ -82,25 +112,27 @@
 <div class="toast-container position-fixed top-0 end-0 p-3"></div>
 
 <div class="container mt-4 mb-5">
-  <header class="text-center mb-4 d-flex justify-content-center align-items-center">
-    <a href="#">
-      <img src="LOGO POLTEKKES KEMENKES KUPANG.png" alt="Logo Si-Pandai" class="me-3" style="width: 200px; height: 100px; object-fit: contain;">
-    </a>
-    <div>
-      <h1 class="display-6 m-0">Si-Pandai</h1>
-      <p class="lead text-body-secondary m-0">Sistem Pengajuan dan Data Ajuan Institusi</p>
-    </div>
-  </header>
-
-  <!-- [DIUBAH] Login Card -->
-  <div class="card p-3 p-md-4 mx-auto" id="card-login" style="max-width: 600px;">
-    <h5 class="card-title text-center mb-3">Login Pengguna</h5>
-    <div class="row g-3 align-items-end">
-      <div class="col-12"><label for="input-user-id" class="form-label">Pengguna</label><select id="input-user-id" class="form-select"><option value="">Memuat pengguna...</option></select></div>
-      <div class="col-12"><label for="input-password" class="form-label">Password</label><input type="password" id="input-password" class="form-control" placeholder="Masukkan Password" /></div>
-      <div class="col-12"><button id="btn-login" class="btn btn-primary w-100"><i class="bi bi-box-arrow-in-right"></i> Masuk</button></div>
+  
+  <!-- [REVISI] Tampilan Login Baru (Sesuai Contoh) -->
+  <div class="card p-4 p-md-5 text-center" id="card-login" style="max-width: 450px;">
+    <img src="https://i.ibb.co/L5k6Y1w/LOGO POLTEKKES KEMENKES KUPANG.png" alt="Logo Poltekkes Kupang" class="mx-auto mb-4" style="width: 220px; height: auto;">
+    <h2 class="h4 fw-bold mb-1">Si-Pandai Login</h2>
+    <p class="text-muted mb-4">Silakan login untuk melanjutkan</p>
+    <div class="text-start">
+      <div class="mb-3">
+        <label for="input-user-id" class="form-label">Pengguna (ID Prodi/Direktorat)</label>
+        <select id="input-user-id" class="form-select form-select-lg"><option value="">Memuat pengguna...</option></select>
+      </div>
+      <div class="mb-3">
+        <label for="input-password" class="form-label">Password</label>
+        <input type="password" id="input-password" class="form-control form-control-lg" placeholder="•••••••••" />
+      </div>
+      <div class="d-grid mt-4">
+        <button id="btn-login" class="btn btn-primary btn-lg"><i class="bi bi-box-arrow-in-right"></i> Login</button>
+      </div>
     </div>
   </div>
+
 
   <!-- Main App Area -->
   <div id="app-area" style="display:none;">
@@ -135,8 +167,18 @@
       <!-- Pengajuan Tab -->
       <div class="tab-pane fade show active" id="tab-ajuan" role="tabpanel">
         <h5 class="mb-3"><i class="bi bi-pencil-square"></i> Formulir Ajuan Baru</h5>
+        
+        <div class="row g-3 border-bottom pb-3 mb-3">
+          <div class="col-12">
+            <label for="judulKegiatan" class="form-label fw-bold">Judul/Nama Kegiatan <span class="text-danger">*</span></label>
+            <input id="judulKegiatan" class="form-control" placeholder="Contoh: Perjalanan Dinas ke Pusat" />
+            <small class="form-text text-muted">Isi judul kegiatan. Anda dapat menambahkan beberapa rincian untuk judul yang sama atau menggantinya untuk membuat kegiatan baru.</small>
+          </div>
+        </div>
+
+        <h6 class="mb-3 text-muted">Input Rincian Ajuan</h6>
         <div class="row g-3">
-          <div class="col-md-8"><label for="namaAjuan" class="form-label">Nama Ajuan</label><input id="namaAjuan" class="form-control" /></div>
+          <div class="col-md-8"><label for="namaAjuan" class="form-label">Rincian Ajuan</label><input id="namaAjuan" class="form-control" placeholder="Contoh: Tiket Pesawat, Akomodasi Hotel" /></div>
           <div class="col-md-4"><label for="selectKelompok" class="form-label">Kelompok</label><select id="selectKelompok" class="form-select"></select></div>
           <div class="col-md-4"><label for="selectRevisi" class="form-label">Status Revisi</label><select id="selectRevisi" class="form-select"><option>Ajuan Baru</option><option>Revisi 1</option><option>Revisi 2</option><option>Revisi 3</option><option>Revisi 4</option><option>Revisi 5</option></select></div>
           <div class="col-md-2 col-6"><label for="jumlah" class="form-label">Jumlah</label><input id="jumlah" type="number" class="form-control" min="1" /></div>
@@ -146,12 +188,30 @@
           <div class="col-12"><label for="keterangan" class="form-label">Keterangan / Justifikasi</label><textarea id="keterangan" class="form-control" rows="3"></textarea></div>
           <div class="col-12"><label for="dataDukung" class="form-label">Data Dukung (Link)</label><input type="text" id="dataDukung" class="form-control" placeholder="https://docs.google.com/..." /></div>
           <div class="col-12 mt-3">
-            <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center border-top pt-3">
-                <a id="btn-download-template" href="#" class="btn btn-outline-info" download="template_ajuan.xlsx"><i class="bi bi-download"></i> Download Template</a>
-                <label for="input-upload-excel" class="btn btn-outline-success mb-0"><i class="bi bi-file-earmark-arrow-up"></i> Upload via Excel</label>
-                <input type="file" id="input-upload-excel" class="d-none" accept=".xlsx, .xls, .csv">
-                <button id="btn-submit-ajuan" class="btn btn-primary"><i class="bi bi-send-fill"></i> Kirim Ajuan dari Form</button>
+            <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
+              <button id="btn-add-to-staging" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Tambah Rincian</button>
             </div>
+          </div>
+        </div>
+
+        <div id="staging-area" class="mt-4 border-top pt-4" style="display:none;">
+          <h5 class="mb-3"><i class="bi bi-card-list"></i> Daftar Rincian Siap Kirim</h5>
+          <div id="staging-table-container" class="table-responsive mb-3"></div>
+          <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
+              <div id="staging-summary" class="fw-bold"></div>
+              <div>
+                  <button id="btn-clear-staging" class="btn btn-outline-danger"><i class="bi bi-x-circle"></i> Bersihkan Daftar</button>
+                  <button id="btn-submit-all-staged" class="btn btn-success"><i class="bi bi-send-fill"></i> Kirim Semua Ajuan ke Spreadsheet</button>
+              </div>
+          </div>
+        </div>
+
+        <div class="mt-4 border-top pt-3">
+          <p class="small text-muted mb-2">Atau, Anda bisa mengupload beberapa ajuan sekaligus dari file Excel.</p>
+          <div class="d-flex flex-wrap gap-2 justify-content-start">
+              <a id="btn-download-template" href="#" class="btn btn-sm btn-outline-info" download="template_ajuan.xlsx"><i class="bi bi-download"></i> Download Template</a>
+              <label for="input-upload-excel" class="btn btn-sm btn-outline-success mb-0"><i class="bi bi-file-earmark-arrow-up"></i> Upload via Excel</label>
+              <input type="file" id="input-upload-excel" class="d-none" accept=".xlsx, .xls, .csv">
           </div>
         </div>
       </div>
@@ -176,10 +236,18 @@
                 <button id="btn-export-excel" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
             </div>
         </div>
+        <!-- [REVISI] Bulk Action Bar -->
+        <div id="bulk-action-bar" class="p-2 mb-3 align-items-center gap-3" style="display:none;">
+            <strong id="bulk-selected-count">0</strong> item terpilih.
+            <button id="bulk-accept" class="btn btn-sm btn-success"><i class="bi bi-check-lg"></i> Terima</button>
+            <button id="bulk-reject" class="btn btn-sm btn-danger"><i class="bi bi-x-lg"></i> Tolak</button>
+            <button id="bulk-revision" class="btn btn-sm btn-warning text-dark"><i class="bi bi-arrow-return-left"></i> Revisi</button>
+            <button id="bulk-delete" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Hapus</button>
+        </div>
         <div class="table-responsive"><div id="tableAjuan"><div class="text-center text-muted p-5">Memuat data...</div></div></div>
       </div>
 
-      <!-- [DIUBAH] Manajemen Tab -->
+      <!-- Manajemen Tab -->
       <div class="tab-pane fade" id="tab-manage" role="tabpanel">
         <div class="row g-4">
           <div class="col-lg-6"><div class="card h-100 p-3"><h6 class="card-title"><i class="bi bi-people-fill"></i> Manajemen Pengguna</h6><div class="mb-3 p-3 bg-light rounded-2"><input id="mp_ID" class="form-control mb-2" placeholder="ID (kosong untuk buat baru)" /><input id="mp_Nama" class="form-control mb-2" placeholder="Nama Prodi / Direktorat" /><input id="mp_Email" class="form-control mb-2" placeholder="Email" /><select id="mp_Role" class="form-select mb-2"><option value="prodi">prodi</option><option value="direktorat">direktorat</option></select><input type="password" id="mp_Password" class="form-control mb-2" placeholder="Password (isi untuk mengubah)" /><button id="btn-save-prodi" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Pengguna</button></div><h6 class="small text-muted">Daftar Pengguna</h6><div id="listProdi" class="overflow-auto" style="max-height: 300px;"></div></div></div>
@@ -198,7 +266,8 @@
       <div class="modal-body">
         <input type="hidden" id="edit-id-ajuan">
         <div class="row g-3">
-          <div class="col-md-8"><label class="form-label">Nama Ajuan</label><input id="edit-namaAjuan" class="form-control" /></div>
+          <div class="col-md-12"><label class="form-label">Judul Kegiatan</label><input id="edit-judulKegiatan" class="form-control" /></div>
+          <div class="col-md-8"><label class="form-label">Rincian Ajuan</label><input id="edit-namaAjuan" class="form-control" /></div>
           <div class="col-md-4"><label class="form-label">Kelompok</label><select id="edit-selectKelompok" class="form-select"></select></div>
           <div class="col-md-4"><label for="edit-selectRevisi" class="form-label">Status Revisi</label><select id="edit-selectRevisi" class="form-select"><option>Ajuan Baru</option><option>Revisi 1</option><option>Revisi 2</option><option>Revisi 3</option><option>Revisi 4</option><option>Revisi 5</option></select></div>
           <div class="col-md-2 col-6"><label class="form-label">Jumlah</label><input id="edit-jumlah" type="number" class="form-control" min="1" /></div>
@@ -222,6 +291,7 @@
       <div class="modal-body">
         <input type="hidden" id="review-id-ajuan"><input type="hidden" id="review-action">
         <p>Anda akan mengubah status ajuan menjadi: <strong id="review-action-text"></strong></p>
+        <div id="review-target-info" class="alert alert-info small"></div>
         <div class="mb-3"><label for="review-catatan" class="form-label">Catatan (Opsional)</label><textarea id="review-catatan" class="form-control" rows="3"></textarea></div>
       </div>
       <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="button" id="btn-submit-review" class="btn btn-primary"><i class="bi bi-check-circle"></i> Kirim Review</button></div>
@@ -261,21 +331,25 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  document.body.classList.add('login-view'); // [REVISI] Terapkan view login saat awal
 
   /* --- Ganti API_URL dengan Web App URL hasil deploy Apps Script --- */
-  const API_URL = "https://script.google.com/macros/s/AKfycbyoeAJlxQkNkm4kqAFEvo9MX4sL1F-75tCqus04SOzPXLX4TPYPGAJiBaH3GQcgcte2/exec"; // JANGAN LUPA GANTI INI
+  const API_URL = "https://script.google.com/macros/s/AKfycbweyqfAQhIE_CF9JDlqhFxx4ucoTeKA0eupLNohPHThmTR41RhHPQvRycWel9wfAuWC/exec"; // JANGAN LUPA GANTI INI
   
   /* --- Ganti UPLOAD_TEMPLATE_URL dengan link file template Excel Anda --- */
   const UPLOAD_TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/14w_apgCjUqDub5ph1K6iIhhbLlxqkTtU/export?format=xlsx"; // GANTI DENGAN LINK ANDA
 
   // --- GLOBAL STATE & ELEMENTS ---
-  let STATE = { role: null, id: null, allKelompok: [], allProdi: [] };
+  let STATE = { role: null, id: null, allKelompok: [], allProdi: [], currentAjuanData: [], stagingList: [], selectedAjuanIds: new Set() };
   let CHARTS = {};
   const LOADER = document.getElementById('loading-overlay');
   const TOAST_CONTAINER = document.querySelector('.toast-container');
   const EDIT_MODAL = new bootstrap.Modal(document.getElementById('editAjuanModal'));
   const REVIEW_MODAL = new bootstrap.Modal(document.getElementById('reviewAjuanModal'));
   const KOMENTAR_MODAL = new bootstrap.Modal(document.getElementById('komentarModal'));
+
+  // [REVISI] Palet warna untuk Prodi
+  const PRODI_COLORS = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac'];
 
   document.getElementById('btn-download-template').href = UPLOAD_TEMPLATE_URL;
   document.getElementById('btn-download-template-dir').href = UPLOAD_TEMPLATE_URL.replace('/export?format=xlsx', '/edit?usp=sharing');
@@ -331,7 +405,18 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   function escapeHtml(s) { if (!s) return ''; return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-  // --- [DIUBAH] LOGIN & LOGOUT ---
+  // [REVISI] Helper function untuk mendapatkan warna prodi yang konsisten
+  function getColorForProdi(prodiId) {
+      if (!prodiId) return '#cccccc'; // Warna default
+      let hash = 0;
+      for (let i = 0; i < prodiId.length; i++) {
+          hash = prodiId.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const index = Math.abs(hash % PRODI_COLORS.length);
+      return PRODI_COLORS[index];
+  }
+
+  // --- LOGIN & LOGOUT ---
   async function populateLoginDropdown() {
       const res = await api('getUsersForLogin');
       const selectEl = document.getElementById('input-user-id');
@@ -348,30 +433,23 @@ document.addEventListener('DOMContentLoaded', function() {
       }
   }
   
-  // Panggil fungsi ini saat halaman dimuat
   populateLoginDropdown();
 
   document.getElementById('btn-login').addEventListener('click', async () => {
     const id = document.getElementById('input-user-id').value;
     const password = document.getElementById('input-password').value;
     
-    if (!id || !password) { 
-        showToast('ID Pengguna dan Password harus diisi!', 'warning'); 
-        return; 
-    }
+    if (!id || !password) { showToast('ID Pengguna dan Password harus diisi!', 'warning'); return; }
     
     const res = await api('login', { id, password });
     
-    if (!res.ok) {
-        showToast(res.error || 'Login gagal.', 'danger');
-        return;
-    }
+    if (!res.ok) { showToast(res.error || 'Login gagal.', 'danger'); return; }
     
-    // Login berhasil
     const userData = res.data;
     STATE.role = userData.Role; 
     STATE.id = userData.ID_Prodi;
     
+    document.body.classList.remove('login-view'); // [REVISI] Hapus view login
     document.getElementById('card-login').style.display = 'none';
     document.getElementById('app-area').style.display = 'block';
     document.getElementById('welcome').innerHTML = `<span class="badge bg-secondary me-2">${STATE.role.toUpperCase()}</span> <strong>${STATE.id} - ${userData.Nama_Prodi}</strong>`;
@@ -405,16 +483,19 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   document.getElementById('btn-logout').addEventListener('click', () => {
-    STATE = { role: null, id: null, allKelompok: [], allProdi: [] };
+    STATE = { role: null, id: null, allKelompok: [], allProdi: [], currentAjuanData: [], stagingList: [], selectedAjuanIds: new Set() };
+    document.body.classList.add('login-view'); // [REVISI] Terapkan view login
     document.getElementById('card-login').style.display = 'block';
     document.getElementById('app-area').style.display = 'none';
     document.getElementById('input-user-id').value = '';
-    document.getElementById('input-password').value = ''; // Kosongkan password saat logout
+    document.getElementById('input-password').value = ''; 
     document.querySelector('[data-bs-target="#tab-ajuan"]').parentElement.style.display = 'block';
     document.getElementById('btn-download-template-dir').style.display = 'none';
     document.getElementById('label-upload-excel-dir').style.display = 'none';
     document.getElementById('tab-dashboard-link').style.display = 'none';
-    populateLoginDropdown(); // Muat ulang daftar pengguna
+    updateBulkActionBar();
+    renderStagingTable();
+    populateLoginDropdown(); 
   });
 
   // --- CALCULATE TOTAL ---
@@ -426,33 +507,146 @@ document.addEventListener('DOMContentLoaded', function() {
   ['jumlah', 'hargaSatuan'].forEach(id => document.getElementById(id).addEventListener('input', () => calculateTotal()));
   ['edit-jumlah', 'edit-hargaSatuan'].forEach(id => document.getElementById(id).addEventListener('input', () => calculateTotal('edit-')));
 
-  // --- SUBMIT AJUAN ---
-  document.getElementById('btn-submit-ajuan').addEventListener('click', async () => {
-    if (STATE.role !== 'prodi') { showToast('Hanya role prodi yang dapat mengajukan.', 'danger'); return; }
-    const payload = {
-      ID_Prodi: STATE.id,
-      ID_Kelompok: document.getElementById('selectKelompok').value,
-      Nama_Ajuan: document.getElementById('namaAjuan').value,
-      Jumlah: Number(document.getElementById('jumlah').value || 0),
-      Satuan: document.getElementById('satuan').value,
-      Harga_Satuan: Number(document.getElementById('hargaSatuan').value || 0),
-      Keterangan: document.getElementById('keterangan').value,
-      Status_Revisi: document.getElementById('selectRevisi').value, 
-      Data_Dukung: document.getElementById('dataDukung').value,
-    };
-    if(!payload.Nama_Ajuan || payload.Jumlah <= 0 || !payload.Satuan || payload.Harga_Satuan < 0 || !payload.ID_Kelompok){
-      showToast('Harap lengkapi semua field yang wajib diisi (Nama, Kelompok, Jumlah, Satuan, Harga).', 'warning'); return;
-    }
-    const res = await api('addAjuan', payload);
-    if (res.ok) {
-      showToast(`Ajuan berhasil dikirim (ID: ${res.id})`);
-      clearAjuanForm();
-      refreshAjuanTable();
-      new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-daftar"]')).show();
-    }
+  // --- NEW AJUAN WORKFLOW (STAGING) ---
+  function clearRincianForm() {
+      ['namaAjuan', 'jumlah', 'satuan', 'hargaSatuan', 'total', 'keterangan', 'dataDukung'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('selectKelompok').value = '';
+      document.getElementById('selectRevisi').value = 'Ajuan Baru';
+      document.getElementById('namaAjuan').focus();
+  }
+
+  function clearAjuanForm() {
+      document.getElementById('judulKegiatan').value = '';
+      clearRincianForm();
+  }
+
+  function renderStagingTable() {
+      const stagingArea = document.getElementById('staging-area');
+      const container = document.getElementById('staging-table-container');
+      const summaryEl = document.getElementById('staging-summary');
+
+      if (STATE.stagingList.length === 0) {
+          stagingArea.style.display = 'none';
+          container.innerHTML = '';
+          return;
+      }
+
+      stagingArea.style.display = 'block';
+
+      let totalStaging = 0;
+      const tableRows = STATE.stagingList.map((item, index) => {
+          const itemTotal = (item.Jumlah || 0) * (item.Harga_Satuan || 0);
+          totalStaging += itemTotal;
+          return `
+              <tr>
+                  <td>${index + 1}</td>
+                  <td>${escapeHtml(item.Judul_Kegiatan)}</td>
+                  <td>${escapeHtml(item.Nama_Ajuan)}</td>
+                  <td>${escapeHtml(item.ID_Kelompok)}</td>
+                  <td class="text-end">${Number(item.Jumlah).toLocaleString('id-ID')}</td>
+                  <td>${escapeHtml(item.Satuan)}</td>
+                  <td class="text-end">${Number(item.Harga_Satuan).toLocaleString('id-ID')}</td>
+                  <td class="text-end fw-bold">${itemTotal.toLocaleString('id-ID')}</td>
+                  <td>
+                      <button class="btn btn-sm btn-outline-danger" onclick="window.removeFromStaging(${index})" title="Hapus rincian ini">
+                          <i class="bi bi-trash"></i>
+                      </button>
+                  </td>
+              </tr>
+          `;
+      }).join('');
+
+      container.innerHTML = `
+          <table class="table table-sm table-striped">
+              <thead class="table-light">
+                  <tr>
+                      <th>No.</th>
+                      <th>Judul Kegiatan</th>
+                      <th>Rincian Ajuan</th>
+                      <th>Kelompok</th>
+                      <th class="text-end">Jumlah</th>
+                      <th>Satuan</th>
+                      <th class="text-end">Harga Satuan</th>
+                      <th class="text-end">Total</th>
+                      <th>Aksi</th>
+                  </tr>
+              </thead>
+              <tbody>${tableRows}</tbody>
+          </table>
+      `;
+      summaryEl.innerHTML = `Total Ajuan: ${STATE.stagingList.length} Rincian | Grand Total: Rp ${totalStaging.toLocaleString('id-ID')}`;
+  }
+
+  window.removeFromStaging = (index) => {
+      STATE.stagingList.splice(index, 1);
+      renderStagingTable();
+  }
+
+  document.getElementById('btn-add-to-staging').addEventListener('click', () => {
+      if (STATE.role !== 'prodi') { showToast('Hanya role prodi yang dapat mengajukan.', 'danger'); return; }
+      
+      const judulKegiatan = document.getElementById('judulKegiatan').value.trim();
+      if (!judulKegiatan) {
+          showToast('Judul Kegiatan wajib diisi terlebih dahulu.', 'warning');
+          document.getElementById('judulKegiatan').focus();
+          return;
+      }
+
+      const payload = {
+        Judul_Kegiatan: judulKegiatan,
+        ID_Prodi: STATE.id,
+        ID_Kelompok: document.getElementById('selectKelompok').value,
+        Nama_Ajuan: document.getElementById('namaAjuan').value,
+        Jumlah: Number(document.getElementById('jumlah').value || 0),
+        Satuan: document.getElementById('satuan').value,
+        Harga_Satuan: Number(document.getElementById('hargaSatuan').value || 0),
+        Keterangan: document.getElementById('keterangan').value,
+        Status_Revisi: document.getElementById('selectRevisi').value, 
+        Data_Dukung: document.getElementById('dataDukung').value,
+      };
+
+      if(!payload.Nama_Ajuan || payload.Jumlah <= 0 || !payload.Satuan || payload.Harga_Satuan < 0 || !payload.ID_Kelompok){
+        showToast('Harap lengkapi semua field rincian (Rincian Ajuan, Kelompok, Jumlah, Satuan, Harga).', 'warning'); 
+        return;
+      }
+
+      STATE.stagingList.push(payload);
+      showToast(`Rincian "${payload.Nama_Ajuan}" telah ditambahkan ke daftar.`, 'info');
+      renderStagingTable();
+      clearRincianForm();
+  });
+
+  document.getElementById('btn-clear-staging').addEventListener('click', () => {
+      if (confirm('Apakah Anda yakin ingin menghapus semua rincian dari daftar?')) {
+          STATE.stagingList = [];
+          renderStagingTable();
+          clearAjuanForm();
+          showToast('Daftar ajuan telah dibersihkan.', 'info');
+      }
+  });
+
+  document.getElementById('btn-submit-all-staged').addEventListener('click', async () => {
+      if (STATE.stagingList.length === 0) {
+          showToast('Tidak ada ajuan dalam daftar untuk dikirim.', 'warning');
+          return;
+      }
+
+      const ajuanList = STATE.stagingList;
+      const totalAnggaranUpload = ajuanList.reduce((sum, ajuan) => sum + ((ajuan.Jumlah || 0) * (ajuan.Harga_Satuan || 0)), 0);
+      showToast(`Mengirim ${ajuanList.length} rincian ajuan dengan total anggaran Rp ${totalAnggaranUpload.toLocaleString('id-ID')}...`, 'info');
+
+      const res = await api('addAjuanBulk', { ajuanList });
+      if (res.ok) {
+          showToast(`${res.count || ajuanList.length} ajuan berhasil dikirim.`);
+          STATE.stagingList = [];
+          renderStagingTable();
+          clearAjuanForm();
+          
+          refreshAjuanTable();
+          new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-daftar"]')).show();
+      }
   });
   
-  // --- UPLOAD AJUAN VIA EXCEL ---
   document.getElementById('input-upload-excel').addEventListener('change', handleExcelUpload);
   document.getElementById('input-upload-excel-dir').addEventListener('change', handleExcelUpload);
   
@@ -482,6 +676,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return {
                     ID_Prodi: String(prodiId).toUpperCase(),
                     ID_Kelompok: row.ID_Kelompok || '',
+                    Judul_Kegiatan: row.Judul_Kegiatan || 'N/A (dari Excel)',
                     Nama_Ajuan: row.Nama_Ajuan || '',
                     Jumlah: Number(row.Jumlah || 0),
                     Satuan: row.Satuan || '',
@@ -490,15 +685,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     Status_Revisi: row.Status_Revisi || 'Ajuan Baru',
                     Data_Dukung: row.Data_Dukung || '',
                 };
-            }).filter(ajuan => ajuan && ajuan.ID_Prodi && ajuan.Nama_Ajuan && ajuan.Jumlah > 0 && ajuan.ID_Kelompok); 
+            }).filter(ajuan => ajuan && ajuan.ID_Prodi && ajuan.Judul_Kegiatan && ajuan.Nama_Ajuan && ajuan.Jumlah > 0 && ajuan.ID_Kelompok); 
 
             if (ajuanList.length > 0) {
                  const totalAnggaranUpload = ajuanList.reduce((sum, ajuan) => sum + ((ajuan.Jumlah || 0) * (ajuan.Harga_Satuan || 0)), 0);
                  showToast(`Total anggaran dari file: Rp ${totalAnggaranUpload.toLocaleString('id-ID')}. Mengirim data...`, 'info');
             } else {
                  const errorMsg = STATE.role === 'direktorat'
-                    ? 'Tidak ada data ajuan yang valid. Pastikan kolom "ID_Prodi", "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi.'
-                    : 'Tidak ada data ajuan yang valid. Pastikan kolom "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi.';
+                    ? 'Tidak ada data ajuan yang valid. Pastikan kolom "ID_Prodi", "Judul_Kegiatan", "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi.'
+                    : 'Tidak ada data ajuan yang valid. Pastikan kolom "Judul_Kegiatan", "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi.';
                  showToast(errorMsg, 'warning');
                  return;
             }
@@ -526,12 +721,6 @@ document.addEventListener('DOMContentLoaded', function() {
         event.target.value = '';
     };
     reader.readAsArrayBuffer(file);
-  }
-
-  function clearAjuanForm() {
-    ['namaAjuan', 'jumlah', 'satuan', 'hargaSatuan', 'total', 'keterangan', 'dataDukung'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('selectKelompok').value = '';
-    document.getElementById('selectRevisi').value = 'Ajuan Baru';
   }
 
   // --- INITIAL DATA & POPULATION ---
@@ -588,7 +777,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
   }
 
-  // --- [DIUBAH] MANAGEMENT FUNCTIONS ---
+  // --- MANAGEMENT FUNCTIONS ---
   function populateProdiList(list) {
     const container = document.getElementById('listProdi');
     container.innerHTML = (list || []).map(p => `
@@ -615,11 +804,10 @@ document.addEventListener('DOMContentLoaded', function() {
       Nama_Prodi: document.getElementById('mp_Nama').value.trim(),
       Email: document.getElementById('mp_Email').value.trim(),
       Role: document.getElementById('mp_Role').value,
-      Password: document.getElementById('mp_Password').value // Kirim password baru
+      Password: document.getElementById('mp_Password').value 
     };
     if(!data.Nama_Prodi) { showToast('Nama Pengguna harus diisi', 'warning'); return; }
     
-    // Untuk pengguna baru, password wajib diisi
     if (!data.ID_Prodi && !data.Password) {
         showToast('Password wajib diisi untuk pengguna baru.', 'warning'); return;
     }
@@ -647,7 +835,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('mp_Nama').value = nama;
     document.getElementById('mp_Email').value = email;
     document.getElementById('mp_Role').value = role;
-    document.getElementById('mp_Password').value = ''; // Kosongkan password saat edit
+    document.getElementById('mp_Password').value = ''; 
   }
   window.fillEditKelompok = (id, nama) => {
     document.getElementById('mk_ID').value = id;
@@ -663,6 +851,9 @@ document.addEventListener('DOMContentLoaded', function() {
   async function refreshAjuanTable() {
     document.getElementById('tableAjuan').innerHTML = `<div class="text-center text-muted p-5">Memuat data...</div>`;
     document.getElementById('summary-display').style.display = 'none';
+    STATE.currentAjuanData = [];
+    STATE.selectedAjuanIds.clear();
+    updateBulkActionBar();
     
     let params = {};
     if (STATE.role === 'prodi') {
@@ -678,7 +869,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (status) params.status = status;
 
     const res = await api('getAjuan', params);
-    if (res.ok) renderAjuanTable(res.data || []);
+    if (res.ok) {
+        STATE.currentAjuanData = res.data || [];
+        renderAjuanTable(STATE.currentAjuanData);
+    } else {
+        document.getElementById('tableAjuan').innerHTML = '<div class="text-center text-danger p-5">Gagal memuat data. Silakan coba lagi.</div>';
+    }
   }
 
   function renderAjuanTable(rows) {
@@ -707,14 +903,24 @@ document.addEventListener('DOMContentLoaded', function() {
     rejectedDisplayEl.innerHTML = `<strong class="text-danger">Total Ditolak:</strong> Rp ${rejectedTotal.toLocaleString('id-ID')}`;
     summaryContainer.style.display = 'flex';
 
+    const groupedData = rows.reduce((acc, row) => {
+        const kelompokId = row.ID_Kelompok || 'Lain-lain';
+        const namaKelompok = STATE.allKelompok.find(k => k.ID_Kelompok === kelompokId)?.Nama_Kelompok || 'Lain-lain';
+        const kelompokKey = `${kelompokId} - ${namaKelompok}`;
+        const kegiatanKey = row.Judul_Kegiatan || 'Tanpa Judul Kegiatan';
+        if (!acc[kelompokKey]) acc[kelompokKey] = {};
+        if (!acc[kelompokKey][kegiatanKey]) acc[kelompokKey][kegiatanKey] = [];
+        acc[kelompokKey][kegiatanKey].push(row);
+        return acc;
+    }, {});
 
-    const statusClass = {
-        "Menunggu Review": "status-menunggu-review", "Diterima": "status-diterima",
-        "Ditolak": "status-ditolak", "Revisi": "status-revisi"
-    };
+    const sortedKelompokKeys = Object.keys(groupedData).sort();
+    const statusClass = { "Menunggu Review": "status-menunggu-review", "Diterima": "status-diterima", "Ditolak": "status-ditolak", "Revisi": "status-revisi" };
+
     let html = `<table class="table table-hover align-middle">
       <thead class="table-light"><tr>
-        <th>Kelompok Ajuan</th>
+        <th style="width: 30px;"><input type="checkbox" id="select-all-ajuan" title="Pilih Semua"></th>
+        <th>ID Ajuan</th>
         <th>Prodi</th>
         <th>Detail Ajuan</th>
         <th class="text-end">Total Biaya</th>
@@ -723,38 +929,49 @@ document.addEventListener('DOMContentLoaded', function() {
         <th>Catatan Reviewer</th>
         <th class="text-end">Aksi</th>
       </tr></thead><tbody>`;
-    rows.forEach(r => {
-      const dataDukungLink = r.Data_Dukung 
-        ? `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Lihat Data Dukung"><i class="bi bi-box-arrow-up-right"></i></a>` 
-        : `<span class="text-muted small fst-italic">Tidak ada</span>`;
 
-      const ageInDays = (new Date() - new Date(r.Timestamp)) / (1000 * 60 * 60 * 24);
-      let reminderHtml = '';
-      if (r.Status === 'Menunggu Review' && ageInDays > 3) {
-          reminderHtml = `<i class="bi bi-clock-history reminder-icon ms-2" title="Perlu direview > 3 hari"></i>`;
-          overdueCount++;
-      }
+    sortedKelompokKeys.forEach(kelompokKey => {
+        const kegiatanGroup = groupedData[kelompokKey];
+        const sortedKegiatanKeys = Object.keys(kegiatanGroup).sort();
+        
+        html += `<tr class="group-header-kelompok"><td colspan="9" class="fw-bold"><i class="bi bi-tags-fill"></i> Kelompok: ${escapeHtml(kelompokKey)}</td></tr>`;
 
-      html += `<tr>
-        <td>
-          <strong>${r.ID_Kelompok} - ${escapeHtml(r.Nama_Kelompok)}</strong>
-          <div class="small text-muted">ID Ajuan: ${r.ID_Ajuan}</div>
-        </td>
-        <td>${escapeHtml(r.ID_Prodi || r.Nama_Prodi)}</td>
-        <td>
-          <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
-          <div class="small text-muted">${r.Jumlah} ${escapeHtml(r.Satuan)} @ Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div>
-          <div class="badge bg-info-subtle text-info-emphasis fw-normal mt-1">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</div>
-        </td>
-        <td class="text-end text-nowrap"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td>
-        <td class="text-center">${dataDukungLink}</td>
-        <td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span>${reminderHtml}</td>
-        <td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td>
-        <td class="text-end action-buttons">${renderActionsForRow(r)}</td>
-      </tr>`;
+        sortedKegiatanKeys.forEach(kegiatanKey => {
+            const ajuanRows = kegiatanGroup[kegiatanKey];
+            html += `<tr class="group-header-kegiatan"><td colspan="9" class="fw-bold ps-4"><i class="bi bi-collection-fill text-secondary"></i> Kegiatan: ${escapeHtml(kegiatanKey)}</td></tr>`;
+
+            ajuanRows.forEach(r => {
+                const dataDukungLink = r.Data_Dukung ? `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Lihat Data Dukung"><i class="bi bi-box-arrow-up-right"></i></a>` : `<span class="text-muted small fst-italic">Tidak ada</span>`;
+                const ageInDays = (new Date() - new Date(r.Timestamp)) / (1000 * 60 * 60 * 24);
+                let reminderHtml = '';
+                if (r.Status === 'Menunggu Review' && ageInDays > 3) {
+                    reminderHtml = `<i class="bi bi-clock-history reminder-icon ms-2" title="Perlu direview > 3 hari"></i>`;
+                    overdueCount++;
+                }
+                const prodiColor = getColorForProdi(r.ID_Prodi);
+                
+                html += `<tr class="prodi-indicator" style="border-left-color: ${prodiColor};">
+                  <td><input type="checkbox" class="ajuan-checkbox" data-id="${r.ID_Ajuan}"></td>
+                  <td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${r.ID_Ajuan}</span></td>
+                  <td>${escapeHtml(r.ID_Prodi || r.Nama_Prodi)}</td>
+                  <td>
+                    <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
+                    <div class="small text-muted">${r.Jumlah} ${escapeHtml(r.Satuan)} @ Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div>
+                    <div class="badge bg-info-subtle text-info-emphasis fw-normal mt-1">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</div>
+                  </td>
+                  <td class="text-end text-nowrap"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td>
+                  <td class="text-center">${dataDukungLink}</td>
+                  <td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span>${reminderHtml}</td>
+                  <td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td>
+                  <td class="text-end action-buttons">${renderActionsForRow(r)}</td>
+                </tr>`;
+            });
+        });
     });
+
     html += '</tbody></table>';
     container.innerHTML = html;
+    addCheckboxListeners();
 
     if (overdueCount > 0 && STATE.role === 'direktorat') {
         showToast(`Terdapat ${overdueCount} ajuan yang perlu segera direview.`, 'warning');
@@ -763,10 +980,33 @@ document.addEventListener('DOMContentLoaded', function() {
   
   function renderActionsForRow(r) {
     let actions = '';
-    actions += `<button class="btn btn-sm btn-outline-info" onclick="window.openKomentarModal('${r.ID_Ajuan}', '${escapeHtml(r.Nama_Ajuan)}')" title="Diskusi/Komentar"><i class="bi bi-chat-dots-fill"></i></button>`;
+    
+    // [REVISI] Logika untuk notifikasi komentar
+    let commentCount = 0;
+    let hasNewComment = false;
+    try {
+        if (r.Komentar && r.Komentar.startsWith('[')) {
+            const comments = JSON.parse(r.Komentar);
+            commentCount = comments.length;
+            if (commentCount > 0) {
+                const lastAuthor = comments[comments.length - 1].author;
+                if (lastAuthor !== STATE.id) hasNewComment = true;
+            }
+        }
+    } catch (e) { /* ignore parse error */ }
+    
+    const commentTitle = `Diskusi (${commentCount} komentar)`;
+    const notificationDot = hasNewComment ? '<span class="comment-notification-dot"></span>' : '';
+
+    actions += `<span class="comment-btn-wrapper">
+                  <button class="btn btn-sm btn-outline-info" onclick="window.openKomentarModal('${r.ID_Ajuan}', '${escapeHtml(r.Nama_Ajuan)}')" title="${commentTitle}">
+                    <i class="bi bi-chat-dots-fill"></i>
+                  </button>
+                  ${notificationDot}
+                </span>`;
 
     if (STATE.role === 'prodi' && String(r.ID_Prodi) === String(STATE.id)) {
-      if (r.Status === 'Revisi' || r.Status === 'Menunggu Review') {
+      if (r.Status === 'Revisi' || r.Status === 'Menunggu Review' || r.Status === 'Ditolak') {
         actions += `<button class="btn btn-sm btn-outline-primary" onclick="window.openEditModal('${r.ID_Ajuan}')" title="Edit"><i class="bi bi-pencil-fill"></i></button>`;
       }
     }
@@ -794,6 +1034,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const r = res.data[0];
     document.getElementById('edit-id-ajuan').value = r.ID_Ajuan;
     document.getElementById('editModalAjuanId').innerText = r.ID_Ajuan;
+    document.getElementById('edit-judulKegiatan').value = r.Judul_Kegiatan;
     document.getElementById('edit-namaAjuan').value = r.Nama_Ajuan;
     populateKelompok(STATE.allKelompok, 'edit-selectKelompok');
     document.getElementById('edit-selectKelompok').value = r.ID_Kelompok;
@@ -810,6 +1051,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-update-ajuan').addEventListener('click', async () => {
     const data = {
       ID_Ajuan: document.getElementById('edit-id-ajuan').value,
+      Judul_Kegiatan: document.getElementById('edit-judulKegiatan').value,
       Nama_Ajuan: document.getElementById('edit-namaAjuan').value,
       ID_Kelompok: document.getElementById('edit-selectKelompok').value,
       Jumlah: Number(document.getElementById('edit-jumlah').value),
@@ -839,27 +1081,45 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // --- REVIEW (MODAL) ---
   window.openReviewModal = (id, action) => {
-    document.getElementById('review-id-ajuan').value = id;
+    document.getElementById('review-id-ajuan').value = id; // Can be single ID or comma-separated
     document.getElementById('review-action').value = action;
-    document.getElementById('reviewModalAjuanId').innerText = id;
+    document.getElementById('reviewModalAjuanId').innerText = id.includes(',') ? 'Beberapa Ajuan' : id;
     document.getElementById('review-action-text').innerText = action;
+    
+    const targetInfo = document.getElementById('review-target-info');
+    if(id.includes(',')) {
+        targetInfo.style.display = 'block';
+        targetInfo.innerText = `Aksi ini akan diterapkan pada ${id.split(',').length} ajuan yang dipilih.`;
+    } else {
+        targetInfo.style.display = 'none';
+    }
+    
     document.getElementById('review-catatan').value = '';
     REVIEW_MODAL.show();
   };
 
   document.getElementById('btn-submit-review').addEventListener('click', async () => {
+    const ids = document.getElementById('review-id-ajuan').value.split(',');
     const data = {
-      ID_Ajuan: document.getElementById('review-id-ajuan').value,
       action: document.getElementById('review-action').value,
       catatan: document.getElementById('review-catatan').value,
       by: STATE.id
     };
-    const res = await api('reviewAjuan', data);
-    if (res.ok) {
-      showToast('Review berhasil dikirim.');
-      REVIEW_MODAL.hide();
-      refreshAjuanTable();
+
+    let successCount = 0;
+    for (const id of ids) {
+        const res = await api('reviewAjuan', { ...data, ID_Ajuan: id });
+        if(res.ok) successCount++;
     }
+
+    if(successCount > 0) {
+        showToast(`${successCount} dari ${ids.length} review berhasil dikirim.`);
+    } else {
+        showToast('Gagal mengirim review.', 'danger');
+    }
+    
+    REVIEW_MODAL.hide();
+    refreshAjuanTable();
   });
   
   // --- FUNGSI KOMENTAR ---
@@ -889,7 +1149,12 @@ document.addEventListener('DOMContentLoaded', function() {
           const isUser = c.author === STATE.id;
           const bubbleClass = isUser ? 'comment-bubble-user' : 'comment-bubble-other';
           const authorName = isUser ? `Anda (${c.author})` : c.author;
-          const formattedTimestamp = new Date(c.timestamp).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+          // [REVISI] Penanganan tanggal yang aman
+          const dateObj = new Date(c.timestamp);
+          const formattedTimestamp = !isNaN(dateObj) 
+            ? dateObj.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) 
+            : (c.timestamp || 'no date');
+            
           return `
               <div class="comment-bubble ${bubbleClass}">
                   <div class="author">${escapeHtml(authorName)}</div>
@@ -917,6 +1182,80 @@ document.addEventListener('DOMContentLoaded', function() {
       }
   });
 
+  // --- [REVISI] FUNGSI BULK ACTION ---
+  function updateBulkActionBar() {
+      const bar = document.getElementById('bulk-action-bar');
+      const countEl = document.getElementById('bulk-selected-count');
+      const selectedCount = STATE.selectedAjuanIds.size;
+      
+      const canDoBulkAction = STATE.role === 'direktorat';
+
+      if (selectedCount > 0 && canDoBulkAction) {
+          bar.style.display = 'flex';
+          countEl.textContent = selectedCount;
+      } else {
+          bar.style.display = 'none';
+      }
+  }
+
+  function addCheckboxListeners() {
+    const selectAll = document.getElementById('select-all-ajuan');
+    const checkboxes = document.querySelectorAll('.ajuan-checkbox');
+
+    if (selectAll) {
+        selectAll.addEventListener('change', (e) => {
+            checkboxes.forEach(cb => {
+                cb.checked = e.target.checked;
+                const id = cb.dataset.id;
+                if (e.target.checked) {
+                    STATE.selectedAjuanIds.add(id);
+                } else {
+                    STATE.selectedAjuanIds.delete(id);
+                }
+            });
+            updateBulkActionBar();
+        });
+    }
+
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', (e) => {
+            const id = e.target.dataset.id;
+            if (e.target.checked) {
+                STATE.selectedAjuanIds.add(id);
+            } else {
+                STATE.selectedAjuanIds.delete(id);
+            }
+            if(selectAll) {
+                selectAll.checked = checkboxes.length === STATE.selectedAjuanIds.size;
+            }
+            updateBulkActionBar();
+        });
+    });
+  }
+
+  document.getElementById('bulk-accept').addEventListener('click', () => {
+    if(STATE.selectedAjuanIds.size > 0) openReviewModal(Array.from(STATE.selectedAjuanIds).join(','), 'Diterima');
+  });
+  document.getElementById('bulk-reject').addEventListener('click', () => {
+    if(STATE.selectedAjuanIds.size > 0) openReviewModal(Array.from(STATE.selectedAjuanIds).join(','), 'Ditolak');
+  });
+  document.getElementById('bulk-revision').addEventListener('click', () => {
+    if(STATE.selectedAjuanIds.size > 0) openReviewModal(Array.from(STATE.selectedAjuanIds).join(','), 'Revisi');
+  });
+  document.getElementById('bulk-delete').addEventListener('click', async () => {
+    const ids = Array.from(STATE.selectedAjuanIds);
+    if (ids.length === 0) return;
+    if (confirm(`Apakah Anda yakin ingin menghapus ${ids.length} ajuan terpilih?`)) {
+      let successCount = 0;
+      for(const id of ids) {
+          const res = await api('deleteAjuan', { ID_Ajuan: id, by: STATE.id });
+          if (res.ok) successCount++;
+      }
+      showToast(`${successCount} dari ${ids.length} ajuan berhasil dihapus.`);
+      refreshAjuanTable();
+    }
+  });
+
   // --- FUNGSI DASHBOARD ---
   document.getElementById('btn-refresh-dashboard').addEventListener('click', loadDashboardData);
 
@@ -933,16 +1272,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function setupChart(canvasId, type, data, options) {
     const ctx = document.getElementById(canvasId).getContext('2d');
-    if (CHARTS[canvasId]) {
-      CHARTS[canvasId].destroy();
-    }
+    if (CHARTS[canvasId]) CHARTS[canvasId].destroy();
     CHARTS[canvasId] = new Chart(ctx, { type, data, options });
   }
 
   function processDataForCharts(data) {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
     
-    // 1. Ajuan per Bulan
     const ajuanPerBulan = Array(12).fill(0);
     data.forEach(ajuan => {
         const month = new Date(ajuan.Timestamp).getMonth();
@@ -953,7 +1289,6 @@ document.addEventListener('DOMContentLoaded', function() {
       datasets: [{ label: 'Jumlah Ajuan', data: ajuanPerBulan, backgroundColor: 'rgba(54, 162, 235, 0.6)', borderColor: 'rgba(54, 162, 235, 1)', borderWidth: 1 }]
     }, { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } });
 
-    // 2. Ajuan per Status
     const ajuanPerStatus = data.reduce((acc, ajuan) => {
         acc[ajuan.Status] = (acc[ajuan.Status] || 0) + 1;
         return acc;
@@ -963,7 +1298,6 @@ document.addEventListener('DOMContentLoaded', function() {
       datasets: [{ data: Object.values(ajuanPerStatus), backgroundColor: ['#ffc107', '#198754', '#dc3545', '#fd7e14', '#6c757d'] }]
     }, { responsive: true, plugins: { legend: { position: 'top' } } });
 
-    // 3. & 4. Anggaran & Jumlah Ajuan per Prodi
     const perProdiStats = data.reduce((acc, ajuan) => {
         const prodiId = ajuan.ID_Prodi || 'N/A';
         if (!acc[prodiId]) acc[prodiId] = { count: 0, total: 0 };
@@ -990,46 +1324,64 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-export-excel').addEventListener('click', exportToExcel);
   document.getElementById('btn-export-pdf').addEventListener('click', exportToPdf);
   
-  async function getCurrentFilteredData() {
-    let params = {};
-    if (STATE.role === 'prodi') {
-      params.id_prodi = STATE.id;
-    } else {
-      const prodi = document.getElementById('filterProdi').value;
-      if (prodi) params.id_prodi = prodi;
-    }
-    const kelompok = document.getElementById('filterKelompok').value;
-    if (kelompok) params.id_kelompok = kelompok;
-
-    const status = document.getElementById('filterStatus').value;
-    if (status) params.status = status;
-    
-    const res = await api('getAjuan', params);
-    return (res.ok && res.data) ? res.data : [];
-  }
-
-  async function exportToExcel() {
-    const data = await getCurrentFilteredData();
+  function exportToExcel() {
+    const data = STATE.currentAjuanData;
     if (data.length === 0) {
       showToast('Tidak ada data untuk diekspor.', 'warning');
       return;
     }
+
+    const groupedData = data.reduce((acc, row) => {
+        const kelompokId = row.ID_Kelompok || 'Lain-lain';
+        const namaKelompok = STATE.allKelompok.find(k => k.ID_Kelompok === kelompokId)?.Nama_Kelompok || 'Lain-lain';
+        const kelompokKey = `${kelompokId} - ${namaKelompok}`;
+        const kegiatanKey = row.Judul_Kegiatan || 'Tanpa Judul Kegiatan';
+        if (!acc[kelompokKey]) acc[kelompokKey] = {};
+        if (!acc[kelompokKey][kegiatanKey]) acc[kelompokKey][kegiatanKey] = [];
+        acc[kelompokKey][kegiatanKey].push(row);
+        return acc;
+    }, {});
+    const sortedKelompokKeys = Object.keys(groupedData).sort();
+
+    const exportData = [];
+    const headers = ['ID Ajuan', 'Prodi', 'Rincian Ajuan', 'Jumlah', 'Satuan', 'Harga Satuan', 'Total', 'Status', 'Status Revisi', 'Keterangan', 'Catatan Reviewer', 'Timestamp'];
+    exportData.push(headers);
+
+    const merges = [];
+    let rowIndex = 1;
+
+    sortedKelompokKeys.forEach(kelompokKey => {
+        exportData.push([`Kelompok: ${kelompokKey}`]);
+        merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: headers.length - 1 } });
+        rowIndex++;
+
+        const kegiatanGroup = groupedData[kelompokKey];
+        const sortedKegiatanKeys = Object.keys(kegiatanGroup).sort();
+
+        sortedKegiatanKeys.forEach(kegiatanKey => {
+            exportData.push([`   Kegiatan: ${kegiatanKey}`]);
+            merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: headers.length - 1 } });
+            rowIndex++;
+
+            kegiatanGroup[kegiatanKey].forEach(r => {
+                exportData.push([r.ID_Ajuan, r.ID_Prodi, r.Nama_Ajuan, r.Jumlah, r.Satuan, r.Harga_Satuan, r.Total, r.Status, r.Status_Revisi, r.Keterangan, r.Catatan_Reviewer, r.Timestamp]);
+                rowIndex++;
+            });
+        });
+        exportData.push([]); 
+        rowIndex++;
+    });
+
+    const worksheet = XLSX.utils.aoa_to_sheet(exportData);
+    worksheet['!merges'] = merges;
     
-    const mappedData = data.map(r => ({
-      'ID Ajuan': r.ID_Ajuan, 'Prodi': r.ID_Prodi, 'Kelompok': r.ID_Kelompok, 'Nama Ajuan': r.Nama_Ajuan,
-      'Jumlah': r.Jumlah, 'Satuan': r.Satuan, 'Harga Satuan': r.Harga_Satuan, 'Total': r.Total,
-      'Status': r.Status, 'Status Revisi': r.Status_Revisi, 'Keterangan': r.Keterangan,
-      'Catatan Reviewer': r.Catatan_Reviewer, 'Timestamp': r.Timestamp
-    }));
-    
-    const worksheet = XLSX.utils.json_to_sheet(mappedData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Data Ajuan");
-    XLSX.writeFile(workbook, "rekap_ajuan.xlsx");
+    XLSX.writeFile(workbook, "rekap_ajuan_berkelompok.xlsx");
   }
 
-  async function exportToPdf() {
-      const data = await getCurrentFilteredData();
+  function exportToPdf() {
+      const data = STATE.currentAjuanData;
       if (data.length === 0) {
         showToast('Tidak ada data untuk diekspor.', 'warning');
         return;
@@ -1038,18 +1390,40 @@ document.addEventListener('DOMContentLoaded', function() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation: "landscape" });
       
-      const tableHeaders = [['ID', 'Prodi', 'Nama Ajuan', 'Jumlah', 'Satuan', 'Harga (Rp)', 'Total (Rp)', 'Status']];
-      const tableBody = data.map(r => [
-          r.ID_Ajuan, r.ID_Prodi, r.Nama_Ajuan, r.Jumlah, r.Satuan,
-          Number(r.Harga_Satuan).toLocaleString('id-ID'),
-          Number(r.Total).toLocaleString('id-ID'),
-          r.Status
-      ]);
+      const tableHeaders = [['ID', 'Prodi', 'Rincian Ajuan', 'Jumlah', 'Satuan', 'Harga (Rp)', 'Total (Rp)', 'Status']];
+      const tableBody = [];
+
+      const groupedData = data.reduce((acc, row) => {
+        const kelompokId = row.ID_Kelompok || 'Lain-lain';
+        const namaKelompok = STATE.allKelompok.find(k => k.ID_Kelompok === kelompokId)?.Nama_Kelompok || 'Lain-lain';
+        const kelompokKey = `${kelompokId} - ${namaKelompok}`;
+        const kegiatanKey = row.Judul_Kegiatan || 'Tanpa Judul Kegiatan';
+        if (!acc[kelompokKey]) acc[kelompokKey] = {};
+        if (!acc[kelompokKey][kegiatanKey]) acc[kelompokKey][kegiatanKey] = [];
+        acc[kelompokKey][kegiatanKey].push(row);
+        return acc;
+      }, {});
+      const sortedKelompokKeys = Object.keys(groupedData).sort();
+
+      sortedKelompokKeys.forEach(kelompokKey => {
+          tableBody.push([{ content: `Kelompok: ${kelompokKey}`, colSpan: 8, styles: { fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff' } }]);
+          
+          const kegiatanGroup = groupedData[kelompokKey];
+          const sortedKegiatanKeys = Object.keys(kegiatanGroup).sort();
+
+          sortedKegiatanKeys.forEach(kegiatanKey => {
+              tableBody.push([{ content: `   Kegiatan: ${kegiatanKey}`, colSpan: 8, styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333' } }]);
+              
+              kegiatanGroup[kegiatanKey].forEach(r => {
+                  tableBody.push([r.ID_Ajuan, r.ID_Prodi, r.Nama_Ajuan, r.Jumlah, r.Satuan, Number(r.Harga_Satuan).toLocaleString('id-ID'), Number(r.Total).toLocaleString('id-ID'), r.Status]);
+              });
+          });
+      });
 
       const grandTotal = data.reduce((sum, r) => sum + Number(r.Total), 0);
       
       doc.setFontSize(16);
-      doc.text("Rekapitulasi Ajuan", 14, 22);
+      doc.text("Rekapitulasi Ajuan Berkelompok", 14, 22);
       
       doc.autoTable({
           startY: 30,
@@ -1069,7 +1443,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }
       });
       
-      doc.save('rekap_ajuan.pdf');
+      doc.save('rekap_ajuan_berkelompok.pdf');
   }
 
 });
