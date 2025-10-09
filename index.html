@@ -53,7 +53,6 @@
   .comment-bubble .author { font-weight: bold; font-size: 0.9rem; margin-bottom: 2px; }
   .comment-bubble .timestamp { font-size: 0.75rem; color: #6c757d; margin-top: 5px; text-align: right; }
   
-  /* [REVISI] Hierarki Header Tabel */
   .group-header-grub { background-color: #212529 !important; color: white; font-size: 1.1em; }
   .group-header-kelompok { background-color: #495057 !important; color: white; font-size: 1.0em; }
   .group-header-kegiatan { background-color: #e9ecef !important; }
@@ -99,6 +98,10 @@
     border: 0;
     border-radius: 0.75rem;
   }
+  #tableRPD input[type=number],
+  #tableRealisasi input[type=number] {
+    text-align: right;
+  }
 </style>
 </head>
 <body>
@@ -140,29 +143,58 @@
 
     <!-- Tabs -->
     <ul class="nav nav-tabs" id="mainTabs" role="tablist">
-      <li class="nav-item" role="presentation" id="tab-dashboard-link" style="display:none;"><button class="nav-link" data-bs-target="#tab-dashboard" data-bs-toggle="tab"><i class="bi bi-bar-chart-line"></i> Dashboard</button></li>
-      <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-target="#tab-ajuan" data-bs-toggle="tab"><i class="bi bi-plus-circle"></i> Buat Ajuan</button></li>
+      <li class="nav-item" role="presentation" id="tab-dashboard-link" style="display:none;"><button class="nav-link active" data-bs-target="#tab-dashboard" data-bs-toggle="tab"><i class="bi bi-bar-chart-line"></i> Dashboard</button></li>
+      <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-ajuan" data-bs-toggle="tab"><i class="bi bi-plus-circle"></i> Buat Ajuan</button></li>
       <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-daftar" data-bs-toggle="tab"><i class="bi bi-list-task"></i> Daftar Ajuan</button></li>
+      <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-rpd" data-bs-toggle="tab"><i class="bi bi-calendar2-week"></i> RPD</button></li>
+      <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-realisasi" data-bs-toggle="tab"><i class="bi bi-cash-coin"></i> Realisasi Dana</button></li>
       <li class="nav-item" role="presentation" id="tab-manage-link" style="display:none;"><button class="nav-link" data-bs-target="#tab-manage" data-bs-toggle="tab"><i class="bi bi-gear"></i> Manajemen</button></li>
     </ul>
 
     <div class="tab-content card p-3 p-md-4" id="myTabContent">
       <!-- Dashboard Tab -->
-      <div class="tab-pane fade" id="tab-dashboard" role="tabpanel">
+      <div class="tab-pane fade show active" id="tab-dashboard" role="tabpanel">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h5 class="m-0"><i class="bi bi-graph-up"></i> Dashboard Monitoring</h5>
           <button id="btn-refresh-dashboard" class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> Refresh Dashboard</button>
         </div>
+        
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card p-3 text-center h-100">
+                    <h6 class="card-title text-success">Total Anggaran Diterima</h6>
+                    <h4 id="dashboard-total-diterima" class="fw-bold display-6 mt-2">Rp 0</h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-3 text-center h-100">
+                    <h6 class="card-title text-danger">Total Anggaran Ditolak</h6>
+                    <h4 id="dashboard-total-ditolak" class="fw-bold display-6 mt-2">Rp 0</h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-3 text-center h-100">
+                    <h6 class="card-title text-primary">Total Rencana Penarikan (RPD)</h6>
+                    <h4 id="dashboard-total-rpd" class="fw-bold display-6 mt-2">Rp 0</h4>
+                </div>
+            </div>
+        </div>
+
         <div class="row g-4">
-            <div class="col-lg-6"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Bulan</h6><canvas id="chartAjuanPerBulan"></canvas></div></div>
-            <div class="col-lg-6"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Status</h6><canvas id="chartAjuanPerStatus"></canvas></div></div>
-            <div class="col-lg-7"><div class="card p-3"><h6 class="card-title text-center">Total Anggaran Diajukan per Prodi</h6><canvas id="chartAnggaranPerProdi"></canvas></div></div>
-            <div class="col-lg-5"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Prodi</h6><canvas id="chartAjuanPerProdi"></canvas></div></div>
+            <div class="col-lg-8"><div class="card p-3"><h6 class="card-title text-center">Rekapan Rencana Penarikan Dana (RPD) per Bulan</h6><canvas id="chartRPDPerBulan"></canvas></div></div>
+            <div class="col-lg-4"><div class="card p-3"><h6 class="card-title text-center">Rekapan RPD per Triwulan</h6><div id="dashboard-rpd-triwulan"></div></div></div>
+            
+            <div id="direktorat-charts" class="row g-4 col-12 mt-1">
+                <div class="col-lg-6"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Bulan</h6><canvas id="chartAjuanPerBulan"></canvas></div></div>
+                <div class="col-lg-6"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Status</h6><canvas id="chartAjuanPerStatus"></canvas></div></div>
+                <div class="col-lg-7"><div class="card p-3"><h6 class="card-title text-center">Total Anggaran Diajukan per Prodi</h6><canvas id="chartAnggaranPerProdi"></canvas></div></div>
+                <div class="col-lg-5"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Prodi</h6><canvas id="chartAjuanPerProdi"></canvas></div></div>
+            </div>
         </div>
       </div>
       
       <!-- Pengajuan Tab -->
-      <div class="tab-pane fade show active" id="tab-ajuan" role="tabpanel">
+      <div class="tab-pane fade" id="tab-ajuan" role="tabpanel">
         <h5 class="mb-3"><i class="bi bi-pencil-square"></i> Formulir Ajuan Baru</h5>
         
         <div class="row g-3 border-bottom pb-3 mb-3">
@@ -175,7 +207,6 @@
 
         <h6 class="mb-3 text-muted">Input Rincian Ajuan</h6>
         <div class="row g-3">
-          <!-- [REVISI] Tambah Input Grub Belanja Utama -->
           <div class="col-md-8"><label for="namaAjuan" class="form-label">Rincian Ajuan</label><input id="namaAjuan" class="form-control" placeholder="Contoh: Tiket Pesawat, Akomodasi Hotel" /></div>
           <div class="col-md-4"><label for="selectGrub" class="form-label">Grub Belanja Utama</label><select id="selectGrub" class="form-select"></select></div>
           <div class="col-md-4"><label for="selectKelompok" class="form-label">Kelompok Belanja</label><select id="selectKelompok" class="form-select"></select></div>
@@ -220,7 +251,6 @@
         <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
             <div class="flex-grow-1 d-flex flex-wrap gap-2">
                 <select id="filterProdi" class="form-select" style="display:none; width: auto; flex-basis: 200px;" title="Filter berdasarkan Prodi"><option value="">Semua Prodi</option></select>
-                <!-- [REVISI] Tambah Filter Grub Belanja -->
                 <select id="filterGrub" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Grub Belanja"><option value="">Semua Grub Belanja</option></select>
                 <select id="filterKelompok" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Kelompok Belanja"><option value="">Semua Kelompok</option></select>
                 <select id="filterStatus" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Status"><option value="">Semua Status</option><option>Menunggu Review</option><option>Diterima</option><option>Ditolak</option><option>Revisi</option></select>
@@ -247,6 +277,37 @@
         <div class="table-responsive"><div id="tableAjuan"><div class="text-center text-muted p-5">Memuat data...</div></div></div>
       </div>
 
+      <!-- RPD Tab -->
+      <div class="tab-pane fade" id="tab-rpd" role="tabpanel">
+        <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+            <h5 class="m-0 me-3"><i class="bi bi-calendar2-check"></i> Rencana Penarikan Dana (RPD)</h5>
+            <select id="filterProdiRPD" class="form-select" style="display:none; width: auto; flex-basis: 250px;" title="Filter RPD berdasarkan Prodi"><option value="">Semua Prodi</option></select>
+            <div class="ms-auto">
+              <button id="btn-refresh-rpd" class="btn btn-outline-primary" title="Refresh Data RPD"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+            </div>
+        </div>
+        <p class="text-muted small">Daftar ini berisi semua ajuan yang telah berstatus "Diterima". Prodi dapat merencanakan penarikan dana bulanan di sini.</p>
+        <div class="table-responsive">
+            <div id="tableRPD"><div class="text-center text-muted p-5">Memuat data RPD...</div></div>
+        </div>
+      </div>
+
+      <!-- Realisasi Tab -->
+      <div class="tab-pane fade" id="tab-realisasi" role="tabpanel">
+        <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+            <h5 class="m-0 me-3"><i class="bi bi-graph-up-arrow"></i> Realisasi Penarikan Dana</h5>
+            <select id="filterProdiRealisasi" class="form-select" style="display:none; width: auto; flex-basis: 250px;" title="Filter Realisasi berdasarkan Prodi"><option value="">Semua Prodi</option></select>
+            <div class="ms-auto">
+              <button id="btn-refresh-realisasi" class="btn btn-outline-primary" title="Refresh Data Realisasi"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+            </div>
+        </div>
+        <div id="realisasi-summary-area" class="mb-4"></div>
+        <p class="text-muted small">Input realisasi penarikan dana bulanan di sini untuk setiap ajuan yang telah berstatus "Diterima".</p>
+        <div class="table-responsive">
+            <div id="tableRealisasi"><div class="text-center text-muted p-5">Memuat data Realisasi...</div></div>
+        </div>
+      </div>
+
       <!-- Manajemen Tab -->
       <div class="tab-pane fade" id="tab-manage" role="tabpanel">
         <div class="row g-4">
@@ -268,7 +329,6 @@
         <div class="row g-3">
           <div class="col-md-12"><label class="form-label">Judul Kegiatan</label><input id="edit-judulKegiatan" class="form-control" /></div>
           <div class="col-md-8"><label class="form-label">Rincian Ajuan</label><input id="edit-namaAjuan" class="form-control" /></div>
-          <!-- [REVISI] Tambah input Grub Belanja di Modal Edit -->
           <div class="col-md-4"><label for="edit-selectGrub" class="form-label">Grub Belanja Utama</label><select id="edit-selectGrub" class="form-select"></select></div>
           <div class="col-md-4"><label class="form-label">Kelompok Belanja</label><select id="edit-selectKelompok" class="form-select"></select></div>
           <div class="col-md-4"><label for="edit-selectRevisi" class="form-label">Status Revisi</label><select id="edit-selectRevisi" class="form-select"><option>Ajuan Baru</option><option>Revisi 1</option><option>Revisi 2</option><option>Revisi 3</option><option>Revisi 4</option><option>Revisi 5</option></select></div>
@@ -335,10 +395,9 @@
 document.addEventListener('DOMContentLoaded', function() {
   document.body.classList.add('login-view');
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbxcKaTrrut0a9N06FDEIY6YxsLZTQTdE_bQEptj6MJp9nirQ7QxB41te7pQ8uxZDgu1/exec"; // JANGAN LUPA GANTI INI
+  const API_URL = "https://script.google.com/macros/s/AKfycbx9sOtO2Bu7o3NYLEhDryU9_Ci6AKHYp6-vbCEk_esnhV1nXUxyYvMm3y0Fn-Trtb3T/exec"; // JANGAN LUPA GANTI INI
   const UPLOAD_TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/14w_apgCjUqDub5ph1K6iIhhbLlxqkTtU/export?format=xlsx"; // GANTI DENGAN LINK ANDA
 
-  // [REVISI] Tambahkan opsi Grub Belanja Utama
   const GRUB_BELANJA_UTAMA_OPTIONS = [
     "A. PERSIAPAN",
     "B. PEMBELAJARAN TEORI",
@@ -467,24 +526,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabDashboardLink = document.getElementById('tab-dashboard-link');
     const tabManageLink = document.getElementById('tab-manage-link');
     
+    tabDashboardLink.style.display = 'block';
+
     if (STATE.role === 'prodi') {
-      tabDashboardLink.style.display = 'none';
       tabAjuanEl.parentElement.style.display = 'block';
       tabManageLink.style.display = 'none';
       filterProdiEl.style.display = 'none';
       btnDownloadDir.style.display = 'none';
       labelUploadDir.style.display = 'none';
+      document.getElementById('direktorat-charts').style.display = 'none';
       new bootstrap.Tab(tabAjuanEl).show();
     } else { // direktorat
-      tabDashboardLink.style.display = 'block';
       tabAjuanEl.parentElement.style.display = 'none';
       tabManageLink.style.display = 'block';
       filterProdiEl.style.display = 'block';
       btnDownloadDir.style.display = 'inline-block';
       labelUploadDir.style.display = 'inline-block';
-      loadDashboardData();
+      document.getElementById('direktorat-charts').style.display = 'flex';
       new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-dashboard"]')).show();
     }
+    loadDashboardData();
     loadInitialData();
   });
 
@@ -498,7 +559,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelector('[data-bs-target="#tab-ajuan"]').parentElement.style.display = 'block';
     document.getElementById('btn-download-template-dir').style.display = 'none';
     document.getElementById('label-upload-excel-dir').style.display = 'none';
-    document.getElementById('tab-dashboard-link').style.display = 'none';
     updateBulkActionBar();
     renderStagingTable();
     populateLoginDropdown(); 
@@ -516,7 +576,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // --- NEW AJUAN WORKFLOW (STAGING) ---
   function clearRincianForm() {
       ['namaAjuan', 'jumlah', 'satuan', 'hargaSatuan', 'total', 'keterangan', 'dataDukung'].forEach(id => document.getElementById(id).value = '');
-      document.getElementById('selectGrub').value = ''; // [REVISI]
+      document.getElementById('selectGrub').value = '';
       document.getElementById('selectKelompok').value = '';
       document.getElementById('selectRevisi').value = 'Ajuan Baru';
       document.getElementById('namaAjuan').focus();
@@ -547,7 +607,7 @@ document.addEventListener('DOMContentLoaded', function() {
           return `
               <tr>
                   <td>${index + 1}</td>
-                  <td>${escapeHtml(item.Grub_Belanja_Utama)}</td> <!-- [REVISI] -->
+                  <td>${escapeHtml(item.Grub_Belanja_Utama)}</td>
                   <td>${escapeHtml(item.Judul_Kegiatan)}</td>
                   <td>${escapeHtml(item.Nama_Ajuan)}</td>
                   <td>${escapeHtml(item.ID_Kelompok)}</td>
@@ -569,7 +629,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <thead class="table-light">
                   <tr>
                       <th>No.</th>
-                      <th>Grub Belanja</th> <!-- [REVISI] -->
+                      <th>Grub Belanja</th>
                       <th>Judul Kegiatan</th>
                       <th>Rincian Ajuan</th>
                       <th>Kelompok</th>
@@ -602,7 +662,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       const payload = {
-        Grub_Belanja_Utama: document.getElementById('selectGrub').value, // [REVISI]
+        Grub_Belanja_Utama: document.getElementById('selectGrub').value,
         Judul_Kegiatan: judulKegiatan,
         ID_Prodi: STATE.id,
         ID_Kelompok: document.getElementById('selectKelompok').value,
@@ -679,15 +739,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // [REVISI] Tambahkan kolom Grub_Belanja_Utama saat upload Excel
-            // Pastikan template Excel Anda memiliki kolom "Grub_Belanja_Utama"
             const ajuanList = jsonData.map(row => {
                 const prodiId = (STATE.role === 'direktorat') ? row.ID_Prodi : STATE.id;
                 if (!prodiId) return null;
 
                 return {
                     ID_Prodi: String(prodiId).toUpperCase(),
-                    Grub_Belanja_Utama: row.Grub_Belanja_Utama || GRUB_BELANJA_UTAMA_OPTIONS[0], // Default jika kosong
+                    Grub_Belanja_Utama: row.Grub_Belanja_Utama || GRUB_BELANJA_UTAMA_OPTIONS[0],
                     ID_Kelompok: row.ID_Kelompok || '',
                     Judul_Kegiatan: row.Judul_Kegiatan || 'N/A (dari Excel)',
                     Nama_Ajuan: row.Nama_Ajuan || '',
@@ -737,7 +795,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // --- INITIAL DATA & POPULATION ---
-  // [REVISI] Buat fungsi untuk populate Grub Belanja
   function populateGrubBelanja(selectId, isFilter = false) {
     const sel = document.getElementById(selectId);
     sel.innerHTML = isFilter ? '<option value="">Semua Grub Belanja</option>' : '<option value="">-- Pilih Grub Belanja --</option>';
@@ -765,6 +822,8 @@ document.addEventListener('DOMContentLoaded', function() {
         STATE.allProdi = p.data || [];
         populateProdiList(STATE.allProdi);
         populateProdiFilter(STATE.allProdi);
+        populateProdiFilterRPD(STATE.allProdi);
+        populateProdiFilterRealisasi(STATE.allProdi);
       }
       populateKelompokList(STATE.allKelompok);
     }
@@ -784,6 +843,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function populateProdiFilter(list) {
     const sel = document.getElementById('filterProdi');
+    sel.innerHTML = '<option value="">Semua Prodi</option>';
+    (list || []).forEach(it => {
+        if(it.Role !== 'prodi') return;
+        const opt = document.createElement('option');
+        opt.value = it.ID_Prodi;
+        opt.text = `${it.ID_Prodi} - ${it.Nama_Prodi}`;
+        sel.appendChild(opt);
+    });
+  }
+  
+  function populateProdiFilterRPD(list) {
+    const sel = document.getElementById('filterProdiRPD');
+    sel.innerHTML = '<option value="">Semua Prodi</option>';
+    (list || []).forEach(it => {
+        if(it.Role !== 'prodi') return;
+        const opt = document.createElement('option');
+        opt.value = it.ID_Prodi;
+        opt.text = `${it.ID_Prodi} - ${it.Nama_Prodi}`;
+        sel.appendChild(opt);
+    });
+  }
+  
+  function populateProdiFilterRealisasi(list) {
+    const sel = document.getElementById('filterProdiRealisasi');
     sel.innerHTML = '<option value="">Semua Prodi</option>';
     (list || []).forEach(it => {
         if(it.Role !== 'prodi') return;
@@ -875,7 +958,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('filterStatus').addEventListener('change', refreshAjuanTable);
   document.getElementById('filterProdi').addEventListener('change', refreshAjuanTable);
   document.getElementById('filterKelompok').addEventListener('change', refreshAjuanTable);
-  document.getElementById('filterGrub').addEventListener('change', refreshAjuanTable); // [REVISI]
+  document.getElementById('filterGrub').addEventListener('change', refreshAjuanTable);
 
   async function refreshAjuanTable() {
     document.getElementById('tableAjuan').innerHTML = `<div class="text-center text-muted p-5">Memuat data...</div>`;
@@ -891,8 +974,8 @@ document.addEventListener('DOMContentLoaded', function() {
       const prodi = document.getElementById('filterProdi').value;
       if (prodi) params.id_prodi = prodi;
     }
-    const grub = document.getElementById('filterGrub').value; // [REVISI]
-    if (grub) params.grub_belanja = grub; // [REVISI]
+    const grub = document.getElementById('filterGrub').value;
+    if (grub) params.grub_belanja = grub;
 
     const kelompok = document.getElementById('filterKelompok').value;
     if (kelompok) params.id_kelompok = kelompok;
@@ -935,7 +1018,6 @@ document.addEventListener('DOMContentLoaded', function() {
     rejectedDisplayEl.innerHTML = `<strong class="text-danger">Total Ditolak:</strong> Rp ${rejectedTotal.toLocaleString('id-ID')}`;
     summaryContainer.style.display = 'flex';
 
-    // [REVISI] Ubah logika grouping menjadi 3 tingkat
     const groupedData = rows.reduce((acc, row) => {
         const grubKey = row.Grub_Belanja_Utama || 'Lain-lain';
         const kelompokId = row.ID_Kelompok || 'Lain-lain';
@@ -967,7 +1049,6 @@ document.addEventListener('DOMContentLoaded', function() {
         <th class="text-end">Aksi</th>
       </tr></thead><tbody>`;
 
-    // [REVISI] Render tabel dengan 3 tingkat perulangan
     sortedGrubKeys.forEach(grubKey => {
       html += `<tr class="group-header-grub"><td colspan="9" class="fw-bold"><i class="bi bi-folder-fill"></i> ${escapeHtml(grubKey)}</td></tr>`;
       const kelompokGroup = groupedData[grubKey];
@@ -1080,7 +1161,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('edit-judulKegiatan').value = r.Judul_Kegiatan;
     document.getElementById('edit-namaAjuan').value = r.Nama_Ajuan;
     
-    // [REVISI] Populate dan set value untuk Grub Belanja di modal edit
     populateGrubBelanja('edit-selectGrub');
     document.getElementById('edit-selectGrub').value = r.Grub_Belanja_Utama;
 
@@ -1099,7 +1179,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-update-ajuan').addEventListener('click', async () => {
     const data = {
       ID_Ajuan: document.getElementById('edit-id-ajuan').value,
-      Grub_Belanja_Utama: document.getElementById('edit-selectGrub').value, // [REVISI]
+      Grub_Belanja_Utama: document.getElementById('edit-selectGrub').value,
       Judul_Kegiatan: document.getElementById('edit-judulKegiatan').value,
       Nama_Ajuan: document.getElementById('edit-namaAjuan').value,
       ID_Kelompok: document.getElementById('edit-selectKelompok').value,
@@ -1305,17 +1385,22 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // --- FUNGSI DASHBOARD ---
+  const RPD_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
   document.getElementById('btn-refresh-dashboard').addEventListener('click', loadDashboardData);
+  document.querySelector('[data-bs-target="#tab-dashboard"]').addEventListener('shown.bs.tab', loadDashboardData);
 
   async function loadDashboardData() {
-    if (STATE.role !== 'direktorat') return;
     showToast('Memuat data dashboard...', 'info');
-    const res = await api('getAjuan', {}); 
+    let params = {};
+    if (STATE.role === 'prodi') {
+      params.id_prodi = STATE.id;
+    }
+    const res = await api('getAjuan', params); 
     if (!res.ok || !res.data) {
       showToast('Gagal memuat data dashboard.', 'danger');
       return;
     }
-    processDataForCharts(res.data);
+    processDataForDashboard(res.data);
   }
 
   function setupChart(canvasId, type, data, options) {
@@ -1324,49 +1409,441 @@ document.addEventListener('DOMContentLoaded', function() {
     CHARTS[canvasId] = new Chart(ctx, { type, data, options });
   }
 
-  function processDataForCharts(data) {
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
-    
-    const ajuanPerBulan = Array(12).fill(0);
-    data.forEach(ajuan => {
-        const month = new Date(ajuan.Timestamp).getMonth();
-        if(month >= 0 && month < 12) ajuanPerBulan[month]++;
-    });
-    setupChart('chartAjuanPerBulan', 'bar', {
-      labels: monthNames,
-      datasets: [{ label: 'Jumlah Ajuan', data: ajuanPerBulan, backgroundColor: 'rgba(54, 162, 235, 0.6)', borderColor: 'rgba(54, 162, 235, 1)', borderWidth: 1 }]
-    }, { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } });
-
-    const ajuanPerStatus = data.reduce((acc, ajuan) => {
-        acc[ajuan.Status] = (acc[ajuan.Status] || 0) + 1;
-        return acc;
-    }, {});
-    setupChart('chartAjuanPerStatus', 'doughnut', {
-      labels: Object.keys(ajuanPerStatus),
-      datasets: [{ data: Object.values(ajuanPerStatus), backgroundColor: ['#ffc107', '#198754', '#dc3545', '#fd7e14', '#6c757d'] }]
-    }, { responsive: true, plugins: { legend: { position: 'top' } } });
-
-    const perProdiStats = data.reduce((acc, ajuan) => {
-        const prodiId = ajuan.ID_Prodi || 'N/A';
-        if (!acc[prodiId]) acc[prodiId] = { count: 0, total: 0 };
-        acc[prodiId].count++;
-        acc[prodiId].total += Number(ajuan.Total) || 0;
-        return acc;
-    }, {});
-    const prodiLabels = Object.keys(perProdiStats).sort();
-    const anggaranPerProdiData = prodiLabels.map(id => perProdiStats[id].total);
-    const ajuanPerProdiData = prodiLabels.map(id => perProdiStats[id].count);
-
-    setupChart('chartAnggaranPerProdi', 'bar', {
-      labels: prodiLabels,
-      datasets: [{ label: 'Total Anggaran (Rp)', data: anggaranPerProdiData, backgroundColor: 'rgba(25, 135, 84, 0.6)', borderColor: 'rgba(25, 135, 84, 1)', borderWidth: 1 }]
-    }, { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } });
-
-    setupChart('chartAjuanPerProdi', 'pie', {
-      labels: prodiLabels,
-      datasets: [{ data: ajuanPerProdiData, backgroundColor: ['#0dcaf0', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#212529', '#ffc107'] }]
-    }, { responsive: true, plugins: { legend: { position: 'top' } } });
+  function calculateQuarterlySummary(monthlyData, total) {
+      const quarters = [0, 0, 0, 0];
+      for (let i = 0; i < 12; i++) {
+          if (i < 3) quarters[0] += monthlyData[i];
+          else if (i < 6) quarters[1] += monthlyData[i];
+          else if (i < 9) quarters[2] += monthlyData[i];
+          else quarters[3] += monthlyData[i];
+      }
+      const percentages = quarters.map(q => total > 0 ? ((q / total) * 100).toFixed(1) + '%' : '0.0%');
+      return { values: quarters, percentages: percentages };
   }
+
+  function processDataForDashboard(data) {
+    let totalDiterima = 0;
+    let totalDitolak = 0;
+    const rpdPerBulan = Array(12).fill(0);
+    const diterimaData = data.filter(d => d.Status === 'Diterima');
+
+    data.forEach(ajuan => {
+        if (ajuan.Status === 'Diterima') {
+            totalDiterima += Number(ajuan.Total) || 0;
+        } else if (ajuan.Status === 'Ditolak') {
+            totalDitolak += Number(ajuan.Total) || 0;
+        }
+    });
+    
+    diterimaData.forEach(ajuan => {
+        RPD_MONTHS.forEach((month, index) => {
+            rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0;
+        });
+    });
+
+    const totalRPD = rpdPerBulan.reduce((a, b) => a + b, 0);
+
+    document.getElementById('dashboard-total-diterima').textContent = 'Rp ' + totalDiterima.toLocaleString('id-ID');
+    document.getElementById('dashboard-total-ditolak').textContent = 'Rp ' + totalDitolak.toLocaleString('id-ID');
+    document.getElementById('dashboard-total-rpd').textContent = 'Rp ' + totalRPD.toLocaleString('id-ID');
+
+    setupChart('chartRPDPerBulan', 'bar', {
+      labels: RPD_MONTHS,
+      datasets: [{ label: 'Total RPD (Rp)', data: rpdPerBulan, backgroundColor: 'rgba(13, 110, 253, 0.6)', borderColor: 'rgba(13, 110, 253, 1)', borderWidth: 1 }]
+    }, { responsive: true, scales: { y: { beginAtZero: true } } });
+
+    const rpdTriwulan = calculateQuarterlySummary(rpdPerBulan, totalRPD);
+    document.getElementById('dashboard-rpd-triwulan').innerHTML = `
+      <table class="table table-sm table-borderless text-center">
+        <thead><tr class="table-light"><th>Triwulan</th><th>Total RPD</th><th>Persentase</th></tr></thead>
+        <tbody>
+          ${rpdTriwulan.values.map((val, i) => `
+            <tr>
+              <td><strong>Q${i+1}</strong></td>
+              <td>Rp ${val.toLocaleString('id-ID')}</td>
+              <td><span class="badge bg-primary-subtle text-primary-emphasis">${rpdTriwulan.percentages[i]}</span></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+
+    if (STATE.role === 'direktorat') {
+        const ajuanPerBulan = Array(12).fill(0);
+        data.forEach(ajuan => {
+            const month = new Date(ajuan.Timestamp).getMonth();
+            if(month >= 0 && month < 12) ajuanPerBulan[month]++;
+        });
+        setupChart('chartAjuanPerBulan', 'bar', {
+          labels: RPD_MONTHS,
+          datasets: [{ label: 'Jumlah Ajuan', data: ajuanPerBulan, backgroundColor: 'rgba(54, 162, 235, 0.6)', borderColor: 'rgba(54, 162, 235, 1)', borderWidth: 1 }]
+        }, { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } });
+
+        const ajuanPerStatus = data.reduce((acc, ajuan) => {
+            acc[ajuan.Status] = (acc[ajuan.Status] || 0) + 1;
+            return acc;
+        }, {});
+        setupChart('chartAjuanPerStatus', 'doughnut', {
+          labels: Object.keys(ajuanPerStatus),
+          datasets: [{ data: Object.values(ajuanPerStatus), backgroundColor: ['#ffc107', '#198754', '#dc3545', '#fd7e14', '#6c757d'] }]
+        }, { responsive: true, plugins: { legend: { position: 'top' } } });
+
+        const perProdiStats = data.reduce((acc, ajuan) => {
+            const prodiId = ajuan.ID_Prodi || 'N/A';
+            if (!acc[prodiId]) acc[prodiId] = { count: 0, total: 0 };
+            acc[prodiId].count++;
+            acc[prodiId].total += Number(ajuan.Total) || 0;
+            return acc;
+        }, {});
+        const prodiLabels = Object.keys(perProdiStats).sort();
+        const anggaranPerProdiData = prodiLabels.map(id => perProdiStats[id].total);
+        const ajuanPerProdiData = prodiLabels.map(id => perProdiStats[id].count);
+
+        setupChart('chartAnggaranPerProdi', 'bar', {
+          labels: prodiLabels,
+          datasets: [{ label: 'Total Anggaran (Rp)', data: anggaranPerProdiData, backgroundColor: 'rgba(25, 135, 84, 0.6)', borderColor: 'rgba(25, 135, 84, 1)', borderWidth: 1 }]
+        }, { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } });
+
+        setupChart('chartAjuanPerProdi', 'pie', {
+          labels: prodiLabels,
+          datasets: [{ data: ajuanPerProdiData, backgroundColor: ['#0dcaf0', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#212529', '#ffc107'] }]
+        }, { responsive: true, plugins: { legend: { position: 'top' } } });
+    }
+  }
+
+  // --- RPD (Rencana Penarikan Dana) ---
+  async function refreshRPDTable() {
+    const tableContainer = document.getElementById('tableRPD');
+    tableContainer.innerHTML = `<div class="text-center text-muted p-5">Memuat data RPD...</div>`;
+    
+    let params = { status: 'Diterima' };
+    if (STATE.role === 'direktorat') {
+      const prodi = document.getElementById('filterProdiRPD').value;
+      if (prodi) params.id_prodi = prodi;
+      document.getElementById('filterProdiRPD').style.display = 'block';
+    } else {
+      params.id_prodi = STATE.id;
+      document.getElementById('filterProdiRPD').style.display = 'none';
+    }
+
+    const res = await api('getAjuan', params);
+    if (res.ok) {
+      renderRPDTable(res.data || []);
+    } else {
+      tableContainer.innerHTML = '<div class="text-center text-danger p-5">Gagal memuat data RPD.</div>';
+    }
+  }
+
+  function renderRPDTable(data) {
+      const container = document.getElementById('tableRPD');
+      if (data.length === 0) {
+          container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada ajuan yang diterima untuk ditampilkan.</div>';
+          return;
+      }
+
+      const isDirektorat = STATE.role === 'direktorat';
+      const readOnlyAttr = isDirektorat ? 'readonly' : '';
+      const disabledBtnClass = isDirektorat ? 'disabled' : '';
+
+      let tableHeader = `
+          <tr class="table-light">
+              <th rowspan="2" class="align-middle">ID Ajuan</th>
+              <th rowspan="2" class="align-middle">Prodi</th>
+              <th rowspan="2" class="align-middle">Rincian Ajuan</th>
+              <th rowspan="2" class="align-middle text-end">Total Diterima (Rp)</th>
+              <th colspan="12" class="text-center">Rencana Penarikan Dana per Bulan (Rp)</th>
+              <th rowspan="2" class="align-middle text-end">Total Dialokasikan</th>
+              <th rowspan="2" class="align-middle text-end">Sisa</th>
+              <th rowspan="2" class="align-middle text-center">Aksi</th>
+          </tr>
+          <tr class="table-light">
+              ${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}
+          </tr>`;
+      
+      const tableRows = data.map(r => {
+          const ajuanId = r.ID_Ajuan;
+          let totalAllocated = 0;
+          const rpdInputs = RPD_MONTHS.map(month => {
+              const value = Number(r[`RPD_${month}`] || 0);
+              totalAllocated += value;
+              return `<td><input type="number" class="form-control form-control-sm rpd-input" 
+                                 data-ajuan-id="${ajuanId}" 
+                                 value="${value}" 
+                                 oninput="window.updateRpdRowSummary('${ajuanId}')" 
+                                 min="0" ${readOnlyAttr}></td>`;
+          }).join('');
+          
+          const totalAjuan = Number(r.Total) || 0;
+          const sisa = totalAjuan - totalAllocated;
+          const sisaClass = sisa < 0 ? 'text-danger fw-bold' : '';
+
+          return `
+              <tr id="rpd-row-${ajuanId}">
+                  <td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId}</span></td>
+                  <td>${escapeHtml(r.ID_Prodi)}</td>
+                  <td>
+                      <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
+                      <div class="small text-muted">${escapeHtml(r.Judul_Kegiatan)}</div>
+                  </td>
+                  <td class="text-end fw-bold" data-total="${totalAjuan}">${totalAjuan.toLocaleString('id-ID')}</td>
+                  ${rpdInputs}
+                  <td class="text-end fw-bold rpd-total-allocated">${totalAllocated.toLocaleString('id-ID')}</td>
+                  <td class="text-end fw-bold rpd-sisa ${sisaClass}">${sisa.toLocaleString('id-ID')}</td>
+                  <td class="text-center">
+                      <button class="btn btn-sm btn-primary ${disabledBtnClass}" 
+                              onclick="window.saveRPD('${ajuanId}')" 
+                              title="Simpan RPD untuk ajuan ini">
+                          <i class="bi bi-save"></i>
+                      </button>
+                  </td>
+              </tr>
+          `;
+      }).join('');
+
+      container.innerHTML = `<table class="table table-bordered table-sm small"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`;
+  }
+
+  window.updateRpdRowSummary = (ajuanId) => {
+      const row = document.getElementById(`rpd-row-${ajuanId}`);
+      if (!row) return false;
+
+      const totalValue = parseFloat(row.querySelector('[data-total]').dataset.total);
+      const inputs = row.querySelectorAll('.rpd-input');
+      let currentSum = 0;
+      inputs.forEach(input => {
+          currentSum += Number(input.value) || 0;
+      });
+
+      const sisa = totalValue - currentSum;
+      
+      const sisaCell = row.querySelector('.rpd-sisa');
+      const allocatedCell = row.querySelector('.rpd-total-allocated');
+      
+      allocatedCell.textContent = currentSum.toLocaleString('id-ID');
+      sisaCell.textContent = sisa.toLocaleString('id-ID');
+      
+      if (sisa < 0) {
+          sisaCell.classList.add('text-danger');
+          return false;
+      } else {
+          sisaCell.classList.remove('text-danger');
+          return true;
+      }
+  }
+
+  window.saveRPD = async (ajuanId) => {
+      if (!window.updateRpdRowSummary(ajuanId)) {
+          showToast('Gagal menyimpan. Total alokasi RPD melebihi total dana yang diterima.', 'danger');
+          return;
+      }
+
+      const row = document.getElementById(`rpd-row-${ajuanId}`);
+      const inputs = row.querySelectorAll('.rpd-input');
+      const rpdData = {};
+      
+      inputs.forEach((input, index) => {
+          const month = RPD_MONTHS[index];
+          rpdData[`RPD_${month}`] = Number(input.value) || 0;
+      });
+
+      const res = await api('updateRPD', { ID_Ajuan: ajuanId, rpdData });
+      if (res.ok) {
+          showToast(`RPD untuk ajuan ${ajuanId} berhasil disimpan.`);
+      }
+  };
+
+  document.querySelector('[data-bs-target="#tab-rpd"]').addEventListener('shown.bs.tab', refreshRPDTable);
+  document.getElementById('btn-refresh-rpd').addEventListener('click', refreshRPDTable);
+  document.getElementById('filterProdiRPD').addEventListener('change', refreshRPDTable);
+
+  // --- REALISASI DANA ---
+  const REALISASI_MONTHS = RPD_MONTHS;
+
+  async function refreshRealisasiTable() {
+    const tableContainer = document.getElementById('tableRealisasi');
+    const summaryContainer = document.getElementById('realisasi-summary-area');
+    tableContainer.innerHTML = `<div class="text-center text-muted p-5">Memuat data Realisasi...</div>`;
+    summaryContainer.innerHTML = '';
+
+    let params = { status: 'Diterima' };
+    if (STATE.role === 'direktorat') {
+      const prodi = document.getElementById('filterProdiRealisasi').value;
+      if (prodi) params.id_prodi = prodi;
+      document.getElementById('filterProdiRealisasi').style.display = 'block';
+    } else {
+      params.id_prodi = STATE.id;
+      document.getElementById('filterProdiRealisasi').style.display = 'none';
+    }
+
+    const res = await api('getAjuan', params);
+    if (res.ok) {
+      renderRealisasiTable(res.data || []);
+      renderRealisasiSummary(res.data || []);
+    } else {
+      tableContainer.innerHTML = '<div class="text-center text-danger p-5">Gagal memuat data Realisasi.</div>';
+    }
+  }
+
+  function renderRealisasiTable(data) {
+    const container = document.getElementById('tableRealisasi');
+    if (data.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada ajuan yang diterima untuk diinput realisasinya.</div>';
+        return;
+    }
+
+    const isDirektorat = STATE.role === 'direktorat';
+    const readOnlyAttr = isDirektorat ? 'readonly' : '';
+    const disabledBtnClass = isDirektorat ? 'disabled' : '';
+
+    let tableHeader = `
+        <tr class="table-light">
+            <th rowspan="2" class="align-middle">ID Ajuan</th>
+            <th rowspan="2" class="align-middle">Rincian Ajuan</th>
+            <th rowspan="2" class="align-middle text-end">Total RPD (Rp)</th>
+            <th colspan="12" class="text-center">Realisasi Penarikan Dana per Bulan (Rp)</th>
+            <th rowspan="2" class="align-middle text-end">Total Realisasi</th>
+            <th rowspan="2" class="align-middle text-center">Aksi</th>
+        </tr>
+        <tr class="table-light">
+            ${REALISASI_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}
+        </tr>`;
+    
+    const tableRows = data.map(r => {
+        const ajuanId = r.ID_Ajuan;
+        let totalRealisasi = 0;
+        let totalRPD = 0;
+        const realisasiInputs = REALISASI_MONTHS.map(month => {
+            const value = Number(r[`Realisasi_${month}`] || 0);
+            totalRealisasi += value;
+            totalRPD += Number(r[`RPD_${month}`] || 0);
+            return `<td><input type="number" class="form-control form-control-sm realisasi-input" 
+                               value="${value}" 
+                               oninput="window.updateRealisasiRowSummary('${ajuanId}')" 
+                               min="0" ${readOnlyAttr}></td>`;
+        }).join('');
+        
+        return `
+            <tr id="realisasi-row-${ajuanId}">
+                <td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId}</span></td>
+                <td><strong>${escapeHtml(r.Nama_Ajuan)}</strong></td>
+                <td class="text-end fw-bold">${totalRPD.toLocaleString('id-ID')}</td>
+                ${realisasiInputs}
+                <td class="text-end fw-bold realisasi-total">${totalRealisasi.toLocaleString('id-ID')}</td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-primary ${disabledBtnClass}" 
+                            onclick="window.saveRealisasi('${ajuanId}')" 
+                            title="Simpan Realisasi untuk ajuan ini">
+                        <i class="bi bi-save"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    container.innerHTML = `<table class="table table-bordered table-sm small"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`;
+  }
+
+  function renderRealisasiSummary(data) {
+    const container = document.getElementById('realisasi-summary-area');
+    const rpdPerBulan = Array(12).fill(0);
+    const realisasiPerBulan = Array(12).fill(0);
+
+    data.forEach(ajuan => {
+        REALISASI_MONTHS.forEach((month, index) => {
+            rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0;
+            realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0;
+        });
+    });
+
+    const totalRPD = rpdPerBulan.reduce((a, b) => a + b, 0);
+    const totalRealisasi = realisasiPerBulan.reduce((a, b) => a + b, 0);
+
+    const rpdTriwulan = calculateQuarterlySummary(rpdPerBulan, totalRPD);
+    const realisasiTriwulan = calculateQuarterlySummary(realisasiPerBulan, totalRealisasi);
+
+    let summaryHtml = `
+      <div class="card">
+        <div class="card-header fw-bold">Ringkasan Realisasi Anggaran</div>
+        <div class="card-body">
+          <div class="row g-4">
+            <div class="col-lg-6">
+              <h6 class="text-center small text-muted">Realisasi per Bulan</h6>
+              <table class="table table-sm table-striped small">
+                <thead class="table-light"><tr><th>Bulan</th><th class="text-end">RPD (Rp)</th><th class="text-end">Realisasi (Rp)</th><th class="text-center">% Realisasi</th></tr></thead>
+                <tbody>
+                  ${rpdPerBulan.map((rpd, i) => {
+                    const real = realisasiPerBulan[i];
+                    const percent = rpd > 0 ? ((real / rpd) * 100).toFixed(1) : (real > 0 ? '∞' : '0.0');
+                    return `<tr>
+                      <td>${REALISASI_MONTHS[i]}</td>
+                      <td class="text-end">${rpd.toLocaleString('id-ID')}</td>
+                      <td class="text-end">${real.toLocaleString('id-ID')}</td>
+                      <td class="text-center"><span class="badge ${percent >= 100 ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'}">${percent}%</span></td>
+                    </tr>`;
+                  }).join('')}
+                  <tr class="table-dark">
+                    <td><strong>Total</strong></td>
+                    <td class="text-end"><strong>${totalRPD.toLocaleString('id-ID')}</strong></td>
+                    <td class="text-end"><strong>${totalRealisasi.toLocaleString('id-ID')}</strong></td>
+                    <td class="text-center"><strong>${totalRPD > 0 ? ((totalRealisasi/totalRPD)*100).toFixed(1) : '0.0'}%</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="col-lg-6">
+              <h6 class="text-center small text-muted">Realisasi per Triwulan</h6>
+              <table class="table table-sm table-striped small">
+                <thead class="table-light"><tr><th>Triwulan</th><th class="text-end">RPD (Rp)</th><th class="text-end">Realisasi (Rp)</th><th class="text-center">% Realisasi</th></tr></thead>
+                <tbody>
+                ${rpdTriwulan.values.map((rpd, i) => {
+                  const real = realisasiTriwulan.values[i];
+                  const percent = rpd > 0 ? ((real / rpd) * 100).toFixed(1) : (real > 0 ? '∞' : '0.0');
+                  return `<tr>
+                    <td><strong>Q${i+1}</strong></td>
+                    <td class="text-end">${rpd.toLocaleString('id-ID')}</td>
+                    <td class="text-end">${real.toLocaleString('id-ID')}</td>
+                    <td class="text-center"><span class="badge ${percent >= 100 ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'}">${percent}%</span></td>
+                  </tr>`;
+                }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    container.innerHTML = summaryHtml;
+  }
+
+  window.updateRealisasiRowSummary = (ajuanId) => {
+    const row = document.getElementById(`realisasi-row-${ajuanId}`);
+    if (!row) return;
+    const inputs = row.querySelectorAll('.realisasi-input');
+    let currentSum = 0;
+    inputs.forEach(input => currentSum += Number(input.value) || 0);
+    row.querySelector('.realisasi-total').textContent = currentSum.toLocaleString('id-ID');
+  }
+
+  window.saveRealisasi = async (ajuanId) => {
+      const row = document.getElementById(`realisasi-row-${ajuanId}`);
+      const inputs = row.querySelectorAll('.realisasi-input');
+      const realisasiData = {};
+      
+      inputs.forEach((input, index) => {
+          const month = REALISASI_MONTHS[index];
+          realisasiData[`Realisasi_${month}`] = Number(input.value) || 0;
+      });
+
+      // NOTE: This assumes an 'updateRealisasi' action exists in the backend Google Apps Script.
+      const res = await api('updateRealisasi', { ID_Ajuan: ajuanId, realisasiData });
+      if (res.ok) {
+          showToast(`Realisasi untuk ajuan ${ajuanId} berhasil disimpan.`);
+          refreshRealisasiTable(); // Refresh summary and table
+      }
+  };
+
+  document.querySelector('[data-bs-target="#tab-realisasi"]').addEventListener('shown.bs.tab', refreshRealisasiTable);
+  document.getElementById('btn-refresh-realisasi').addEventListener('click', refreshRealisasiTable);
+  document.getElementById('filterProdiRealisasi').addEventListener('change', refreshRealisasiTable);
 
   // --- EXPORT FUNCTIONS ---
   document.getElementById('btn-export-excel').addEventListener('click', exportToExcel);
@@ -1379,7 +1856,6 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    // [REVISI] Ubah grouping data untuk ekspor
     const groupedData = data.reduce((acc, row) => {
         const grubKey = row.Grub_Belanja_Utama || 'Lain-lain';
         const kelompokId = row.ID_Kelompok || 'Lain-lain';
@@ -1455,7 +1931,6 @@ document.addEventListener('DOMContentLoaded', function() {
       const tableHeaders = [['ID', 'Prodi', 'Rincian Ajuan', 'Jumlah', 'Satuan', 'Harga (Rp)', 'Total (Rp)', 'Status']];
       const tableBody = [];
 
-      // [REVISI] Ubah grouping data untuk ekspor PDF
       const groupedData = data.reduce((acc, row) => {
         const grubKey = row.Grub_Belanja_Utama || 'Lain-lain';
         const kelompokId = row.ID_Kelompok || 'Lain-lain';
