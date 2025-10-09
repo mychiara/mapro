@@ -102,6 +102,45 @@
   #tableRealisasi input[type=number] {
     text-align: right;
   }
+  
+  /* <!-- BARU: CSS untuk fitur cetak --> */
+  @media print {
+    body, .container {
+      background-color: #fff !important;
+      margin: 0;
+      padding: 0;
+    }
+    #app-area > .d-flex, .nav-tabs, #card-login, #loading-overlay, .modal, .toast-container,
+    .action-buttons, button, .form-select, input[type=file], .d-print-none {
+      display: none !important;
+    }
+    .tab-content, .card {
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+    }
+    .tab-pane {
+      display: none !important;
+    }
+    .tab-pane.active {
+      display: block !important;
+    }
+    .table-responsive {
+      overflow: visible !important;
+    }
+    .table {
+      font-size: 10pt;
+    }
+    a {
+      text-decoration: none;
+      color: #000;
+    }
+    h5 {
+      margin-top: 1rem;
+      margin-bottom: 1rem;
+      font-size: 14pt;
+    }
+  }
 </style>
 </head>
 <body>
@@ -153,42 +192,91 @@
 
     <div class="tab-content card p-3 p-md-4" id="myTabContent">
       <!-- Dashboard Tab -->
+      <!-- DIUBAH: Struktur Dashboard diperbarui -->
       <div class="tab-pane fade show active" id="tab-dashboard" role="tabpanel">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
           <h5 class="m-0"><i class="bi bi-graph-up"></i> Dashboard Monitoring</h5>
-          <button id="btn-refresh-dashboard" class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> Refresh Dashboard</button>
+          <div class="d-flex gap-2 align-items-center">
+            <!-- BARU: Filter Periode Dashboard -->
+            <select id="filterTahunDashboard" class="form-select form-select-sm" style="width: auto;"><option value="">Semua Tahun</option></select>
+            <select id="filterBulanDashboard" class="form-select form-select-sm" style="width: auto;"><option value="">Semua Bulan</option></select>
+            <button id="btn-refresh-dashboard" class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+          </div>
         </div>
         
-        <div class="row g-4 mb-4">
-            <div class="col-md-4">
-                <div class="card p-3 text-center h-100">
-                    <h6 class="card-title text-success">Total Anggaran Diterima</h6>
-                    <h4 id="dashboard-total-diterima" class="fw-bold display-6 mt-2">Rp 0</h4>
-                </div>
+        <!-- BARU: Ringkasan Angka Cepat -->
+        <div class="row g-3 mb-4">
+          <div class="col-lg-3 col-md-6">
+            <div class="card p-3 h-100">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="text-muted small">TOTAL DIAJUKAN</div>
+                <i class="bi bi-journal-text fs-2 text-primary opacity-50"></i>
+              </div>
+              <h4 id="dashboard-total-diajukan" class="fw-bold mt-2">Rp 0</h4>
             </div>
-            <div class="col-md-4">
-                <div class="card p-3 text-center h-100">
-                    <h6 class="card-title text-danger">Total Anggaran Ditolak</h6>
-                    <h4 id="dashboard-total-ditolak" class="fw-bold display-6 mt-2">Rp 0</h4>
-                </div>
+          </div>
+          <div class="col-lg-3 col-md-6">
+            <div class="card p-3 h-100">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="text-muted small">TOTAL DITERIMA</div>
+                <i class="bi bi-check2-circle fs-2 text-success opacity-50"></i>
+              </div>
+              <h4 id="dashboard-total-diterima" class="fw-bold mt-2">Rp 0</h4>
             </div>
-            <div class="col-md-4">
-                <div class="card p-3 text-center h-100">
-                    <h6 class="card-title text-primary">Total Rencana Penarikan (RPD)</h6>
-                    <h4 id="dashboard-total-rpd" class="fw-bold display-6 mt-2">Rp 0</h4>
-                </div>
+          </div>
+          <div class="col-lg-3 col-md-6">
+            <div class="card p-3 h-100">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="text-muted small">TOTAL RPD</div>
+                <i class="bi bi-calendar2-check fs-2 text-info opacity-50"></i>
+              </div>
+              <h4 id="dashboard-total-rpd" class="fw-bold mt-2">Rp 0</h4>
             </div>
+          </div>
+          <div class="col-lg-3 col-md-6">
+            <div class="card p-3 h-100">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="text-muted small">TOTAL REALISASI</div>
+                <i class="bi bi-cash-coin fs-2 text-warning opacity-50"></i>
+              </div>
+              <h4 id="dashboard-total-realisasi" class="fw-bold mt-2">Rp 0</h4>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Menunggu Review</div><strong id="dashboard-count-menunggu" class="fs-5">0</strong></div></div>
+            <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Diterima</div><strong id="dashboard-count-diterima" class="fs-5">0</strong></div></div>
+            <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Ditolak</div><strong id="dashboard-count-ditolak" class="fs-5">0</strong></div></div>
+            <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Revisi</div><strong id="dashboard-count-revisi" class="fs-5">0</strong></div></div>
         </div>
 
         <div class="row g-4">
+            <!-- BARU: Grafik Progress RPD vs Realisasi -->
+            <div class="col-lg-12">
+              <div class="card p-3">
+                <h6 class="card-title text-center">Progress Rencana Penarikan (RPD) vs Realisasi</h6>
+                <canvas id="chartRPDvsRealisasi"></canvas>
+              </div>
+            </div>
+
             <div class="col-lg-8"><div class="card p-3"><h6 class="card-title text-center">Rekapan Rencana Penarikan Dana (RPD) per Bulan</h6><canvas id="chartRPDPerBulan"></canvas></div></div>
             <div class="col-lg-4"><div class="card p-3"><h6 class="card-title text-center">Rekapan RPD per Triwulan</h6><div id="dashboard-rpd-triwulan"></div></div></div>
             
             <div id="direktorat-charts" class="row g-4 col-12 mt-1">
-                <div class="col-lg-6"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Bulan</h6><canvas id="chartAjuanPerBulan"></canvas></div></div>
-                <div class="col-lg-6"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Status</h6><canvas id="chartAjuanPerStatus"></canvas></div></div>
-                <div class="col-lg-7"><div class="card p-3"><h6 class="card-title text-center">Total Anggaran Diajukan per Prodi</h6><canvas id="chartAnggaranPerProdi"></canvas></div></div>
+                <div class="col-lg-8"><div class="card p-3"><h6 class="card-title text-center">Total Anggaran Diajukan per Prodi</h6><canvas id="chartAnggaranPerProdi"></canvas></div></div>
+                <!-- DIUBAH: Ukuran Pie Chart diperkecil -->
+                <div class="col-lg-4"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Status</h6><canvas id="chartAjuanPerStatus"></canvas></div></div>
+                <div class="col-lg-7"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Bulan</h6><canvas id="chartAjuanPerBulan"></canvas></div></div>
                 <div class="col-lg-5"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Prodi</h6><canvas id="chartAjuanPerProdi"></canvas></div></div>
+                
+                <!-- BARU: Container untuk laporan per prodi (view Direktorat) -->
+                <div class="col-12 mt-4">
+                  <h5 class="text-center text-muted border-bottom pb-2 mb-3">Laporan Detail per Prodi</h5>
+                  <div id="direktorat-prodi-reports" class="row g-4">
+                    <!-- Laporan per prodi akan di-generate oleh JavaScript di sini -->
+                  </div>
+                </div>
             </div>
         </div>
       </div>
@@ -265,6 +353,8 @@
                 <button id="btn-refresh" class="btn btn-outline-primary" title="Refresh Data"><i class="bi bi-arrow-clockwise"></i></button>
                 <button id="btn-export-pdf" class="btn btn-outline-danger" title="Export ke PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
                 <button id="btn-export-excel" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+                <!-- BARU: Tombol Cetak -->
+                <button id="btn-print-daftar" class="btn btn-outline-secondary" title="Cetak Daftar Ajuan"><i class="bi bi-printer"></i> Cetak</button>
             </div>
         </div>
         <div id="bulk-action-bar" class="p-2 mb-3 align-items-center gap-3" style="display:none;">
@@ -282,8 +372,10 @@
         <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
             <h5 class="m-0 me-3"><i class="bi bi-calendar2-check"></i> Rencana Penarikan Dana (RPD)</h5>
             <select id="filterProdiRPD" class="form-select" style="display:none; width: auto; flex-basis: 250px;" title="Filter RPD berdasarkan Prodi"><option value="">Semua Prodi</option></select>
-            <div class="ms-auto">
+            <div class="ms-auto d-flex gap-2">
               <button id="btn-refresh-rpd" class="btn btn-outline-primary" title="Refresh Data RPD"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+              <!-- BARU: Tombol Cetak -->
+              <button id="btn-print-rpd" class="btn btn-outline-secondary" title="Cetak RPD"><i class="bi bi-printer"></i> Cetak</button>
             </div>
         </div>
         <p class="text-muted small">Daftar ini berisi semua ajuan yang telah berstatus "Diterima". Prodi dapat merencanakan penarikan dana bulanan di sini.</p>
@@ -297,8 +389,10 @@
         <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
             <h5 class="m-0 me-3"><i class="bi bi-graph-up-arrow"></i> Realisasi Penarikan Dana</h5>
             <select id="filterProdiRealisasi" class="form-select" style="display:none; width: auto; flex-basis: 250px;" title="Filter Realisasi berdasarkan Prodi"><option value="">Semua Prodi</option></select>
-            <div class="ms-auto">
+            <div class="ms-auto d-flex gap-2">
               <button id="btn-refresh-realisasi" class="btn btn-outline-primary" title="Refresh Data Realisasi"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+              <!-- BARU: Tombol Cetak -->
+              <button id="btn-print-realisasi" class="btn btn-outline-secondary" title="Cetak Realisasi"><i class="bi bi-printer"></i> Cetak</button>
             </div>
         </div>
         <div id="realisasi-summary-area" class="mb-4"></div>
@@ -395,7 +489,7 @@
 document.addEventListener('DOMContentLoaded', function() {
   document.body.classList.add('login-view');
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbx9sOtO2Bu7o3NYLEhDryU9_Ci6AKHYp6-vbCEk_esnhV1nXUxyYvMm3y0Fn-Trtb3T/exec"; // JANGAN LUPA GANTI INI
+  const API_URL = "https://script.google.com/macros/s/AKfycbwS9lB-dp9AN0IHh7DqiMsHgcmhogpWRKU5dTxniHw9xf1zWjjqtNjq7w0DW68Yvwoi/exec"; // JANGAN LUPA GANTI INI
   const UPLOAD_TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/14w_apgCjUqDub5ph1K6iIhhbLlxqkTtU/export?format=xlsx"; // GANTI DENGAN LINK ANDA
 
   const GRUB_BELANJA_UTAMA_OPTIONS = [
@@ -407,7 +501,7 @@ document.addEventListener('DOMContentLoaded', function() {
     "F. KEGIATAN KEMAHASISWAAN"
   ];
 
-  let STATE = { role: null, id: null, allKelompok: [], allProdi: [], currentAjuanData: [], stagingList: [], selectedAjuanIds: new Set() };
+  let STATE = { role: null, id: null, allKelompok: [], allProdi: [], currentAjuanData: [], stagingList: [], selectedAjuanIds: new Set(), allDashboardData: [] };
   let CHARTS = {};
   const LOADER = document.getElementById('loading-overlay');
   const TOAST_CONTAINER = document.querySelector('.toast-container');
@@ -550,7 +644,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   document.getElementById('btn-logout').addEventListener('click', () => {
-    STATE = { role: null, id: null, allKelompok: [], allProdi: [], currentAjuanData: [], stagingList: [], selectedAjuanIds: new Set() };
+    STATE = { role: null, id: null, allKelompok: [], allProdi: [], currentAjuanData: [], stagingList: [], selectedAjuanIds: new Set(), allDashboardData: [] };
     document.body.classList.add('login-view');
     document.getElementById('card-login').style.display = 'block';
     document.getElementById('app-area').style.display = 'none';
@@ -1046,7 +1140,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <th class="text-center">Dakung</th>
         <th>Status</th>
         <th>Catatan Reviewer</th>
-        <th class="text-end">Aksi</th>
+        <th class="text-end action-buttons">Aksi</th>
       </tr></thead><tbody>`;
 
     sortedGrubKeys.forEach(grubKey => {
@@ -1384,10 +1478,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // --- FUNGSI DASHBOARD ---
+  // --- FUNGSI DASHBOARD (DIUBAH) ---
   const RPD_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
   document.getElementById('btn-refresh-dashboard').addEventListener('click', loadDashboardData);
   document.querySelector('[data-bs-target="#tab-dashboard"]').addEventListener('shown.bs.tab', loadDashboardData);
+  document.getElementById('filterTahunDashboard').addEventListener('change', () => processDataForDashboard());
+  document.getElementById('filterBulanDashboard').addEventListener('change', () => processDataForDashboard());
 
   async function loadDashboardData() {
     showToast('Memuat data dashboard...', 'info');
@@ -1400,11 +1496,30 @@ document.addEventListener('DOMContentLoaded', function() {
       showToast('Gagal memuat data dashboard.', 'danger');
       return;
     }
-    processDataForDashboard(res.data);
+    STATE.allDashboardData = res.data;
+    populateDashboardFilters(res.data);
+    processDataForDashboard();
+  }
+
+  function populateDashboardFilters(data) {
+    const yearSelect = document.getElementById('filterTahunDashboard');
+    const years = [...new Set(data.map(d => new Date(d.Timestamp).getFullYear()))].sort((a,b) => b-a);
+    yearSelect.innerHTML = '<option value="">Semua Tahun</option>';
+    years.forEach(year => {
+        if(!isNaN(year)) yearSelect.innerHTML += `<option value="${year}">${year}</option>`;
+    });
+
+    const monthSelect = document.getElementById('filterBulanDashboard');
+    monthSelect.innerHTML = '<option value="">Semua Bulan</option>';
+    RPD_MONTHS.forEach((month, index) => {
+        monthSelect.innerHTML += `<option value="${index}">${month}</option>`;
+    });
   }
 
   function setupChart(canvasId, type, data, options) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
+    const canvas = document.getElementById(canvasId);
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
     if (CHARTS[canvasId]) CHARTS[canvasId].destroy();
     CHARTS[canvasId] = new Chart(ctx, { type, data, options });
   }
@@ -1421,39 +1536,76 @@ document.addEventListener('DOMContentLoaded', function() {
       return { values: quarters, percentages: percentages };
   }
 
-  function processDataForDashboard(data) {
-    let totalDiterima = 0;
-    let totalDitolak = 0;
+  // --- Fungsi utama untuk memproses dan merender dashboard
+  function processDataForDashboard() {
+      const selectedYear = document.getElementById('filterTahunDashboard').value;
+      const selectedMonth = document.getElementById('filterBulanDashboard').value;
+
+      let filteredData = STATE.allDashboardData.filter(d => {
+        const date = new Date(d.Timestamp);
+        const yearMatch = !selectedYear || date.getFullYear() == selectedYear;
+        const monthMatch = !selectedMonth || date.getMonth() == selectedMonth;
+        return yearMatch && monthMatch;
+      });
+
+      renderDashboardSummary(filteredData);
+
+      if (STATE.role === 'direktorat') {
+          renderDirektoratDashboard(filteredData);
+      }
+  }
+  
+  // --- Fungsi untuk merender ringkasan dan grafik umum
+  function renderDashboardSummary(data, containerPrefix = 'dashboard-', chartPrefix = 'chart') {
+    let totalDiajukan = 0, totalDiterima = 0;
+    let statusCounts = { 'Menunggu Review': 0, 'Diterima': 0, 'Ditolak': 0, 'Revisi': 0 };
     const rpdPerBulan = Array(12).fill(0);
-    const diterimaData = data.filter(d => d.Status === 'Diterima');
+    const realisasiPerBulan = Array(12).fill(0);
 
     data.forEach(ajuan => {
+        totalDiajukan += Number(ajuan.Total) || 0;
+        if (ajuan.Status) {
+           statusCounts[ajuan.Status] = (statusCounts[ajuan.Status] || 0) + 1;
+        }
         if (ajuan.Status === 'Diterima') {
             totalDiterima += Number(ajuan.Total) || 0;
-        } else if (ajuan.Status === 'Ditolak') {
-            totalDitolak += Number(ajuan.Total) || 0;
+            RPD_MONTHS.forEach((month, index) => {
+                rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0;
+                realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0;
+            });
         }
-    });
-    
-    diterimaData.forEach(ajuan => {
-        RPD_MONTHS.forEach((month, index) => {
-            rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0;
-        });
     });
 
     const totalRPD = rpdPerBulan.reduce((a, b) => a + b, 0);
+    const totalRealisasi = realisasiPerBulan.reduce((a,b) => a+b, 0);
 
-    document.getElementById('dashboard-total-diterima').textContent = 'Rp ' + totalDiterima.toLocaleString('id-ID');
-    document.getElementById('dashboard-total-ditolak').textContent = 'Rp ' + totalDitolak.toLocaleString('id-ID');
-    document.getElementById('dashboard-total-rpd').textContent = 'Rp ' + totalRPD.toLocaleString('id-ID');
+    // Update Cards
+    document.getElementById(`${containerPrefix}total-diajukan`).textContent = 'Rp ' + totalDiajukan.toLocaleString('id-ID');
+    document.getElementById(`${containerPrefix}total-diterima`).textContent = 'Rp ' + totalDiterima.toLocaleString('id-ID');
+    document.getElementById(`${containerPrefix}total-rpd`).textContent = 'Rp ' + totalRPD.toLocaleString('id-ID');
+    document.getElementById(`${containerPrefix}total-realisasi`).textContent = 'Rp ' + totalRealisasi.toLocaleString('id-ID');
 
-    setupChart('chartRPDPerBulan', 'bar', {
+    document.getElementById(`${containerPrefix}count-menunggu`).textContent = statusCounts['Menunggu Review'];
+    document.getElementById(`${containerPrefix}count-diterima`).textContent = statusCounts['Diterima'];
+    document.getElementById(`${containerPrefix}count-ditolak`).textContent = statusCounts['Ditolak'];
+    document.getElementById(`${containerPrefix}count-revisi`).textContent = statusCounts['Revisi'];
+
+    // Grafik Progress RPD vs Realisasi
+    setupChart(`${chartPrefix}RPDvsRealisasi`, 'bar', {
+      labels: RPD_MONTHS,
+      datasets: [
+        { label: 'Realisasi (Rp)', data: realisasiPerBulan, backgroundColor: 'rgba(255, 193, 7, 0.7)', borderColor: 'rgba(255, 193, 7, 1)'},
+        { label: 'RPD (Rp)', data: rpdPerBulan, backgroundColor: 'rgba(13, 110, 253, 0.6)', borderColor: 'rgba(13, 110, 253, 1)'}
+      ]
+    }, { responsive: true, scales: { x: { stacked: false }, y: { stacked: false, beginAtZero: true } } });
+
+    setupChart(`${chartPrefix}RPDPerBulan`, 'bar', {
       labels: RPD_MONTHS,
       datasets: [{ label: 'Total RPD (Rp)', data: rpdPerBulan, backgroundColor: 'rgba(13, 110, 253, 0.6)', borderColor: 'rgba(13, 110, 253, 1)', borderWidth: 1 }]
     }, { responsive: true, scales: { y: { beginAtZero: true } } });
 
     const rpdTriwulan = calculateQuarterlySummary(rpdPerBulan, totalRPD);
-    document.getElementById('dashboard-rpd-triwulan').innerHTML = `
+    document.getElementById(`${containerPrefix}rpd-triwulan`).innerHTML = `
       <table class="table table-sm table-borderless text-center">
         <thead><tr class="table-light"><th>Triwulan</th><th>Total RPD</th><th>Persentase</th></tr></thead>
         <tbody>
@@ -1466,48 +1618,112 @@ document.addEventListener('DOMContentLoaded', function() {
           `).join('')}
         </tbody>
       </table>`;
+  }
+  
+  // --- Fungsi untuk merender bagian khusus direktorat
+  function renderDirektoratDashboard(data) {
+      const ajuanPerBulan = Array(12).fill(0);
+      data.forEach(ajuan => {
+          const month = new Date(ajuan.Timestamp).getMonth();
+          if(month >= 0 && month < 12) ajuanPerBulan[month]++;
+      });
+      setupChart('chartAjuanPerBulan', 'bar', {
+        labels: RPD_MONTHS,
+        datasets: [{ label: 'Jumlah Ajuan', data: ajuanPerBulan, backgroundColor: 'rgba(54, 162, 235, 0.6)', borderColor: 'rgba(54, 162, 235, 1)', borderWidth: 1 }]
+      }, { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } });
 
-    if (STATE.role === 'direktorat') {
-        const ajuanPerBulan = Array(12).fill(0);
-        data.forEach(ajuan => {
-            const month = new Date(ajuan.Timestamp).getMonth();
-            if(month >= 0 && month < 12) ajuanPerBulan[month]++;
-        });
-        setupChart('chartAjuanPerBulan', 'bar', {
+      const ajuanPerStatus = data.reduce((acc, ajuan) => {
+          acc[ajuan.Status] = (acc[ajuan.Status] || 0) + 1;
+          return acc;
+      }, {});
+      setupChart('chartAjuanPerStatus', 'doughnut', {
+        labels: Object.keys(ajuanPerStatus),
+        datasets: [{ data: Object.values(ajuanPerStatus), backgroundColor: ['#ffc107', '#198754', '#dc3545', '#fd7e14', '#6c757d'] }]
+      }, { responsive: true, plugins: { legend: { position: 'top' } } });
+
+      const perProdiStats = data.reduce((acc, ajuan) => {
+          const prodiId = ajuan.ID_Prodi || 'N/A';
+          if (!acc[prodiId]) acc[prodiId] = { count: 0, total: 0 };
+          acc[prodiId].count++;
+          acc[prodiId].total += Number(ajuan.Total) || 0;
+          return acc;
+      }, {});
+      const prodiLabels = Object.keys(perProdiStats).sort();
+      const anggaranPerProdiData = prodiLabels.map(id => perProdiStats[id].total);
+      const ajuanPerProdiData = prodiLabels.map(id => perProdiStats[id].count);
+
+      setupChart('chartAnggaranPerProdi', 'bar', {
+        labels: prodiLabels,
+        datasets: [{ label: 'Total Anggaran (Rp)', data: anggaranPerProdiData, backgroundColor: 'rgba(25, 135, 84, 0.6)', borderColor: 'rgba(25, 135, 84, 1)', borderWidth: 1 }]
+      }, { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } });
+
+      setupChart('chartAjuanPerProdi', 'pie', {
+        labels: prodiLabels,
+        datasets: [{ data: ajuanPerProdiData, backgroundColor: ['#0dcaf0', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#212529', '#ffc107'] }]
+      }, { responsive: true, plugins: { legend: { position: 'top' } } });
+      
+      // Render Laporan per Prodi
+      const reportsContainer = document.getElementById('direktorat-prodi-reports');
+      reportsContainer.innerHTML = '';
+      const dataByProdi = data.reduce((acc, curr) => {
+        (acc[curr.ID_Prodi] = acc[curr.ID_Prodi] || []).push(curr);
+        return acc;
+      }, {});
+
+      Object.keys(dataByProdi).sort().forEach(prodiId => {
+          renderProdiDetailReport(prodiId, dataByProdi[prodiId], reportsContainer);
+      });
+  }
+
+  function renderProdiDetailReport(prodiId, prodiData, container) {
+      const prodiSafeId = prodiId.replace(/[^a-zA-Z0-9]/g, '');
+      const prodiHtml = `
+          <div class="col-12">
+              <div class="card p-3">
+                  <h6 class="card-title mb-3 border-bottom pb-2"><strong><i class="bi bi-building"></i> Laporan Prodi: ${prodiId}</strong></h6>
+                  <div class="row g-3">
+                      <div class="col-lg-3 col-6"><div class="card p-2"><div class="small text-muted">Total Diajukan</div><strong id="prodi-${prodiSafeId}-diajukan" class="fs-5"></strong></div></div>
+                      <div class="col-lg-3 col-6"><div class="card p-2"><div class="small text-muted">Menunggu</div><strong id="prodi-${prodiSafeId}-menunggu"></strong></div></div>
+                      <div class="col-lg-3 col-6"><div class="card p-2"><div class="small text-muted">Diterima</div><strong id="prodi-${prodiSafeId}-diterima"></strong></div></div>
+                      <div class="col-lg-3 col-6"><div class="card p-2"><div class="small text-muted">Ditolak</div><strong id="prodi-${prodiSafeId}-ditolak"></strong></div></div>
+                  </div>
+                  <div class="mt-3">
+                      <canvas id="chart-prodi-${prodiSafeId}-progress"></canvas>
+                  </div>
+              </div>
+          </div>
+      `;
+      container.insertAdjacentHTML('beforeend', prodiHtml);
+
+      // Calculate and render stats for this prodi
+      let totalDiajukan = 0;
+      let statusCounts = { 'Menunggu Review': 0, 'Diterima': 0, 'Ditolak': 0 };
+      const rpdPerBulan = Array(12).fill(0);
+      const realisasiPerBulan = Array(12).fill(0);
+
+      prodiData.forEach(ajuan => {
+          totalDiajukan += Number(ajuan.Total) || 0;
+          statusCounts[ajuan.Status] = (statusCounts[ajuan.Status] || 0) + 1;
+          if (ajuan.Status === 'Diterima') {
+              RPD_MONTHS.forEach((month, index) => {
+                  rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0;
+                  realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0;
+              });
+          }
+      });
+
+      document.getElementById(`prodi-${prodiSafeId}-diajukan`).textContent = 'Rp ' + totalDiajukan.toLocaleString('id-ID');
+      document.getElementById(`prodi-${prodiSafeId}-menunggu`).textContent = statusCounts['Menunggu Review'] + ' Ajuan';
+      document.getElementById(`prodi-${prodiSafeId}-diterima`).textContent = statusCounts['Diterima'] + ' Ajuan';
+      document.getElementById(`prodi-${prodiSafeId}-ditolak`).textContent = statusCounts['Ditolak'] + ' Ajuan';
+
+      setupChart(`chart-prodi-${prodiSafeId}-progress`, 'bar', {
           labels: RPD_MONTHS,
-          datasets: [{ label: 'Jumlah Ajuan', data: ajuanPerBulan, backgroundColor: 'rgba(54, 162, 235, 0.6)', borderColor: 'rgba(54, 162, 235, 1)', borderWidth: 1 }]
-        }, { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } });
-
-        const ajuanPerStatus = data.reduce((acc, ajuan) => {
-            acc[ajuan.Status] = (acc[ajuan.Status] || 0) + 1;
-            return acc;
-        }, {});
-        setupChart('chartAjuanPerStatus', 'doughnut', {
-          labels: Object.keys(ajuanPerStatus),
-          datasets: [{ data: Object.values(ajuanPerStatus), backgroundColor: ['#ffc107', '#198754', '#dc3545', '#fd7e14', '#6c757d'] }]
-        }, { responsive: true, plugins: { legend: { position: 'top' } } });
-
-        const perProdiStats = data.reduce((acc, ajuan) => {
-            const prodiId = ajuan.ID_Prodi || 'N/A';
-            if (!acc[prodiId]) acc[prodiId] = { count: 0, total: 0 };
-            acc[prodiId].count++;
-            acc[prodiId].total += Number(ajuan.Total) || 0;
-            return acc;
-        }, {});
-        const prodiLabels = Object.keys(perProdiStats).sort();
-        const anggaranPerProdiData = prodiLabels.map(id => perProdiStats[id].total);
-        const ajuanPerProdiData = prodiLabels.map(id => perProdiStats[id].count);
-
-        setupChart('chartAnggaranPerProdi', 'bar', {
-          labels: prodiLabels,
-          datasets: [{ label: 'Total Anggaran (Rp)', data: anggaranPerProdiData, backgroundColor: 'rgba(25, 135, 84, 0.6)', borderColor: 'rgba(25, 135, 84, 1)', borderWidth: 1 }]
-        }, { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } });
-
-        setupChart('chartAjuanPerProdi', 'pie', {
-          labels: prodiLabels,
-          datasets: [{ data: ajuanPerProdiData, backgroundColor: ['#0dcaf0', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#212529', '#ffc107'] }]
-        }, { responsive: true, plugins: { legend: { position: 'top' } } });
-    }
+          datasets: [
+              { label: 'Realisasi (Rp)', data: realisasiPerBulan, backgroundColor: 'rgba(255, 193, 7, 0.7)' },
+              { label: 'RPD (Rp)', data: rpdPerBulan, backgroundColor: 'rgba(13, 110, 253, 0.6)' }
+          ]
+      }, { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } });
   }
 
   // --- RPD (Rencana Penarikan Dana) ---
@@ -1553,7 +1769,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <th colspan="12" class="text-center">Rencana Penarikan Dana per Bulan (Rp)</th>
               <th rowspan="2" class="align-middle text-end">Total Dialokasikan</th>
               <th rowspan="2" class="align-middle text-end">Sisa</th>
-              <th rowspan="2" class="align-middle text-center">Aksi</th>
+              <th rowspan="2" class="align-middle text-center action-buttons">Aksi</th>
           </tr>
           <tr class="table-light">
               ${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}
@@ -1588,7 +1804,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   ${rpdInputs}
                   <td class="text-end fw-bold rpd-total-allocated">${totalAllocated.toLocaleString('id-ID')}</td>
                   <td class="text-end fw-bold rpd-sisa ${sisaClass}">${sisa.toLocaleString('id-ID')}</td>
-                  <td class="text-center">
+                  <td class="text-center action-buttons">
                       <button class="btn btn-sm btn-primary ${disabledBtnClass}" 
                               onclick="window.saveRPD('${ajuanId}')" 
                               title="Simpan RPD untuk ajuan ini">
@@ -1701,7 +1917,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <th rowspan="2" class="align-middle text-end">Total RPD (Rp)</th>
             <th colspan="12" class="text-center">Realisasi Penarikan Dana per Bulan (Rp)</th>
             <th rowspan="2" class="align-middle text-end">Total Realisasi</th>
-            <th rowspan="2" class="align-middle text-center">Aksi</th>
+            <th rowspan="2" class="align-middle text-center action-buttons">Aksi</th>
         </tr>
         <tr class="table-light">
             ${REALISASI_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}
@@ -1728,7 +1944,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td class="text-end fw-bold">${totalRPD.toLocaleString('id-ID')}</td>
                 ${realisasiInputs}
                 <td class="text-end fw-bold realisasi-total">${totalRealisasi.toLocaleString('id-ID')}</td>
-                <td class="text-center">
+                <td class="text-center action-buttons">
                     <button class="btn btn-sm btn-primary ${disabledBtnClass}" 
                             onclick="window.saveRealisasi('${ajuanId}')" 
                             title="Simpan Realisasi untuk ajuan ini">
@@ -1761,7 +1977,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const realisasiTriwulan = calculateQuarterlySummary(realisasiPerBulan, totalRealisasi);
 
     let summaryHtml = `
-      <div class="card">
+      <div class="card d-print-none">
         <div class="card-header fw-bold">Ringkasan Realisasi Anggaran</div>
         <div class="card-body">
           <div class="row g-4">
@@ -1833,11 +2049,10 @@ document.addEventListener('DOMContentLoaded', function() {
           realisasiData[`Realisasi_${month}`] = Number(input.value) || 0;
       });
 
-      // NOTE: This assumes an 'updateRealisasi' action exists in the backend Google Apps Script.
       const res = await api('updateRealisasi', { ID_Ajuan: ajuanId, realisasiData });
       if (res.ok) {
           showToast(`Realisasi untuk ajuan ${ajuanId} berhasil disimpan.`);
-          refreshRealisasiTable(); // Refresh summary and table
+          refreshRealisasiTable(); 
       }
   };
 
@@ -1845,9 +2060,12 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-refresh-realisasi').addEventListener('click', refreshRealisasiTable);
   document.getElementById('filterProdiRealisasi').addEventListener('change', refreshRealisasiTable);
 
-  // --- EXPORT FUNCTIONS ---
+  // --- EXPORT & PRINT FUNCTIONS ---
   document.getElementById('btn-export-excel').addEventListener('click', exportToExcel);
   document.getElementById('btn-export-pdf').addEventListener('click', exportToPdf);
+  document.getElementById('btn-print-daftar').addEventListener('click', () => window.print());
+  document.getElementById('btn-print-rpd').addEventListener('click', () => window.print());
+  document.getElementById('btn-print-realisasi').addEventListener('click', () => window.print());
   
   function exportToExcel() {
     const data = STATE.currentAjuanData;
