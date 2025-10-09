@@ -53,10 +53,11 @@
   .comment-bubble .author { font-weight: bold; font-size: 0.9rem; margin-bottom: 2px; }
   .comment-bubble .timestamp { font-size: 0.75rem; color: #6c757d; margin-top: 5px; text-align: right; }
   
-  .group-header-kelompok { background-color: #343a40 !important; color: white; }
+  /* [REVISI] Hierarki Header Tabel */
+  .group-header-grub { background-color: #212529 !important; color: white; font-size: 1.1em; }
+  .group-header-kelompok { background-color: #495057 !important; color: white; font-size: 1.0em; }
   .group-header-kegiatan { background-color: #e9ecef !important; }
   
-  /* [REVISI] CSS untuk notifikasi komentar baru */
   .comment-btn-wrapper { position: relative; display: inline-block; vertical-align: middle; }
   .comment-notification-dot {
     position: absolute;
@@ -70,18 +71,15 @@
     animation: blinker 1.5s linear infinite;
   }
 
-  /* [REVISI] CSS untuk indikator warna Prodi */
   .prodi-indicator {
     border-left: 5px solid transparent;
   }
   
-  /* [REVISI] CSS untuk Bulk Action Bar */
   #bulk-action-bar {
     background-color: #e9ecef;
     border-radius: 0.375rem;
   }
 
-  /* [REVISI] CSS untuk Halaman Login Baru */
   body.login-view {
     background-image: linear-gradient(rgba(248, 249, 250, 0.92), rgba(248, 249, 250, 0.98)), url('https://kemkes.go.id/app_asset/image_content/167420049363ca45ad438f30.09191866.png');
     background-size: contain;
@@ -113,9 +111,8 @@
 
 <div class="container mt-4 mb-5">
   
-  <!-- [REVISI] Tampilan Login Baru (Sesuai Contoh) -->
   <div class="card p-4 p-md-5 text-center" id="card-login" style="max-width: 450px;">
-    <img src="LOGO POLTEKKES KEMENKES KUPANG.png" alt="Logo Poltekkes Kupang" class="mx-auto mb-4" style="width: 220px; height: auto;">
+    <img src="https://i.ibb.co/L5k6Y1w/LOGO POLTEKKES KEMENKES KUPANG.png" alt="Logo Poltekkes Kupang" class="mx-auto mb-4" style="width: 220px; height: auto;">
     <h2 class="h4 fw-bold mb-1">Si-Pandai Login</h2>
     <p class="text-muted mb-4">Silakan login untuk melanjutkan</p>
     <div class="text-start">
@@ -178,8 +175,10 @@
 
         <h6 class="mb-3 text-muted">Input Rincian Ajuan</h6>
         <div class="row g-3">
+          <!-- [REVISI] Tambah Input Grub Belanja Utama -->
           <div class="col-md-8"><label for="namaAjuan" class="form-label">Rincian Ajuan</label><input id="namaAjuan" class="form-control" placeholder="Contoh: Tiket Pesawat, Akomodasi Hotel" /></div>
-          <div class="col-md-4"><label for="selectKelompok" class="form-label">Kelompok</label><select id="selectKelompok" class="form-select"></select></div>
+          <div class="col-md-4"><label for="selectGrub" class="form-label">Grub Belanja Utama</label><select id="selectGrub" class="form-select"></select></div>
+          <div class="col-md-4"><label for="selectKelompok" class="form-label">Kelompok Belanja</label><select id="selectKelompok" class="form-select"></select></div>
           <div class="col-md-4"><label for="selectRevisi" class="form-label">Status Revisi</label><select id="selectRevisi" class="form-select"><option>Ajuan Baru</option><option>Revisi 1</option><option>Revisi 2</option><option>Revisi 3</option><option>Revisi 4</option><option>Revisi 5</option></select></div>
           <div class="col-md-2 col-6"><label for="jumlah" class="form-label">Jumlah</label><input id="jumlah" type="number" class="form-control" min="1" /></div>
           <div class="col-md-2 col-6"><label for="satuan" class="form-label">Satuan</label><input id="satuan" class="form-control" placeholder="pcs/lbr" /></div>
@@ -221,7 +220,9 @@
         <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
             <div class="flex-grow-1 d-flex flex-wrap gap-2">
                 <select id="filterProdi" class="form-select" style="display:none; width: auto; flex-basis: 200px;" title="Filter berdasarkan Prodi"><option value="">Semua Prodi</option></select>
-                <select id="filterKelompok" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Kelompok Ajuan"><option value="">Semua Kelompok</option></select>
+                <!-- [REVISI] Tambah Filter Grub Belanja -->
+                <select id="filterGrub" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Grub Belanja"><option value="">Semua Grub Belanja</option></select>
+                <select id="filterKelompok" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Kelompok Belanja"><option value="">Semua Kelompok</option></select>
                 <select id="filterStatus" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Status"><option value="">Semua Status</option><option>Menunggu Review</option><option>Diterima</option><option>Ditolak</option><option>Revisi</option></select>
             </div>
             <div id="summary-display" class="d-flex flex-wrap gap-3 p-2 border rounded bg-light me-auto" style="display: none;">
@@ -236,7 +237,6 @@
                 <button id="btn-export-excel" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
             </div>
         </div>
-        <!-- [REVISI] Bulk Action Bar -->
         <div id="bulk-action-bar" class="p-2 mb-3 align-items-center gap-3" style="display:none;">
             <strong id="bulk-selected-count">0</strong> item terpilih.
             <button id="bulk-accept" class="btn btn-sm btn-success"><i class="bi bi-check-lg"></i> Terima</button>
@@ -268,7 +268,9 @@
         <div class="row g-3">
           <div class="col-md-12"><label class="form-label">Judul Kegiatan</label><input id="edit-judulKegiatan" class="form-control" /></div>
           <div class="col-md-8"><label class="form-label">Rincian Ajuan</label><input id="edit-namaAjuan" class="form-control" /></div>
-          <div class="col-md-4"><label class="form-label">Kelompok</label><select id="edit-selectKelompok" class="form-select"></select></div>
+          <!-- [REVISI] Tambah input Grub Belanja di Modal Edit -->
+          <div class="col-md-4"><label for="edit-selectGrub" class="form-label">Grub Belanja Utama</label><select id="edit-selectGrub" class="form-select"></select></div>
+          <div class="col-md-4"><label class="form-label">Kelompok Belanja</label><select id="edit-selectKelompok" class="form-select"></select></div>
           <div class="col-md-4"><label for="edit-selectRevisi" class="form-label">Status Revisi</label><select id="edit-selectRevisi" class="form-select"><option>Ajuan Baru</option><option>Revisi 1</option><option>Revisi 2</option><option>Revisi 3</option><option>Revisi 4</option><option>Revisi 5</option></select></div>
           <div class="col-md-2 col-6"><label class="form-label">Jumlah</label><input id="edit-jumlah" type="number" class="form-control" min="1" /></div>
           <div class="col-md-2 col-6"><label class="form-label">Satuan</label><input id="edit-satuan" class="form-control" /></div>
@@ -331,15 +333,21 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  document.body.classList.add('login-view'); // [REVISI] Terapkan view login saat awal
+  document.body.classList.add('login-view');
 
-  /* --- Ganti API_URL dengan Web App URL hasil deploy Apps Script --- */
-  const API_URL = "https://script.google.com/macros/s/AKfycbweyqfAQhIE_CF9JDlqhFxx4ucoTeKA0eupLNohPHThmTR41RhHPQvRycWel9wfAuWC/exec"; // JANGAN LUPA GANTI INI
-  
-  /* --- Ganti UPLOAD_TEMPLATE_URL dengan link file template Excel Anda --- */
+  const API_URL = "https://script.google.com/macros/s/AKfycbxcKaTrrut0a9N06FDEIY6YxsLZTQTdE_bQEptj6MJp9nirQ7QxB41te7pQ8uxZDgu1/exec"; // JANGAN LUPA GANTI INI
   const UPLOAD_TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/14w_apgCjUqDub5ph1K6iIhhbLlxqkTtU/export?format=xlsx"; // GANTI DENGAN LINK ANDA
 
-  // --- GLOBAL STATE & ELEMENTS ---
+  // [REVISI] Tambahkan opsi Grub Belanja Utama
+  const GRUB_BELANJA_UTAMA_OPTIONS = [
+    "A. PERSIAPAN",
+    "B. PEMBELAJARAN TEORI",
+    "C. PEMBELAJARAN PRAKTIKUM",
+    "D. PRAKTEK KERJA LAPANGAN",
+    "E. PELAKSANAAN UJIAN",
+    "F. KEGIATAN KEMAHASISWAAN"
+  ];
+
   let STATE = { role: null, id: null, allKelompok: [], allProdi: [], currentAjuanData: [], stagingList: [], selectedAjuanIds: new Set() };
   let CHARTS = {};
   const LOADER = document.getElementById('loading-overlay');
@@ -348,7 +356,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const REVIEW_MODAL = new bootstrap.Modal(document.getElementById('reviewAjuanModal'));
   const KOMENTAR_MODAL = new bootstrap.Modal(document.getElementById('komentarModal'));
 
-  // [REVISI] Palet warna untuk Prodi
   const PRODI_COLORS = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac'];
 
   document.getElementById('btn-download-template').href = UPLOAD_TEMPLATE_URL;
@@ -405,9 +412,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   function escapeHtml(s) { if (!s) return ''; return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-  // [REVISI] Helper function untuk mendapatkan warna prodi yang konsisten
   function getColorForProdi(prodiId) {
-      if (!prodiId) return '#cccccc'; // Warna default
+      if (!prodiId) return '#cccccc';
       let hash = 0;
       for (let i = 0; i < prodiId.length; i++) {
           hash = prodiId.charCodeAt(i) + ((hash << 5) - hash);
@@ -449,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
     STATE.role = userData.Role; 
     STATE.id = userData.ID_Prodi;
     
-    document.body.classList.remove('login-view'); // [REVISI] Hapus view login
+    document.body.classList.remove('login-view');
     document.getElementById('card-login').style.display = 'none';
     document.getElementById('app-area').style.display = 'block';
     document.getElementById('welcome').innerHTML = `<span class="badge bg-secondary me-2">${STATE.role.toUpperCase()}</span> <strong>${STATE.id} - ${userData.Nama_Prodi}</strong>`;
@@ -484,7 +490,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   document.getElementById('btn-logout').addEventListener('click', () => {
     STATE = { role: null, id: null, allKelompok: [], allProdi: [], currentAjuanData: [], stagingList: [], selectedAjuanIds: new Set() };
-    document.body.classList.add('login-view'); // [REVISI] Terapkan view login
+    document.body.classList.add('login-view');
     document.getElementById('card-login').style.display = 'block';
     document.getElementById('app-area').style.display = 'none';
     document.getElementById('input-user-id').value = '';
@@ -510,6 +516,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // --- NEW AJUAN WORKFLOW (STAGING) ---
   function clearRincianForm() {
       ['namaAjuan', 'jumlah', 'satuan', 'hargaSatuan', 'total', 'keterangan', 'dataDukung'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('selectGrub').value = ''; // [REVISI]
       document.getElementById('selectKelompok').value = '';
       document.getElementById('selectRevisi').value = 'Ajuan Baru';
       document.getElementById('namaAjuan').focus();
@@ -540,6 +547,7 @@ document.addEventListener('DOMContentLoaded', function() {
           return `
               <tr>
                   <td>${index + 1}</td>
+                  <td>${escapeHtml(item.Grub_Belanja_Utama)}</td> <!-- [REVISI] -->
                   <td>${escapeHtml(item.Judul_Kegiatan)}</td>
                   <td>${escapeHtml(item.Nama_Ajuan)}</td>
                   <td>${escapeHtml(item.ID_Kelompok)}</td>
@@ -561,6 +569,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <thead class="table-light">
                   <tr>
                       <th>No.</th>
+                      <th>Grub Belanja</th> <!-- [REVISI] -->
                       <th>Judul Kegiatan</th>
                       <th>Rincian Ajuan</th>
                       <th>Kelompok</th>
@@ -593,6 +602,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       const payload = {
+        Grub_Belanja_Utama: document.getElementById('selectGrub').value, // [REVISI]
         Judul_Kegiatan: judulKegiatan,
         ID_Prodi: STATE.id,
         ID_Kelompok: document.getElementById('selectKelompok').value,
@@ -605,8 +615,8 @@ document.addEventListener('DOMContentLoaded', function() {
         Data_Dukung: document.getElementById('dataDukung').value,
       };
 
-      if(!payload.Nama_Ajuan || payload.Jumlah <= 0 || !payload.Satuan || payload.Harga_Satuan < 0 || !payload.ID_Kelompok){
-        showToast('Harap lengkapi semua field rincian (Rincian Ajuan, Kelompok, Jumlah, Satuan, Harga).', 'warning'); 
+      if(!payload.Nama_Ajuan || payload.Jumlah <= 0 || !payload.Satuan || payload.Harga_Satuan < 0 || !payload.ID_Kelompok || !payload.Grub_Belanja_Utama){
+        showToast('Harap lengkapi semua field rincian (Rincian, Grub Belanja, Kelompok, Jumlah, Satuan, Harga).', 'warning'); 
         return;
       }
 
@@ -669,12 +679,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
+            // [REVISI] Tambahkan kolom Grub_Belanja_Utama saat upload Excel
+            // Pastikan template Excel Anda memiliki kolom "Grub_Belanja_Utama"
             const ajuanList = jsonData.map(row => {
                 const prodiId = (STATE.role === 'direktorat') ? row.ID_Prodi : STATE.id;
                 if (!prodiId) return null;
 
                 return {
                     ID_Prodi: String(prodiId).toUpperCase(),
+                    Grub_Belanja_Utama: row.Grub_Belanja_Utama || GRUB_BELANJA_UTAMA_OPTIONS[0], // Default jika kosong
                     ID_Kelompok: row.ID_Kelompok || '',
                     Judul_Kegiatan: row.Judul_Kegiatan || 'N/A (dari Excel)',
                     Nama_Ajuan: row.Nama_Ajuan || '',
@@ -685,15 +698,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     Status_Revisi: row.Status_Revisi || 'Ajuan Baru',
                     Data_Dukung: row.Data_Dukung || '',
                 };
-            }).filter(ajuan => ajuan && ajuan.ID_Prodi && ajuan.Judul_Kegiatan && ajuan.Nama_Ajuan && ajuan.Jumlah > 0 && ajuan.ID_Kelompok); 
+            }).filter(ajuan => ajuan && ajuan.ID_Prodi && ajuan.Judul_Kegiatan && ajuan.Nama_Ajuan && ajuan.Jumlah > 0 && ajuan.ID_Kelompok && ajuan.Grub_Belanja_Utama); 
 
             if (ajuanList.length > 0) {
                  const totalAnggaranUpload = ajuanList.reduce((sum, ajuan) => sum + ((ajuan.Jumlah || 0) * (ajuan.Harga_Satuan || 0)), 0);
                  showToast(`Total anggaran dari file: Rp ${totalAnggaranUpload.toLocaleString('id-ID')}. Mengirim data...`, 'info');
             } else {
                  const errorMsg = STATE.role === 'direktorat'
-                    ? 'Tidak ada data ajuan yang valid. Pastikan kolom "ID_Prodi", "Judul_Kegiatan", "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi.'
-                    : 'Tidak ada data ajuan yang valid. Pastikan kolom "Judul_Kegiatan", "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi.';
+                    ? 'Tidak ada data valid. Pastikan kolom "ID_Prodi", "Grub_Belanja_Utama", "Judul_Kegiatan", "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi.'
+                    : 'Tidak ada data valid. Pastikan kolom "Grub_Belanja_Utama", "Judul_Kegiatan", "Nama_Ajuan", "Jumlah", dan "ID_Kelompok" terisi.';
                  showToast(errorMsg, 'warning');
                  return;
             }
@@ -724,7 +737,22 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // --- INITIAL DATA & POPULATION ---
+  // [REVISI] Buat fungsi untuk populate Grub Belanja
+  function populateGrubBelanja(selectId, isFilter = false) {
+    const sel = document.getElementById(selectId);
+    sel.innerHTML = isFilter ? '<option value="">Semua Grub Belanja</option>' : '<option value="">-- Pilih Grub Belanja --</option>';
+    GRUB_BELANJA_UTAMA_OPTIONS.forEach(optVal => {
+      const opt = document.createElement('option');
+      opt.value = optVal;
+      opt.text = optVal;
+      sel.appendChild(opt);
+    });
+  }
+
   async function loadInitialData() {
+    populateGrubBelanja('selectGrub');
+    populateGrubBelanja('filterGrub', true);
+    
     const k = await api('getKelompok', {});
     if (k.ok) {
       STATE.allKelompok = k.data || [];
@@ -847,6 +875,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('filterStatus').addEventListener('change', refreshAjuanTable);
   document.getElementById('filterProdi').addEventListener('change', refreshAjuanTable);
   document.getElementById('filterKelompok').addEventListener('change', refreshAjuanTable);
+  document.getElementById('filterGrub').addEventListener('change', refreshAjuanTable); // [REVISI]
 
   async function refreshAjuanTable() {
     document.getElementById('tableAjuan').innerHTML = `<div class="text-center text-muted p-5">Memuat data...</div>`;
@@ -862,6 +891,9 @@ document.addEventListener('DOMContentLoaded', function() {
       const prodi = document.getElementById('filterProdi').value;
       if (prodi) params.id_prodi = prodi;
     }
+    const grub = document.getElementById('filterGrub').value; // [REVISI]
+    if (grub) params.grub_belanja = grub; // [REVISI]
+
     const kelompok = document.getElementById('filterKelompok').value;
     if (kelompok) params.id_kelompok = kelompok;
 
@@ -903,18 +935,23 @@ document.addEventListener('DOMContentLoaded', function() {
     rejectedDisplayEl.innerHTML = `<strong class="text-danger">Total Ditolak:</strong> Rp ${rejectedTotal.toLocaleString('id-ID')}`;
     summaryContainer.style.display = 'flex';
 
+    // [REVISI] Ubah logika grouping menjadi 3 tingkat
     const groupedData = rows.reduce((acc, row) => {
+        const grubKey = row.Grub_Belanja_Utama || 'Lain-lain';
         const kelompokId = row.ID_Kelompok || 'Lain-lain';
         const namaKelompok = STATE.allKelompok.find(k => k.ID_Kelompok === kelompokId)?.Nama_Kelompok || 'Lain-lain';
         const kelompokKey = `${kelompokId} - ${namaKelompok}`;
         const kegiatanKey = row.Judul_Kegiatan || 'Tanpa Judul Kegiatan';
-        if (!acc[kelompokKey]) acc[kelompokKey] = {};
-        if (!acc[kelompokKey][kegiatanKey]) acc[kelompokKey][kegiatanKey] = [];
-        acc[kelompokKey][kegiatanKey].push(row);
+        
+        if (!acc[grubKey]) acc[grubKey] = {};
+        if (!acc[grubKey][kelompokKey]) acc[grubKey][kelompokKey] = {};
+        if (!acc[grubKey][kelompokKey][kegiatanKey]) acc[grubKey][kelompokKey][kegiatanKey] = [];
+        
+        acc[grubKey][kelompokKey][kegiatanKey].push(row);
         return acc;
     }, {});
 
-    const sortedKelompokKeys = Object.keys(groupedData).sort();
+    const sortedGrubKeys = Object.keys(groupedData).sort();
     const statusClass = { "Menunggu Review": "status-menunggu-review", "Diterima": "status-diterima", "Ditolak": "status-ditolak", "Revisi": "status-revisi" };
 
     let html = `<table class="table table-hover align-middle">
@@ -930,43 +967,50 @@ document.addEventListener('DOMContentLoaded', function() {
         <th class="text-end">Aksi</th>
       </tr></thead><tbody>`;
 
-    sortedKelompokKeys.forEach(kelompokKey => {
-        const kegiatanGroup = groupedData[kelompokKey];
-        const sortedKegiatanKeys = Object.keys(kegiatanGroup).sort();
-        
-        html += `<tr class="group-header-kelompok"><td colspan="9" class="fw-bold"><i class="bi bi-tags-fill"></i> Kelompok: ${escapeHtml(kelompokKey)}</td></tr>`;
+    // [REVISI] Render tabel dengan 3 tingkat perulangan
+    sortedGrubKeys.forEach(grubKey => {
+      html += `<tr class="group-header-grub"><td colspan="9" class="fw-bold"><i class="bi bi-folder-fill"></i> ${escapeHtml(grubKey)}</td></tr>`;
+      const kelompokGroup = groupedData[grubKey];
+      const sortedKelompokKeys = Object.keys(kelompokGroup).sort();
+      
+      sortedKelompokKeys.forEach(kelompokKey => {
+          const kegiatanGroup = kelompokGroup[kelompokKey];
+          const sortedKegiatanKeys = Object.keys(kegiatanGroup).sort();
+          
+          html += `<tr class="group-header-kelompok"><td colspan="9" class="fw-bold ps-4"><i class="bi bi-tags-fill"></i> Kelompok: ${escapeHtml(kelompokKey)}</td></tr>`;
 
-        sortedKegiatanKeys.forEach(kegiatanKey => {
-            const ajuanRows = kegiatanGroup[kegiatanKey];
-            html += `<tr class="group-header-kegiatan"><td colspan="9" class="fw-bold ps-4"><i class="bi bi-collection-fill text-secondary"></i> Kegiatan: ${escapeHtml(kegiatanKey)}</td></tr>`;
+          sortedKegiatanKeys.forEach(kegiatanKey => {
+              const ajuanRows = kegiatanGroup[kegiatanKey];
+              html += `<tr class="group-header-kegiatan"><td colspan="9" class="fw-bold ps-5"><i class="bi bi-collection-fill text-secondary"></i> Kegiatan: ${escapeHtml(kegiatanKey)}</td></tr>`;
 
-            ajuanRows.forEach(r => {
-                const dataDukungLink = r.Data_Dukung ? `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Lihat Data Dukung"><i class="bi bi-box-arrow-up-right"></i></a>` : `<span class="text-muted small fst-italic">Tidak ada</span>`;
-                const ageInDays = (new Date() - new Date(r.Timestamp)) / (1000 * 60 * 60 * 24);
-                let reminderHtml = '';
-                if (r.Status === 'Menunggu Review' && ageInDays > 3) {
-                    reminderHtml = `<i class="bi bi-clock-history reminder-icon ms-2" title="Perlu direview > 3 hari"></i>`;
-                    overdueCount++;
-                }
-                const prodiColor = getColorForProdi(r.ID_Prodi);
-                
-                html += `<tr class="prodi-indicator" style="border-left-color: ${prodiColor};">
-                  <td><input type="checkbox" class="ajuan-checkbox" data-id="${r.ID_Ajuan}"></td>
-                  <td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${r.ID_Ajuan}</span></td>
-                  <td>${escapeHtml(r.ID_Prodi || r.Nama_Prodi)}</td>
-                  <td>
-                    <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
-                    <div class="small text-muted">${r.Jumlah} ${escapeHtml(r.Satuan)} @ Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div>
-                    <div class="badge bg-info-subtle text-info-emphasis fw-normal mt-1">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</div>
-                  </td>
-                  <td class="text-end text-nowrap"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td>
-                  <td class="text-center">${dataDukungLink}</td>
-                  <td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span>${reminderHtml}</td>
-                  <td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td>
-                  <td class="text-end action-buttons">${renderActionsForRow(r)}</td>
-                </tr>`;
-            });
-        });
+              ajuanRows.forEach(r => {
+                  const dataDukungLink = r.Data_Dukung ? `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Lihat Data Dukung"><i class="bi bi-box-arrow-up-right"></i></a>` : `<span class="text-muted small fst-italic">Tidak ada</span>`;
+                  const ageInDays = (new Date() - new Date(r.Timestamp)) / (1000 * 60 * 60 * 24);
+                  let reminderHtml = '';
+                  if (r.Status === 'Menunggu Review' && ageInDays > 3) {
+                      reminderHtml = `<i class="bi bi-clock-history reminder-icon ms-2" title="Perlu direview > 3 hari"></i>`;
+                      overdueCount++;
+                  }
+                  const prodiColor = getColorForProdi(r.ID_Prodi);
+                  
+                  html += `<tr class="prodi-indicator" style="border-left-color: ${prodiColor};">
+                    <td><input type="checkbox" class="ajuan-checkbox" data-id="${r.ID_Ajuan}"></td>
+                    <td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${r.ID_Ajuan}</span></td>
+                    <td>${escapeHtml(r.ID_Prodi || r.Nama_Prodi)}</td>
+                    <td>
+                      <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
+                      <div class="small text-muted">${r.Jumlah} ${escapeHtml(r.Satuan)} @ Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div>
+                      <div class="badge bg-info-subtle text-info-emphasis fw-normal mt-1">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</div>
+                    </td>
+                    <td class="text-end text-nowrap"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td>
+                    <td class="text-center">${dataDukungLink}</td>
+                    <td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span>${reminderHtml}</td>
+                    <td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td>
+                    <td class="text-end action-buttons">${renderActionsForRow(r)}</td>
+                  </tr>`;
+              });
+          });
+      });
     });
 
     html += '</tbody></table>';
@@ -981,7 +1025,6 @@ document.addEventListener('DOMContentLoaded', function() {
   function renderActionsForRow(r) {
     let actions = '';
     
-    // [REVISI] Logika untuk notifikasi komentar
     let commentCount = 0;
     let hasNewComment = false;
     try {
@@ -1036,6 +1079,11 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('editModalAjuanId').innerText = r.ID_Ajuan;
     document.getElementById('edit-judulKegiatan').value = r.Judul_Kegiatan;
     document.getElementById('edit-namaAjuan').value = r.Nama_Ajuan;
+    
+    // [REVISI] Populate dan set value untuk Grub Belanja di modal edit
+    populateGrubBelanja('edit-selectGrub');
+    document.getElementById('edit-selectGrub').value = r.Grub_Belanja_Utama;
+
     populateKelompok(STATE.allKelompok, 'edit-selectKelompok');
     document.getElementById('edit-selectKelompok').value = r.ID_Kelompok;
     document.getElementById('edit-selectRevisi').value = r.Status_Revisi || 'Ajuan Baru';
@@ -1051,6 +1099,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-update-ajuan').addEventListener('click', async () => {
     const data = {
       ID_Ajuan: document.getElementById('edit-id-ajuan').value,
+      Grub_Belanja_Utama: document.getElementById('edit-selectGrub').value, // [REVISI]
       Judul_Kegiatan: document.getElementById('edit-judulKegiatan').value,
       Nama_Ajuan: document.getElementById('edit-namaAjuan').value,
       ID_Kelompok: document.getElementById('edit-selectKelompok').value,
@@ -1081,7 +1130,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // --- REVIEW (MODAL) ---
   window.openReviewModal = (id, action) => {
-    document.getElementById('review-id-ajuan').value = id; // Can be single ID or comma-separated
+    document.getElementById('review-id-ajuan').value = id;
     document.getElementById('review-action').value = action;
     document.getElementById('reviewModalAjuanId').innerText = id.includes(',') ? 'Beberapa Ajuan' : id;
     document.getElementById('review-action-text').innerText = action;
@@ -1149,7 +1198,6 @@ document.addEventListener('DOMContentLoaded', function() {
           const isUser = c.author === STATE.id;
           const bubbleClass = isUser ? 'comment-bubble-user' : 'comment-bubble-other';
           const authorName = isUser ? `Anda (${c.author})` : c.author;
-          // [REVISI] Penanganan tanggal yang aman
           const dateObj = new Date(c.timestamp);
           const formattedTimestamp = !isNaN(dateObj) 
             ? dateObj.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) 
@@ -1182,7 +1230,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
   });
 
-  // --- [REVISI] FUNGSI BULK ACTION ---
+  // --- FUNGSI BULK ACTION ---
   function updateBulkActionBar() {
       const bar = document.getElementById('bulk-action-bar');
       const countEl = document.getElementById('bulk-selected-count');
@@ -1331,17 +1379,22 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
+    // [REVISI] Ubah grouping data untuk ekspor
     const groupedData = data.reduce((acc, row) => {
+        const grubKey = row.Grub_Belanja_Utama || 'Lain-lain';
         const kelompokId = row.ID_Kelompok || 'Lain-lain';
         const namaKelompok = STATE.allKelompok.find(k => k.ID_Kelompok === kelompokId)?.Nama_Kelompok || 'Lain-lain';
         const kelompokKey = `${kelompokId} - ${namaKelompok}`;
         const kegiatanKey = row.Judul_Kegiatan || 'Tanpa Judul Kegiatan';
-        if (!acc[kelompokKey]) acc[kelompokKey] = {};
-        if (!acc[kelompokKey][kegiatanKey]) acc[kelompokKey][kegiatanKey] = [];
-        acc[kelompokKey][kegiatanKey].push(row);
+        
+        if (!acc[grubKey]) acc[grubKey] = {};
+        if (!acc[grubKey][kelompokKey]) acc[grubKey][kelompokKey] = {};
+        if (!acc[grubKey][kelompokKey][kegiatanKey]) acc[grubKey][kelompokKey][kegiatanKey] = [];
+        
+        acc[grubKey][kelompokKey][kegiatanKey].push(row);
         return acc;
     }, {});
-    const sortedKelompokKeys = Object.keys(groupedData).sort();
+    const sortedGrubKeys = Object.keys(groupedData).sort();
 
     const exportData = [];
     const headers = ['ID Ajuan', 'Prodi', 'Rincian Ajuan', 'Jumlah', 'Satuan', 'Harga Satuan', 'Total', 'Status', 'Status Revisi', 'Keterangan', 'Catatan Reviewer', 'Timestamp'];
@@ -1350,26 +1403,35 @@ document.addEventListener('DOMContentLoaded', function() {
     const merges = [];
     let rowIndex = 1;
 
-    sortedKelompokKeys.forEach(kelompokKey => {
-        exportData.push([`Kelompok: ${kelompokKey}`]);
-        merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: headers.length - 1 } });
-        rowIndex++;
+    sortedGrubKeys.forEach(grubKey => {
+      exportData.push([`Grub Belanja: ${grubKey}`]);
+      merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: headers.length - 1 } });
+      rowIndex++;
 
-        const kegiatanGroup = groupedData[kelompokKey];
-        const sortedKegiatanKeys = Object.keys(kegiatanGroup).sort();
+      const kelompokGroup = groupedData[grubKey];
+      const sortedKelompokKeys = Object.keys(kelompokGroup).sort();
+      
+      sortedKelompokKeys.forEach(kelompokKey => {
+          exportData.push([`  Kelompok: ${kelompokKey}`]);
+          merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: headers.length - 1 } });
+          rowIndex++;
 
-        sortedKegiatanKeys.forEach(kegiatanKey => {
-            exportData.push([`   Kegiatan: ${kegiatanKey}`]);
-            merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: headers.length - 1 } });
-            rowIndex++;
+          const kegiatanGroup = kelompokGroup[kelompokKey];
+          const sortedKegiatanKeys = Object.keys(kegiatanGroup).sort();
 
-            kegiatanGroup[kegiatanKey].forEach(r => {
-                exportData.push([r.ID_Ajuan, r.ID_Prodi, r.Nama_Ajuan, r.Jumlah, r.Satuan, r.Harga_Satuan, r.Total, r.Status, r.Status_Revisi, r.Keterangan, r.Catatan_Reviewer, r.Timestamp]);
-                rowIndex++;
-            });
-        });
-        exportData.push([]); 
-        rowIndex++;
+          sortedKegiatanKeys.forEach(kegiatanKey => {
+              exportData.push([`    Kegiatan: ${kegiatanKey}`]);
+              merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: headers.length - 1 } });
+              rowIndex++;
+
+              kegiatanGroup[kegiatanKey].forEach(r => {
+                  exportData.push([r.ID_Ajuan, r.ID_Prodi, r.Nama_Ajuan, r.Jumlah, r.Satuan, r.Harga_Satuan, r.Total, r.Status, r.Status_Revisi, r.Keterangan, r.Catatan_Reviewer, r.Timestamp]);
+                  rowIndex++;
+              });
+          });
+          exportData.push([]); 
+          rowIndex++;
+      });
     });
 
     const worksheet = XLSX.utils.aoa_to_sheet(exportData);
@@ -1377,7 +1439,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Data Ajuan");
-    XLSX.writeFile(workbook, "rekap_ajuan_berkelompok.xlsx");
+    XLSX.writeFile(workbook, "rekap_ajuan_berjenjang.xlsx");
   }
 
   function exportToPdf() {
@@ -1393,37 +1455,49 @@ document.addEventListener('DOMContentLoaded', function() {
       const tableHeaders = [['ID', 'Prodi', 'Rincian Ajuan', 'Jumlah', 'Satuan', 'Harga (Rp)', 'Total (Rp)', 'Status']];
       const tableBody = [];
 
+      // [REVISI] Ubah grouping data untuk ekspor PDF
       const groupedData = data.reduce((acc, row) => {
+        const grubKey = row.Grub_Belanja_Utama || 'Lain-lain';
         const kelompokId = row.ID_Kelompok || 'Lain-lain';
         const namaKelompok = STATE.allKelompok.find(k => k.ID_Kelompok === kelompokId)?.Nama_Kelompok || 'Lain-lain';
         const kelompokKey = `${kelompokId} - ${namaKelompok}`;
         const kegiatanKey = row.Judul_Kegiatan || 'Tanpa Judul Kegiatan';
-        if (!acc[kelompokKey]) acc[kelompokKey] = {};
-        if (!acc[kelompokKey][kegiatanKey]) acc[kelompokKey][kegiatanKey] = [];
-        acc[kelompokKey][kegiatanKey].push(row);
+
+        if (!acc[grubKey]) acc[grubKey] = {};
+        if (!acc[grubKey][kelompokKey]) acc[grubKey][kelompokKey] = {};
+        if (!acc[grubKey][kelompokKey][kegiatanKey]) acc[grubKey][kelompokKey][kegiatanKey] = [];
+        
+        acc[grubKey][kelompokKey][kegiatanKey].push(row);
         return acc;
       }, {});
-      const sortedKelompokKeys = Object.keys(groupedData).sort();
+      const sortedGrubKeys = Object.keys(groupedData).sort();
 
-      sortedKelompokKeys.forEach(kelompokKey => {
-          tableBody.push([{ content: `Kelompok: ${kelompokKey}`, colSpan: 8, styles: { fontStyle: 'bold', fillColor: '#343a40', textColor: '#fff' } }]);
-          
-          const kegiatanGroup = groupedData[kelompokKey];
-          const sortedKegiatanKeys = Object.keys(kegiatanGroup).sort();
+      sortedGrubKeys.forEach(grubKey => {
+        tableBody.push([{ content: `Grub Belanja: ${grubKey}`, colSpan: 8, styles: { fontStyle: 'bold', fillColor: '#212529', textColor: '#fff' } }]);
 
-          sortedKegiatanKeys.forEach(kegiatanKey => {
-              tableBody.push([{ content: `   Kegiatan: ${kegiatanKey}`, colSpan: 8, styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333' } }]);
-              
-              kegiatanGroup[kegiatanKey].forEach(r => {
-                  tableBody.push([r.ID_Ajuan, r.ID_Prodi, r.Nama_Ajuan, r.Jumlah, r.Satuan, Number(r.Harga_Satuan).toLocaleString('id-ID'), Number(r.Total).toLocaleString('id-ID'), r.Status]);
-              });
-          });
+        const kelompokGroup = groupedData[grubKey];
+        const sortedKelompokKeys = Object.keys(kelompokGroup).sort();
+        
+        sortedKelompokKeys.forEach(kelompokKey => {
+            tableBody.push([{ content: `   Kelompok: ${kelompokKey}`, colSpan: 8, styles: { fontStyle: 'bold', fillColor: '#495057', textColor: '#fff' } }]);
+            
+            const kegiatanGroup = kelompokGroup[kelompokKey];
+            const sortedKegiatanKeys = Object.keys(kegiatanGroup).sort();
+
+            sortedKegiatanKeys.forEach(kegiatanKey => {
+                tableBody.push([{ content: `      Kegiatan: ${kegiatanKey}`, colSpan: 8, styles: { fontStyle: 'bold', fillColor: '#f0f0f0', textColor: '#333' } }]);
+                
+                kegiatanGroup[kegiatanKey].forEach(r => {
+                    tableBody.push([r.ID_Ajuan, r.ID_Prodi, r.Nama_Ajuan, r.Jumlah, r.Satuan, Number(r.Harga_Satuan).toLocaleString('id-ID'), Number(r.Total).toLocaleString('id-ID'), r.Status]);
+                });
+            });
+        });
       });
 
       const grandTotal = data.reduce((sum, r) => sum + Number(r.Total), 0);
       
       doc.setFontSize(16);
-      doc.text("Rekapitulasi Ajuan Berkelompok", 14, 22);
+      doc.text("Rekapitulasi Ajuan Berjenjang", 14, 22);
       
       doc.autoTable({
           startY: 30,
@@ -1443,7 +1517,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }
       });
       
-      doc.save('rekap_ajuan_berkelompok.pdf');
+      doc.save('rekap_ajuan_berjenjang.pdf');
   }
 
 });
@@ -1451,4 +1525,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
-
