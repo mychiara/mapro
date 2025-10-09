@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="id" data-bs-theme="light">
 <head>
-<meta charset="utf-8" />
+<meta charset="utf-t" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Si-Pandai - Sistem Pengajuan dan Data Ajuan Institusi</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -10,8 +10,6 @@
   body { background-color: #f8f9fa; }
   .container { max-width: 1400px; }
   .card { border: 0; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075); }
-  .nav-tabs .nav-link { color: #6c757d; }
-  .nav-tabs .nav-link.active { color: #000; border-color: #dee2e6 #dee2e6 #fff; }
   .status-badge { font-size: 0.8em; padding: 0.4em 0.7em; }
   .status-menunggu-review { background-color: #ffc107 !important; color:#000; }
   .status-diterima { background-color: #198754 !important; }
@@ -103,16 +101,77 @@
     text-align: right;
   }
   
-  /* <!-- BARU: CSS untuk fitur cetak --> */
+  /* --- BARU: CSS untuk Tata Letak Sidebar --- */
+  .main-layout {
+    min-height: 80vh;
+  }
+  #sidebar {
+    background-color: #212529;
+    border-radius: 0.5rem;
+    transition: all 0.3s;
+  }
+  /* Lebar Sidebar Responsif */
+  @media (min-width: 768px) {
+    #sidebar {
+      width: 250px;
+      min-width: 250px;
+    }
+  }
+  #sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.8);
+    padding: 0.75rem 1rem;
+    border-radius: 0.375rem;
+    margin-bottom: 0.25rem;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.2s ease-in-out;
+  }
+  #sidebar .nav-link:hover {
+    background-color: #343a40;
+    color: #fff;
+  }
+  #sidebar .nav-link.active {
+    background-color: #0d6efd;
+    color: #fff;
+    font-weight: 500;
+  }
+  #sidebar .nav-link i {
+      margin-right: 0.8rem;
+      width: 20px;
+      text-align: center;
+      font-size: 1.1em;
+  }
+  #main-content {
+    background-color: #fff;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.25rem 0.75rem rgba(0,0,0,.075);
+  }
+
+  /* --- BARU: CSS untuk fitur cetak disesuaikan dengan sidebar --- */
   @media print {
     body, .container {
       background-color: #fff !important;
       margin: 0;
       padding: 0;
     }
-    #app-area > .d-flex, .nav-tabs, #card-login, #loading-overlay, .modal, .toast-container,
+    #app-area > .d-flex.justify-content-between, /* Sembunyikan header atas */
+    #sidebar, /* Sembunyikan sidebar */
+    #card-login, #loading-overlay, .modal, .toast-container,
     .action-buttons, button, .form-select, input[type=file], .d-print-none {
       display: none !important;
+    }
+    .main-layout {
+        display: block !important;
+        flex-direction: unset !important;
+        gap: 0 !important;
+    }
+    #main-content {
+        width: 100%;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        background-color: transparent !important;
     }
     .tab-content, .card {
       border: none !important;
@@ -175,240 +234,245 @@
 
   <!-- Main App Area -->
   <div id="app-area" style="display:none;">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
       <div id="welcome" class="text-muted"></div>
       <button id="btn-logout" class="btn btn-outline-secondary"><i class="bi bi-box-arrow-right"></i> Logout</button>
     </div>
 
-    <!-- Tabs -->
-    <ul class="nav nav-tabs" id="mainTabs" role="tablist">
-      <li class="nav-item" role="presentation" id="tab-dashboard-link" style="display:none;"><button class="nav-link active" data-bs-target="#tab-dashboard" data-bs-toggle="tab"><i class="bi bi-bar-chart-line"></i> Dashboard</button></li>
-      <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-ajuan" data-bs-toggle="tab"><i class="bi bi-plus-circle"></i> Buat Ajuan</button></li>
-      <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-daftar" data-bs-toggle="tab"><i class="bi bi-list-task"></i> Daftar Ajuan</button></li>
-      <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-rpd" data-bs-toggle="tab"><i class="bi bi-calendar2-week"></i> RPD</button></li>
-      <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-realisasi" data-bs-toggle="tab"><i class="bi bi-cash-coin"></i> Realisasi Dana</button></li>
-      <li class="nav-item" role="presentation" id="tab-manage-link" style="display:none;"><button class="nav-link" data-bs-target="#tab-manage" data-bs-toggle="tab"><i class="bi bi-gear"></i> Manajemen</button></li>
-    </ul>
+    <!-- BARU: Tata Letak Utama dengan Sidebar -->
+    <div class="main-layout d-flex flex-column flex-md-row gap-4">
 
-    <div class="tab-content card p-3 p-md-4" id="myTabContent">
-      <!-- Dashboard Tab -->
-      <!-- DIUBAH: Struktur Dashboard diperbarui -->
-      <div class="tab-pane fade show active" id="tab-dashboard" role="tabpanel">
-        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-          <h5 class="m-0"><i class="bi bi-graph-up"></i> Dashboard Monitoring</h5>
-          <div class="d-flex gap-2 align-items-center">
-            <!-- BARU: Filter Periode Dashboard -->
-            <select id="filterTahunDashboard" class="form-select form-select-sm" style="width: auto;"><option value="">Semua Tahun</option></select>
-            <select id="filterBulanDashboard" class="form-select form-select-sm" style="width: auto;"><option value="">Semua Bulan</option></select>
-            <button id="btn-refresh-dashboard" class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-          </div>
+      <!-- Sidebar Navigation -->
+      <nav id="sidebar" class="p-3">
+        <div class="text-center pb-3 mb-3 border-bottom border-secondary">
+          <img src="https://i.ibb.co/L5k6Y1w/LOGO POLTEKKES KEMENKES KUPANG.png" alt="Logo" style="width: 50px; height: auto;">
+          <h5 class="mt-2 mb-0 text-white fw-light">Si-Pandai</h5>
         </div>
-        
-        <!-- BARU: Ringkasan Angka Cepat -->
-        <div class="row g-3 mb-4">
-          <div class="col-lg-3 col-md-6">
-            <div class="card p-3 h-100">
-              <div class="d-flex justify-content-between align-items-center">
-                <div class="text-muted small">TOTAL DIAJUKAN</div>
-                <i class="bi bi-journal-text fs-2 text-primary opacity-50"></i>
-              </div>
-              <h4 id="dashboard-total-diajukan" class="fw-bold mt-2">Rp 0</h4>
-            </div>
-          </div>
-          <div class="col-lg-3 col-md-6">
-            <div class="card p-3 h-100">
-              <div class="d-flex justify-content-between align-items-center">
-                <div class="text-muted small">TOTAL DITERIMA</div>
-                <i class="bi bi-check2-circle fs-2 text-success opacity-50"></i>
-              </div>
-              <h4 id="dashboard-total-diterima" class="fw-bold mt-2">Rp 0</h4>
-            </div>
-          </div>
-          <div class="col-lg-3 col-md-6">
-            <div class="card p-3 h-100">
-              <div class="d-flex justify-content-between align-items-center">
-                <div class="text-muted small">TOTAL RPD</div>
-                <i class="bi bi-calendar2-check fs-2 text-info opacity-50"></i>
-              </div>
-              <h4 id="dashboard-total-rpd" class="fw-bold mt-2">Rp 0</h4>
-            </div>
-          </div>
-          <div class="col-lg-3 col-md-6">
-            <div class="card p-3 h-100">
-              <div class="d-flex justify-content-between align-items-center">
-                <div class="text-muted small">TOTAL REALISASI</div>
-                <i class="bi bi-cash-coin fs-2 text-warning opacity-50"></i>
-              </div>
-              <h4 id="dashboard-total-realisasi" class="fw-bold mt-2">Rp 0</h4>
-            </div>
-          </div>
-        </div>
+        <ul class="nav nav-pills flex-column" id="mainTabs" role="tablist">
+          <li class="nav-item" role="presentation" id="tab-dashboard-link" style="display:none;"><button class="nav-link active" data-bs-target="#tab-dashboard" data-bs-toggle="tab"><i class="bi bi-bar-chart-line"></i> Dashboard</button></li>
+          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-ajuan" data-bs-toggle="tab"><i class="bi bi-plus-circle"></i> Buat Ajuan</button></li>
+          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-daftar" data-bs-toggle="tab"><i class="bi bi-list-task"></i> Daftar Ajuan</button></li>
+          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-rpd" data-bs-toggle="tab"><i class="bi bi-calendar2-week"></i> RPD</button></li>
+          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-realisasi" data-bs-toggle="tab"><i class="bi bi-cash-coin"></i> Realisasi Dana</button></li>
+          <li class="nav-item" role="presentation" id="tab-manage-link" style="display:none;"><button class="nav-link" data-bs-target="#tab-manage" data-bs-toggle="tab"><i class="bi bi-gear"></i> Manajemen</button></li>
+        </ul>
+      </nav>
 
-        <div class="row g-3 mb-4">
-            <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Menunggu Review</div><strong id="dashboard-count-menunggu" class="fs-5">0</strong></div></div>
-            <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Diterima</div><strong id="dashboard-count-diterima" class="fs-5">0</strong></div></div>
-            <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Ditolak</div><strong id="dashboard-count-ditolak" class="fs-5">0</strong></div></div>
-            <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Revisi</div><strong id="dashboard-count-revisi" class="fs-5">0</strong></div></div>
-        </div>
-
-        <div class="row g-4">
-            <!-- BARU: Grafik Progress RPD vs Realisasi -->
-            <div class="col-lg-12">
-              <div class="card p-3">
-                <h6 class="card-title text-center">Progress Rencana Penarikan (RPD) vs Realisasi</h6>
-                <canvas id="chartRPDvsRealisasi"></canvas>
+      <!-- Main Content Area -->
+      <main id="main-content" class="flex-grow-1 p-3 p-md-4">
+        <div class="tab-content" id="myTabContent">
+          <!-- Dashboard Tab -->
+          <div class="tab-pane fade show active" id="tab-dashboard" role="tabpanel">
+            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+              <h5 class="m-0"><i class="bi bi-graph-up"></i> Dashboard Monitoring</h5>
+              <div class="d-flex gap-2 align-items-center">
+                <select id="filterTahunDashboard" class="form-select form-select-sm" style="width: auto;"><option value="">Semua Tahun</option></select>
+                <select id="filterBulanDashboard" class="form-select form-select-sm" style="width: auto;"><option value="">Semua Bulan</option></select>
+                <button id="btn-refresh-dashboard" class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
               </div>
             </div>
-
-            <div class="col-lg-8"><div class="card p-3"><h6 class="card-title text-center">Rekapan Rencana Penarikan Dana (RPD) per Bulan</h6><canvas id="chartRPDPerBulan"></canvas></div></div>
-            <div class="col-lg-4"><div class="card p-3"><h6 class="card-title text-center">Rekapan RPD per Triwulan</h6><div id="dashboard-rpd-triwulan"></div></div></div>
             
-            <div id="direktorat-charts" class="row g-4 col-12 mt-1">
-                <div class="col-lg-8"><div class="card p-3"><h6 class="card-title text-center">Total Anggaran Diajukan per Prodi</h6><canvas id="chartAnggaranPerProdi"></canvas></div></div>
-                <!-- DIUBAH: Ukuran Pie Chart diperkecil -->
-                <div class="col-lg-4"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Status</h6><canvas id="chartAjuanPerStatus"></canvas></div></div>
-                <div class="col-lg-7"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Bulan</h6><canvas id="chartAjuanPerBulan"></canvas></div></div>
-                <div class="col-lg-5"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Prodi</h6><canvas id="chartAjuanPerProdi"></canvas></div></div>
-                
-                <!-- BARU: Container untuk laporan per prodi (view Direktorat) -->
-                <div class="col-12 mt-4">
-                  <h5 class="text-center text-muted border-bottom pb-2 mb-3">Laporan Detail per Prodi</h5>
-                  <div id="direktorat-prodi-reports" class="row g-4">
-                    <!-- Laporan per prodi akan di-generate oleh JavaScript di sini -->
+            <div class="row g-3 mb-4">
+              <div class="col-lg-3 col-md-6">
+                <div class="card p-3 h-100">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-muted small">TOTAL DIAJUKAN</div>
+                    <i class="bi bi-journal-text fs-2 text-primary opacity-50"></i>
+                  </div>
+                  <h4 id="dashboard-total-diajukan" class="fw-bold mt-2">Rp 0</h4>
+                </div>
+              </div>
+              <div class="col-lg-3 col-md-6">
+                <div class="card p-3 h-100">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-muted small">TOTAL DITERIMA</div>
+                    <i class="bi bi-check2-circle fs-2 text-success opacity-50"></i>
+                  </div>
+                  <h4 id="dashboard-total-diterima" class="fw-bold mt-2">Rp 0</h4>
+                </div>
+              </div>
+              <div class="col-lg-3 col-md-6">
+                <div class="card p-3 h-100">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-muted small">TOTAL RPD</div>
+                    <i class="bi bi-calendar2-check fs-2 text-info opacity-50"></i>
+                  </div>
+                  <h4 id="dashboard-total-rpd" class="fw-bold mt-2">Rp 0</h4>
+                </div>
+              </div>
+              <div class="col-lg-3 col-md-6">
+                <div class="card p-3 h-100">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-muted small">TOTAL REALISASI</div>
+                    <i class="bi bi-cash-coin fs-2 text-warning opacity-50"></i>
+                  </div>
+                  <h4 id="dashboard-total-realisasi" class="fw-bold mt-2">Rp 0</h4>
+                </div>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Menunggu Review</div><strong id="dashboard-count-menunggu" class="fs-5">0</strong></div></div>
+                <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Diterima</div><strong id="dashboard-count-diterima" class="fs-5">0</strong></div></div>
+                <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Ditolak</div><strong id="dashboard-count-ditolak" class="fs-5">0</strong></div></div>
+                <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Revisi</div><strong id="dashboard-count-revisi" class="fs-5">0</strong></div></div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-12">
+                  <div class="card p-3">
+                    <h6 class="card-title text-center">Progress Rencana Penarikan (RPD) vs Realisasi</h6>
+                    <canvas id="chartRPDvsRealisasi"></canvas>
                   </div>
                 </div>
-            </div>
-        </div>
-      </div>
-      
-      <!-- Pengajuan Tab -->
-      <div class="tab-pane fade" id="tab-ajuan" role="tabpanel">
-        <h5 class="mb-3"><i class="bi bi-pencil-square"></i> Formulir Ajuan Baru</h5>
-        
-        <div class="row g-3 border-bottom pb-3 mb-3">
-          <div class="col-12">
-            <label for="judulKegiatan" class="form-label fw-bold">Judul/Nama Kegiatan <span class="text-danger">*</span></label>
-            <input id="judulKegiatan" class="form-control" placeholder="Contoh: Perjalanan Dinas ke Pusat" />
-            <small class="form-text text-muted">Isi judul kegiatan. Anda dapat menambahkan beberapa rincian untuk judul yang sama atau menggantinya untuk membuat kegiatan baru.</small>
-          </div>
-        </div>
 
-        <h6 class="mb-3 text-muted">Input Rincian Ajuan</h6>
-        <div class="row g-3">
-          <div class="col-md-8"><label for="namaAjuan" class="form-label">Rincian Ajuan</label><input id="namaAjuan" class="form-control" placeholder="Contoh: Tiket Pesawat, Akomodasi Hotel" /></div>
-          <div class="col-md-4"><label for="selectGrub" class="form-label">Grub Belanja Utama</label><select id="selectGrub" class="form-select"></select></div>
-          <div class="col-md-4"><label for="selectKelompok" class="form-label">Kelompok Belanja</label><select id="selectKelompok" class="form-select"></select></div>
-          <div class="col-md-4"><label for="selectRevisi" class="form-label">Status Revisi</label><select id="selectRevisi" class="form-select"><option>Ajuan Baru</option><option>Revisi 1</option><option>Revisi 2</option><option>Revisi 3</option><option>Revisi 4</option><option>Revisi 5</option></select></div>
-          <div class="col-md-2 col-6"><label for="jumlah" class="form-label">Jumlah</label><input id="jumlah" type="number" class="form-control" min="1" /></div>
-          <div class="col-md-2 col-6"><label for="satuan" class="form-label">Satuan</label><input id="satuan" class="form-control" placeholder="pcs/lbr" /></div>
-          <div class="col-md-2"><label for="hargaSatuan" class="form-label">Harga Satuan (Rp)</label><input id="hargaSatuan" type="number" class="form-control" min="0" /></div>
-          <div class="col-md-2"><label for="total" class="form-label">Total (Rp)</label><input id="total" class="form-control" readonly disabled /></div>
-          <div class="col-12"><label for="keterangan" class="form-label">Keterangan / Justifikasi</label><textarea id="keterangan" class="form-control" rows="3"></textarea></div>
-          <div class="col-12"><label for="dataDukung" class="form-label">Data Dukung (Link)</label><input type="text" id="dataDukung" class="form-control" placeholder="https://docs.google.com/..." /></div>
-          <div class="col-12 mt-3">
-            <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
-              <button id="btn-add-to-staging" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Tambah Rincian</button>
+                <div class="col-lg-8"><div class="card p-3"><h6 class="card-title text-center">Rekapan Rencana Penarikan Dana (RPD) per Bulan</h6><canvas id="chartRPDPerBulan"></canvas></div></div>
+                <div class="col-lg-4"><div class="card p-3"><h6 class="card-title text-center">Rekapan RPD per Triwulan</h6><div id="dashboard-rpd-triwulan"></div></div></div>
+                
+                <div id="direktorat-charts" class="row g-4 col-12 mt-1">
+                    <div class="col-lg-8"><div class="card p-3"><h6 class="card-title text-center">Total Anggaran Diajukan per Prodi</h6><canvas id="chartAnggaranPerProdi"></canvas></div></div>
+                    <div class="col-lg-4"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Status</h6><canvas id="chartAjuanPerStatus"></canvas></div></div>
+                    <div class="col-lg-7"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Bulan</h6><canvas id="chartAjuanPerBulan"></canvas></div></div>
+                    <div class="col-lg-5"><div class="card p-3"><h6 class="card-title text-center">Jumlah Ajuan per Prodi</h6><canvas id="chartAjuanPerProdi"></canvas></div></div>
+                    
+                    <div class="col-12 mt-4">
+                      <h5 class="text-center text-muted border-bottom pb-2 mb-3">Laporan Detail per Prodi</h5>
+                      <div id="direktorat-prodi-reports" class="row g-4">
+                        <!-- Laporan per prodi akan di-generate oleh JavaScript di sini -->
+                      </div>
+                    </div>
+                </div>
             </div>
           </div>
-        </div>
-
-        <div id="staging-area" class="mt-4 border-top pt-4" style="display:none;">
-          <h5 class="mb-3"><i class="bi bi-card-list"></i> Daftar Rincian Siap Kirim</h5>
-          <div id="staging-table-container" class="table-responsive mb-3"></div>
-          <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
-              <div id="staging-summary" class="fw-bold"></div>
-              <div>
-                  <button id="btn-clear-staging" class="btn btn-outline-danger"><i class="bi bi-x-circle"></i> Bersihkan Daftar</button>
-                  <button id="btn-submit-all-staged" class="btn btn-success"><i class="bi bi-send-fill"></i> Kirim Semua Ajuan ke Spreadsheet</button>
+          
+          <!-- Pengajuan Tab -->
+          <div class="tab-pane fade" id="tab-ajuan" role="tabpanel">
+            <h5 class="mb-3"><i class="bi bi-pencil-square"></i> Formulir Ajuan Baru</h5>
+            
+            <div class="row g-3 border-bottom pb-3 mb-3">
+              <div class="col-12">
+                <label for="judulKegiatan" class="form-label fw-bold">Judul/Nama Kegiatan <span class="text-danger">*</span></label>
+                <input id="judulKegiatan" class="form-control" placeholder="Contoh: Perjalanan Dinas ke Pusat" />
+                <small class="form-text text-muted">Isi judul kegiatan. Anda dapat menambahkan beberapa rincian untuk judul yang sama atau menggantinya untuk membuat kegiatan baru.</small>
               </div>
+            </div>
+
+            <h6 class="mb-3 text-muted">Input Rincian Ajuan</h6>
+            <div class="row g-3">
+              <div class="col-md-8"><label for="namaAjuan" class="form-label">Rincian Ajuan</label><input id="namaAjuan" class="form-control" placeholder="Contoh: Tiket Pesawat, Akomodasi Hotel" /></div>
+              <div class="col-md-4"><label for="selectGrub" class="form-label">Grub Belanja Utama</label><select id="selectGrub" class="form-select"></select></div>
+              <div class="col-md-4"><label for="selectKelompok" class="form-label">Kelompok Belanja</label><select id="selectKelompok" class="form-select"></select></div>
+              <div class="col-md-4"><label for="selectRevisi" class="form-label">Status Revisi</label><select id="selectRevisi" class="form-select"><option>Ajuan Baru</option><option>Revisi 1</option><option>Revisi 2</option><option>Revisi 3</option><option>Revisi 4</option><option>Revisi 5</option></select></div>
+              <div class="col-md-2 col-6"><label for="jumlah" class="form-label">Jumlah</label><input id="jumlah" type="number" class="form-control" min="1" /></div>
+              <div class="col-md-2 col-6"><label for="satuan" class="form-label">Satuan</label><input id="satuan" class="form-control" placeholder="pcs/lbr" /></div>
+              <div class="col-md-2"><label for="hargaSatuan" class="form-label">Harga Satuan (Rp)</label><input id="hargaSatuan" type="number" class="form-control" min="0" /></div>
+              <div class="col-md-2"><label for="total" class="form-label">Total (Rp)</label><input id="total" class="form-control" readonly disabled /></div>
+              <div class="col-12"><label for="keterangan" class="form-label">Keterangan / Justifikasi</label><textarea id="keterangan" class="form-control" rows="3"></textarea></div>
+              <div class="col-12"><label for="dataDukung" class="form-label">Data Dukung (Link)</label><input type="text" id="dataDukung" class="form-control" placeholder="https://docs.google.com/..." /></div>
+              <div class="col-12 mt-3">
+                <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
+                  <button id="btn-add-to-staging" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Tambah Rincian</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="staging-area" class="mt-4 border-top pt-4" style="display:none;">
+              <h5 class="mb-3"><i class="bi bi-card-list"></i> Daftar Rincian Siap Kirim</h5>
+              <div id="staging-table-container" class="table-responsive mb-3"></div>
+              <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                  <div id="staging-summary" class="fw-bold"></div>
+                  <div>
+                      <button id="btn-clear-staging" class="btn btn-outline-danger"><i class="bi bi-x-circle"></i> Bersihkan Daftar</button>
+                      <button id="btn-submit-all-staged" class="btn btn-success"><i class="bi bi-send-fill"></i> Kirim Semua Ajuan ke Spreadsheet</button>
+                  </div>
+              </div>
+            </div>
+
+            <div class="mt-4 border-top pt-3">
+              <p class="small text-muted mb-2">Atau, Anda bisa mengupload beberapa ajuan sekaligus dari file Excel.</p>
+              <div class="d-flex flex-wrap gap-2 justify-content-start">
+                  <a id="btn-download-template" href="#" class="btn btn-sm btn-outline-info" download="template_ajuan.xlsx"><i class="bi bi-download"></i> Download Template</a>
+                  <label for="input-upload-excel" class="btn btn-sm btn-outline-success mb-0"><i class="bi bi-file-earmark-arrow-up"></i> Upload via Excel</label>
+                  <input type="file" id="input-upload-excel" class="d-none" accept=".xlsx, .xls, .csv">
+              </div>
+            </div>
+          </div>
+
+          <!-- Daftar Ajuan Tab -->
+          <div class="tab-pane fade" id="tab-daftar" role="tabpanel">
+            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+                <div class="flex-grow-1 d-flex flex-wrap gap-2">
+                    <select id="filterProdi" class="form-select" style="display:none; width: auto; flex-basis: 200px;" title="Filter berdasarkan Prodi"><option value="">Semua Prodi</option></select>
+                    <select id="filterGrub" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Grub Belanja"><option value="">Semua Grub Belanja</option></select>
+                    <select id="filterKelompok" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Kelompok Belanja"><option value="">Semua Kelompok</option></select>
+                    <select id="filterStatus" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Status"><option value="">Semua Status</option><option>Menunggu Review</option><option>Diterima</option><option>Ditolak</option><option>Revisi</option></select>
+                </div>
+                <div id="summary-display" class="d-flex flex-wrap gap-3 p-2 border rounded bg-light me-auto" style="display: none;">
+                  <div id="grand-total-display"></div><div id="accepted-total-display"></div><div id="rejected-total-display"></div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a id="btn-download-template-dir" href="#" class="btn btn-outline-info" download="template_ajuan_lengkap.xlsx" title="Download Template Excel (dengan kolom ID_Prodi)" style="display: none;"><i class="bi bi-download"></i> Template</a>
+                    <label id="label-upload-excel-dir" for="input-upload-excel-dir" class="btn btn-outline-success mb-0" title="Upload Ajuan dari banyak Prodi via Excel" style="display: none;"><i class="bi bi-file-earmark-arrow-up"></i> Upload</label>
+                    <input type="file" id="input-upload-excel-dir" class="d-none" accept=".xlsx, .xls, .csv">
+                    <button id="btn-refresh" class="btn btn-outline-primary" title="Refresh Data"><i class="bi bi-arrow-clockwise"></i></button>
+                    <button id="btn-export-pdf" class="btn btn-outline-danger" title="Export ke PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+                    <button id="btn-export-excel" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+                    <button id="btn-print-daftar" class="btn btn-outline-secondary" title="Cetak Daftar Ajuan"><i class="bi bi-printer"></i> Cetak</button>
+                </div>
+            </div>
+            <div id="bulk-action-bar" class="p-2 mb-3 align-items-center gap-3" style="display:none;">
+                <strong id="bulk-selected-count">0</strong> item terpilih.
+                <button id="bulk-accept" class="btn btn-sm btn-success"><i class="bi bi-check-lg"></i> Terima</button>
+                <button id="bulk-reject" class="btn btn-sm btn-danger"><i class="bi bi-x-lg"></i> Tolak</button>
+                <button id="bulk-revision" class="btn btn-sm btn-warning text-dark"><i class="bi bi-arrow-return-left"></i> Revisi</button>
+                <button id="bulk-delete" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Hapus</button>
+            </div>
+            <div class="table-responsive"><div id="tableAjuan"><div class="text-center text-muted p-5">Memuat data...</div></div></div>
+          </div>
+
+          <!-- RPD Tab -->
+          <div class="tab-pane fade" id="tab-rpd" role="tabpanel">
+            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+                <h5 class="m-0 me-3"><i class="bi bi-calendar2-check"></i> Rencana Penarikan Dana (RPD)</h5>
+                <select id="filterProdiRPD" class="form-select" style="display:none; width: auto; flex-basis: 250px;" title="Filter RPD berdasarkan Prodi"><option value="">Semua Prodi</option></select>
+                <div class="ms-auto d-flex gap-2">
+                  <button id="btn-refresh-rpd" class="btn btn-outline-primary" title="Refresh Data RPD"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                  <button id="btn-print-rpd" class="btn btn-outline-secondary" title="Cetak RPD"><i class="bi bi-printer"></i> Cetak</button>
+                </div>
+            </div>
+            <p class="text-muted small">Daftar ini berisi semua ajuan yang telah berstatus "Diterima". Prodi dapat merencanakan penarikan dana bulanan di sini.</p>
+            <div class="table-responsive">
+                <div id="tableRPD"><div class="text-center text-muted p-5">Memuat data RPD...</div></div>
+            </div>
+          </div>
+
+          <!-- Realisasi Tab -->
+          <div class="tab-pane fade" id="tab-realisasi" role="tabpanel">
+            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+                <h5 class="m-0 me-3"><i class="bi bi-graph-up-arrow"></i> Realisasi Penarikan Dana</h5>
+                <select id="filterProdiRealisasi" class="form-select" style="display:none; width: auto; flex-basis: 250px;" title="Filter Realisasi berdasarkan Prodi"><option value="">Semua Prodi</option></select>
+                <div class="ms-auto d-flex gap-2">
+                  <button id="btn-refresh-realisasi" class="btn btn-outline-primary" title="Refresh Data Realisasi"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                  <button id="btn-print-realisasi" class="btn btn-outline-secondary" title="Cetak Realisasi"><i class="bi bi-printer"></i> Cetak</button>
+                </div>
+            </div>
+            <div id="realisasi-summary-area" class="mb-4"></div>
+            <p class="text-muted small">Input realisasi penarikan dana bulanan di sini untuk setiap ajuan yang telah berstatus "Diterima".</p>
+            <div class="table-responsive">
+                <div id="tableRealisasi"><div class="text-center text-muted p-5">Memuat data Realisasi...</div></div>
+            </div>
+          </div>
+
+          <!-- Manajemen Tab -->
+          <div class="tab-pane fade" id="tab-manage" role="tabpanel">
+            <div class="row g-4">
+              <div class="col-lg-6"><div class="card h-100 p-3"><h6 class="card-title"><i class="bi bi-people-fill"></i> Manajemen Pengguna</h6><div class="mb-3 p-3 bg-light rounded-2"><input id="mp_ID" class="form-control mb-2" placeholder="ID (kosong untuk buat baru)" /><input id="mp_Nama" class="form-control mb-2" placeholder="Nama Prodi / Direktorat" /><input id="mp_Email" class="form-control mb-2" placeholder="Email" /><select id="mp_Role" class="form-select mb-2"><option value="prodi">prodi</option><option value="direktorat">direktorat</option></select><input type="password" id="mp_Password" class="form-control mb-2" placeholder="Password (isi untuk mengubah)" /><button id="btn-save-prodi" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Pengguna</button></div><h6 class="small text-muted">Daftar Pengguna</h6><div id="listProdi" class="overflow-auto" style="max-height: 300px;"></div></div></div>
+              <div class="col-lg-6"><div class="card h-100 p-3"><h6 class="card-title"><i class="bi bi-tags-fill"></i> Manajemen Kelompok Ajuan</h6><div class="mb-3 p-3 bg-light rounded-2"><input id="mk_ID" class="form-control mb-2" placeholder="ID (kosong untuk buat baru)" /><input id="mk_Nama" class="form-control mb-2" placeholder="Nama Kelompok" /><button id="btn-save-kelompok" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Kelompok</button></div><h6 class="small text-muted">Daftar Kelompok</h6><div id="listKelompok" class="overflow-auto" style="max-height: 300px;"></div></div></div>
+            </div>
           </div>
         </div>
+      </main>
 
-        <div class="mt-4 border-top pt-3">
-          <p class="small text-muted mb-2">Atau, Anda bisa mengupload beberapa ajuan sekaligus dari file Excel.</p>
-          <div class="d-flex flex-wrap gap-2 justify-content-start">
-              <a id="btn-download-template" href="#" class="btn btn-sm btn-outline-info" download="template_ajuan.xlsx"><i class="bi bi-download"></i> Download Template</a>
-              <label for="input-upload-excel" class="btn btn-sm btn-outline-success mb-0"><i class="bi bi-file-earmark-arrow-up"></i> Upload via Excel</label>
-              <input type="file" id="input-upload-excel" class="d-none" accept=".xlsx, .xls, .csv">
-          </div>
-        </div>
-      </div>
-
-      <!-- Daftar Ajuan Tab -->
-      <div class="tab-pane fade" id="tab-daftar" role="tabpanel">
-        <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
-            <div class="flex-grow-1 d-flex flex-wrap gap-2">
-                <select id="filterProdi" class="form-select" style="display:none; width: auto; flex-basis: 200px;" title="Filter berdasarkan Prodi"><option value="">Semua Prodi</option></select>
-                <select id="filterGrub" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Grub Belanja"><option value="">Semua Grub Belanja</option></select>
-                <select id="filterKelompok" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Kelompok Belanja"><option value="">Semua Kelompok</option></select>
-                <select id="filterStatus" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Status"><option value="">Semua Status</option><option>Menunggu Review</option><option>Diterima</option><option>Ditolak</option><option>Revisi</option></select>
-            </div>
-            <div id="summary-display" class="d-flex flex-wrap gap-3 p-2 border rounded bg-light me-auto" style="display: none;">
-              <div id="grand-total-display"></div><div id="accepted-total-display"></div><div id="rejected-total-display"></div>
-            </div>
-            <div class="d-flex gap-2">
-                <a id="btn-download-template-dir" href="#" class="btn btn-outline-info" download="template_ajuan_lengkap.xlsx" title="Download Template Excel (dengan kolom ID_Prodi)" style="display: none;"><i class="bi bi-download"></i> Template</a>
-                <label id="label-upload-excel-dir" for="input-upload-excel-dir" class="btn btn-outline-success mb-0" title="Upload Ajuan dari banyak Prodi via Excel" style="display: none;"><i class="bi bi-file-earmark-arrow-up"></i> Upload</label>
-                <input type="file" id="input-upload-excel-dir" class="d-none" accept=".xlsx, .xls, .csv">
-                <button id="btn-refresh" class="btn btn-outline-primary" title="Refresh Data"><i class="bi bi-arrow-clockwise"></i></button>
-                <button id="btn-export-pdf" class="btn btn-outline-danger" title="Export ke PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
-                <button id="btn-export-excel" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
-                <!-- BARU: Tombol Cetak -->
-                <button id="btn-print-daftar" class="btn btn-outline-secondary" title="Cetak Daftar Ajuan"><i class="bi bi-printer"></i> Cetak</button>
-            </div>
-        </div>
-        <div id="bulk-action-bar" class="p-2 mb-3 align-items-center gap-3" style="display:none;">
-            <strong id="bulk-selected-count">0</strong> item terpilih.
-            <button id="bulk-accept" class="btn btn-sm btn-success"><i class="bi bi-check-lg"></i> Terima</button>
-            <button id="bulk-reject" class="btn btn-sm btn-danger"><i class="bi bi-x-lg"></i> Tolak</button>
-            <button id="bulk-revision" class="btn btn-sm btn-warning text-dark"><i class="bi bi-arrow-return-left"></i> Revisi</button>
-            <button id="bulk-delete" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Hapus</button>
-        </div>
-        <div class="table-responsive"><div id="tableAjuan"><div class="text-center text-muted p-5">Memuat data...</div></div></div>
-      </div>
-
-      <!-- RPD Tab -->
-      <div class="tab-pane fade" id="tab-rpd" role="tabpanel">
-        <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
-            <h5 class="m-0 me-3"><i class="bi bi-calendar2-check"></i> Rencana Penarikan Dana (RPD)</h5>
-            <select id="filterProdiRPD" class="form-select" style="display:none; width: auto; flex-basis: 250px;" title="Filter RPD berdasarkan Prodi"><option value="">Semua Prodi</option></select>
-            <div class="ms-auto d-flex gap-2">
-              <button id="btn-refresh-rpd" class="btn btn-outline-primary" title="Refresh Data RPD"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-              <!-- BARU: Tombol Cetak -->
-              <button id="btn-print-rpd" class="btn btn-outline-secondary" title="Cetak RPD"><i class="bi bi-printer"></i> Cetak</button>
-            </div>
-        </div>
-        <p class="text-muted small">Daftar ini berisi semua ajuan yang telah berstatus "Diterima". Prodi dapat merencanakan penarikan dana bulanan di sini.</p>
-        <div class="table-responsive">
-            <div id="tableRPD"><div class="text-center text-muted p-5">Memuat data RPD...</div></div>
-        </div>
-      </div>
-
-      <!-- Realisasi Tab -->
-      <div class="tab-pane fade" id="tab-realisasi" role="tabpanel">
-        <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
-            <h5 class="m-0 me-3"><i class="bi bi-graph-up-arrow"></i> Realisasi Penarikan Dana</h5>
-            <select id="filterProdiRealisasi" class="form-select" style="display:none; width: auto; flex-basis: 250px;" title="Filter Realisasi berdasarkan Prodi"><option value="">Semua Prodi</option></select>
-            <div class="ms-auto d-flex gap-2">
-              <button id="btn-refresh-realisasi" class="btn btn-outline-primary" title="Refresh Data Realisasi"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-              <!-- BARU: Tombol Cetak -->
-              <button id="btn-print-realisasi" class="btn btn-outline-secondary" title="Cetak Realisasi"><i class="bi bi-printer"></i> Cetak</button>
-            </div>
-        </div>
-        <div id="realisasi-summary-area" class="mb-4"></div>
-        <p class="text-muted small">Input realisasi penarikan dana bulanan di sini untuk setiap ajuan yang telah berstatus "Diterima".</p>
-        <div class="table-responsive">
-            <div id="tableRealisasi"><div class="text-center text-muted p-5">Memuat data Realisasi...</div></div>
-        </div>
-      </div>
-
-      <!-- Manajemen Tab -->
-      <div class="tab-pane fade" id="tab-manage" role="tabpanel">
-        <div class="row g-4">
-          <div class="col-lg-6"><div class="card h-100 p-3"><h6 class="card-title"><i class="bi bi-people-fill"></i> Manajemen Pengguna</h6><div class="mb-3 p-3 bg-light rounded-2"><input id="mp_ID" class="form-control mb-2" placeholder="ID (kosong untuk buat baru)" /><input id="mp_Nama" class="form-control mb-2" placeholder="Nama Prodi / Direktorat" /><input id="mp_Email" class="form-control mb-2" placeholder="Email" /><select id="mp_Role" class="form-select mb-2"><option value="prodi">prodi</option><option value="direktorat">direktorat</option></select><input type="password" id="mp_Password" class="form-control mb-2" placeholder="Password (isi untuk mengubah)" /><button id="btn-save-prodi" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Pengguna</button></div><h6 class="small text-muted">Daftar Pengguna</h6><div id="listProdi" class="overflow-auto" style="max-height: 300px;"></div></div></div>
-          <div class="col-lg-6"><div class="card h-100 p-3"><h6 class="card-title"><i class="bi bi-tags-fill"></i> Manajemen Kelompok Ajuan</h6><div class="mb-3 p-3 bg-light rounded-2"><input id="mk_ID" class="form-control mb-2" placeholder="ID (kosong untuk buat baru)" /><input id="mk_Nama" class="form-control mb-2" placeholder="Nama Kelompok" /><button id="btn-save-kelompok" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Kelompok</button></div><h6 class="small text-muted">Daftar Kelompok</h6><div id="listKelompok" class="overflow-auto" style="max-height: 300px;"></div></div></div>
-        </div>
-      </div>
     </div>
   </div>
 </div>
@@ -486,6 +550,7 @@
 
 
 <script>
+// JavaScript code is unchanged and remains here.
 document.addEventListener('DOMContentLoaded', function() {
   document.body.classList.add('login-view');
 
@@ -1130,21 +1195,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const sortedGrubKeys = Object.keys(groupedData).sort();
     const statusClass = { "Menunggu Review": "status-menunggu-review", "Diterima": "status-diterima", "Ditolak": "status-ditolak", "Revisi": "status-revisi" };
 
-    let html = `<table class="table table-hover align-middle">
+    let html = `<table class="table table-hover align-middle" style="min-width: 1200px;">
       <thead class="table-light"><tr>
         <th style="width: 30px;"><input type="checkbox" id="select-all-ajuan" title="Pilih Semua"></th>
-        <th>ID Ajuan</th>
-        <th>Prodi</th>
-        <th>Detail Ajuan</th>
-        <th class="text-end">Total Biaya</th>
+        <th style="min-width: 300px;">Detail Ajuan</th>
+        <th class="text-end" style="min-width: 130px;">Total Biaya</th>
         <th class="text-center">Dakung</th>
-        <th>Status</th>
-        <th>Catatan Reviewer</th>
-        <th class="text-end action-buttons">Aksi</th>
+        <th style="min-width: 140px;">Status</th>
+        <th style="min-width: 200px;">Catatan Reviewer</th>
+        <th class="text-end action-buttons" style="min-width: 150px;">Aksi</th>
       </tr></thead><tbody>`;
 
     sortedGrubKeys.forEach(grubKey => {
-      html += `<tr class="group-header-grub"><td colspan="9" class="fw-bold"><i class="bi bi-folder-fill"></i> ${escapeHtml(grubKey)}</td></tr>`;
+      html += `<tr class="group-header-grub"><td colspan="7" class="fw-bold"><i class="bi bi-folder-fill"></i> ${escapeHtml(grubKey)}</td></tr>`;
       const kelompokGroup = groupedData[grubKey];
       const sortedKelompokKeys = Object.keys(kelompokGroup).sort();
       
@@ -1152,11 +1215,11 @@ document.addEventListener('DOMContentLoaded', function() {
           const kegiatanGroup = kelompokGroup[kelompokKey];
           const sortedKegiatanKeys = Object.keys(kegiatanGroup).sort();
           
-          html += `<tr class="group-header-kelompok"><td colspan="9" class="fw-bold ps-4"><i class="bi bi-tags-fill"></i> Kelompok: ${escapeHtml(kelompokKey)}</td></tr>`;
+          html += `<tr class="group-header-kelompok"><td colspan="7" class="fw-bold ps-4"><i class="bi bi-tags-fill"></i> Kelompok: ${escapeHtml(kelompokKey)}</td></tr>`;
 
           sortedKegiatanKeys.forEach(kegiatanKey => {
               const ajuanRows = kegiatanGroup[kegiatanKey];
-              html += `<tr class="group-header-kegiatan"><td colspan="9" class="fw-bold ps-5"><i class="bi bi-collection-fill text-secondary"></i> Kegiatan: ${escapeHtml(kegiatanKey)}</td></tr>`;
+              html += `<tr class="group-header-kegiatan"><td colspan="7" class="fw-bold ps-5"><i class="bi bi-collection-fill text-secondary"></i> Kegiatan: ${escapeHtml(kegiatanKey)}</td></tr>`;
 
               ajuanRows.forEach(r => {
                   const dataDukungLink = r.Data_Dukung ? `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Lihat Data Dukung"><i class="bi bi-box-arrow-up-right"></i></a>` : `<span class="text-muted small fst-italic">Tidak ada</span>`;
@@ -1170,10 +1233,12 @@ document.addEventListener('DOMContentLoaded', function() {
                   
                   html += `<tr class="prodi-indicator" style="border-left-color: ${prodiColor};">
                     <td><input type="checkbox" class="ajuan-checkbox" data-id="${r.ID_Ajuan}"></td>
-                    <td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${r.ID_Ajuan}</span></td>
-                    <td>${escapeHtml(r.ID_Prodi || r.Nama_Prodi)}</td>
                     <td>
-                      <strong>${escapeHtml(r.Nama_Ajuan)}</strong>
+                      <div class="d-flex justify-content-between align-items-start">
+                        <strong class="me-2">${escapeHtml(r.Nama_Ajuan)}</strong>
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal text-nowrap">${r.ID_Ajuan}</span>
+                      </div>
+                      <div class="small text-muted">Oleh: <strong>${escapeHtml(r.ID_Prodi || r.Nama_Prodi)}</strong></div>
                       <div class="small text-muted">${r.Jumlah} ${escapeHtml(r.Satuan)} @ Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div>
                       <div class="badge bg-info-subtle text-info-emphasis fw-normal mt-1">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</div>
                     </td>
@@ -2218,4 +2283,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
-
