@@ -1743,16 +1743,26 @@ document.addEventListener('DOMContentLoaded', function() {
   function renderProdiDetailReport(prodiId, prodiData, container) {
       const prodiSafeId = prodiId.replace(/[^a-zA-Z0-9]/g, '');
       const prodiHtml = `
-          <div class="col-12">
-              <div class="card p-3">
-                  <h6 class="card-title mb-3 border-bottom pb-2"><strong><i class="bi bi-building"></i> Laporan Prodi: ${prodiId}</strong></h6>
+          <div class="col-12 col-lg-6">
+              <div class="card p-3 h-100">
+                  <h6 class="card-title mb-3 border-bottom pb-2"><strong><i class="bi bi-building"></i> Laporan Prodi: ${escapeHtml(prodiId)}</strong></h6>
                   <div class="row g-3">
-                      <div class="col-lg-3 col-6"><div class="card p-2"><div class="small text-muted">Total Diajukan</div><strong id="prodi-${prodiSafeId}-diajukan" class="fs-5"></strong></div></div>
-                      <div class="col-lg-3 col-6"><div class="card p-2"><div class="small text-muted">Menunggu</div><strong id="prodi-${prodiSafeId}-menunggu"></strong></div></div>
-                      <div class="col-lg-3 col-6"><div class="card p-2"><div class="small text-muted">Diterima</div><strong id="prodi-${prodiSafeId}-diterima"></strong></div></div>
-                      <div class="col-lg-3 col-6"><div class="card p-2"><div class="small text-muted">Ditolak</div><strong id="prodi-${prodiSafeId}-ditolak"></strong></div></div>
+                      <div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">TOTAL DIAJUKAN</div><strong id="prodi-${prodiSafeId}-diajukan" class="fs-6"></strong></div></div>
+                      <div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">TOTAL DITERIMA</div><strong id="prodi-${prodiSafeId}-diterima" class="fs-6"></strong></div></div>
+                      <div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">TOTAL RPD</div><strong id="prodi-${prodiSafeId}-rpd" class="fs-6"></strong></div></div>
+                      <div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">TOTAL REALISASI</div><strong id="prodi-${prodiSafeId}-realisasi" class="fs-6"></strong></div></div>
+                      <div class="col-12">
+                          <div class="card p-2 text-center bg-light">
+                              <div class="small text-muted">PERSENTASE REALISASI (DARI RPD)</div>
+                              <strong id="prodi-${prodiSafeId}-persen" class="fs-4 text-primary">0.0%</strong>
+                              <div class="progress mt-1" role="progressbar" style="height: 5px;">
+                                <div id="prodi-${prodiSafeId}-persen-bar" class="progress-bar" style="width: 0%;"></div>
+                              </div>
+                          </div>
+                      </div>
                   </div>
                   <div class="mt-3">
+                      <h6 class="text-center small text-muted">Progress RPD vs Realisasi Bulanan</h6>
                       <canvas id="chart-prodi-${prodiSafeId}-progress"></canvas>
                   </div>
               </div>
@@ -1760,27 +1770,39 @@ document.addEventListener('DOMContentLoaded', function() {
       `;
       container.insertAdjacentHTML('beforeend', prodiHtml);
 
-      // Calculate and render stats for this prodi
-      let totalDiajukan = 0;
-      let statusCounts = { 'Menunggu Review': 0, 'Diterima': 0, 'Ditolak': 0 };
+      // Calculate detailed stats for this prodi
+      let totalDiajukan = 0, totalDiterima = 0, totalRPD = 0, totalRealisasi = 0;
       const rpdPerBulan = Array(12).fill(0);
       const realisasiPerBulan = Array(12).fill(0);
 
       prodiData.forEach(ajuan => {
           totalDiajukan += Number(ajuan.Total) || 0;
-          statusCounts[ajuan.Status] = (statusCounts[ajuan.Status] || 0) + 1;
           if (ajuan.Status === 'Diterima') {
+              totalDiterima += Number(ajuan.Total) || 0;
               RPD_MONTHS.forEach((month, index) => {
-                  rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0;
-                  realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0;
+                  const rpdVal = Number(ajuan[`RPD_${month}`]) || 0;
+                  const realVal = Number(ajuan[`Realisasi_${month}`]) || 0;
+                  totalRPD += rpdVal;
+                  totalRealisasi += realVal;
+                  rpdPerBulan[index] += rpdVal;
+                  realisasiPerBulan[index] += realVal;
               });
           }
       });
 
+      const persentaseRealisasi = totalRPD > 0 ? (totalRealisasi / totalRPD) * 100 : 0;
+
       document.getElementById(`prodi-${prodiSafeId}-diajukan`).textContent = 'Rp ' + totalDiajukan.toLocaleString('id-ID');
-      document.getElementById(`prodi-${prodiSafeId}-menunggu`).textContent = statusCounts['Menunggu Review'] + ' Ajuan';
-      document.getElementById(`prodi-${prodiSafeId}-diterima`).textContent = statusCounts['Diterima'] + ' Ajuan';
-      document.getElementById(`prodi-${prodiSafeId}-ditolak`).textContent = statusCounts['Ditolak'] + ' Ajuan';
+      document.getElementById(`prodi-${prodiSafeId}-diterima`).textContent = 'Rp ' + totalDiterima.toLocaleString('id-ID');
+      document.getElementById(`prodi-${prodiSafeId}-rpd`).textContent = 'Rp ' + totalRPD.toLocaleString('id-ID');
+      document.getElementById(`prodi-${prodiSafeId}-realisasi`).textContent = 'Rp ' + totalRealisasi.toLocaleString('id-ID');
+      
+      const persenEl = document.getElementById(`prodi-${prodiSafeId}-persen`);
+      if (persenEl) persenEl.textContent = persentaseRealisasi.toFixed(1) + '%';
+      
+      const persenBarEl = document.getElementById(`prodi-${prodiSafeId}-persen-bar`);
+      if (persenBarEl) persenBarEl.style.width = `${Math.min(persentaseRealisasi, 100)}%`;
+
 
       setupChart(`chart-prodi-${prodiSafeId}-progress`, 'bar', {
           labels: RPD_MONTHS,
