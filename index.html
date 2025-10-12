@@ -599,7 +599,7 @@
                       </div>
                   </div>
                   <h6 class="small text-muted mt-4">Daftar Kelompok</h6>
-                  <div id="listKelompok" class="overflow-auto" style="max-height: 500px;"></div>
+                  <div id="listKelompok" class="overflow-auto" style="max-height: 600px;"></div>
                 </div>
               </div>
               <div class="col-12">
@@ -639,6 +639,20 @@
                           <button id="btn-deactivate-announcement" class="btn btn-outline-danger w-100"><i class="bi bi-x-circle"></i> Nonaktifkan</button>
                         </div>
                       </div>
+                    </div>
+                  </div>
+              </div>
+              <div class="col-12 mt-4">
+                  <div class="card p-3">
+                    <h6 class="card-title"><i class="bi bi-database-fill-gear"></i> Backup & Restore Data</h6>
+                    <p class="small text-muted">Gunakan fitur ini untuk mencadangkan semua data aplikasi ke file JSON atau memulihkan data dari cadangan.</p>
+                    <div class="d-flex flex-wrap gap-2">
+                      <button id="btn-backup-data" class="btn btn-info"><i class="bi bi-cloud-arrow-down-fill"></i> Backup Semua Data</button>
+                      <label for="input-restore-data" class="btn btn-danger mb-0"><i class="bi bi-cloud-arrow-up-fill"></i> Restore dari File</label>
+                      <input type="file" id="input-restore-data" class="d-none" accept=".json">
+                    </div>
+                    <div class="alert alert-danger mt-3 small">
+                      <strong>PERINGATAN!</strong> Operasi restore akan <strong class="text-decoration-underline">MENGHAPUS SELURUH DATA</strong> yang ada saat ini dan menggantinya dengan data dari file backup. Aksi ini tidak dapat dibatalkan. Lakukan dengan sangat hati-hati.
                     </div>
                   </div>
               </div>
@@ -1851,6 +1865,166 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('input-upload-excel-user').addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; showLoader(true); const reader = new FileReader(); reader.onload = async (event) => { try { const data = new Uint8Array(event.target.result); const workbook = XLSX.read(data, { type: 'array' }); const firstSheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }); if (jsonData.length < 2 || jsonData[0][0] !== 'ID_Prodi' || jsonData[0][1] !== 'Nama_Prodi' || jsonData[0][2] !== 'Email' || jsonData[0][3] !== 'Role') { throw new Error('Format file tidak sesuai. Pastikan header adalah ID_Prodi, Nama_Prodi, Email, Role.'); } const batch = db.batch(); let count = 0; for (let i = 1; i < jsonData.length; i++) { const row = jsonData[i]; const idProdi = String(row[0] || '').trim(); const namaProdi = String(row[1] || '').trim(); const email = String(row[2] || '').trim(); const role = String(row[3] || 'prodi').trim(); if (idProdi && namaProdi && email && role) { const userRef = db.collection("users").doc(); batch.set(userRef, { ID_Prodi: idProdi, Nama_Prodi: namaProdi, Email: email, Role: role, Pagu_Anggaran: 0 }); count++; } } if (count === 0) { throw new Error("Tidak ada data pengguna yang valid untuk diunggah."); } await batch.commit(); showToast(`${count} profil pengguna berhasil diunggah dari Excel.`, 'success'); await refreshProdiData(); } catch (error) { showToast(`Gagal memproses file: ${error.message}`, 'danger'); } finally { showLoader(false); e.target.value = ''; } }; reader.readAsArrayBuffer(file); });
   document.getElementById('btn-download-template-kelompok').addEventListener('click', () => { const data = [['ID_Kelompok', 'Nama_Kelompok'], ['51.01.01', 'Belanja Bahan Makanan'], ['52.02.03', 'Belanja Jasa Konsultan']]; const worksheet = XLSX.utils.aoa_to_sheet(data); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Template"); XLSX.writeFile(workbook, "template_kelompok.xlsx"); showToast('Template berhasil diunduh.', 'info'); });
   document.getElementById('input-upload-excel-kelompok').addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; showLoader(true); const reader = new FileReader(); reader.onload = async (event) => { try { const data = new Uint8Array(event.target.result); const workbook = XLSX.read(data, { type: 'array' }); const firstSheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }); if (jsonData.length < 2 || jsonData[0][0] !== 'ID_Kelompok' || jsonData[0][1] !== 'Nama_Kelompok') { throw new Error('Format file tidak sesuai. Pastikan header adalah ID_Kelompok dan Nama_Kelompok.'); } const batch = db.batch(); let count = 0; for (let i = 1; i < jsonData.length; i++) { const row = jsonData[i]; const id = String(row[0] || '').trim(); const nama = String(row[1] || '').trim(); if (id && nama) { const docRef = db.collection('kelompok').doc(id); batch.set(docRef, { ID_Kelompok: id, Nama_Kelompok: nama }, { merge: true }); count++; } } if (count === 0) { throw new Error("Tidak ada data valid untuk diimport."); } await batch.commit(); showToast(`${count} data kelompok berhasil diimport/diperbarui.`, 'success'); await refreshKelompokData(); } catch (error) { showToast(`Gagal mengimpor file: ${error.message}`, 'danger'); } finally { showLoader(false); e.target.value = ''; } }; reader.readAsArrayBuffer(file); });
+  
+  // -- BACKUP AND RESTORE FUNCTIONS --
+  const COLLECTIONS_TO_BACKUP = ['ajuan', 'users', 'kelompok', 'appConfig', 'notifications'];
+
+  async function backupAllData() {
+      if (STATE.role !== 'direktorat') { showToast("Hanya direktorat yang dapat melakukan backup.", "warning"); return; }
+      showLoader(true);
+      showToast("Memulai proses backup, ini mungkin memakan waktu beberapa saat...", "info");
+
+      const backupData = {};
+      try {
+          for (const collectionName of COLLECTIONS_TO_BACKUP) {
+              const snapshot = await db.collection(collectionName).get();
+              const docs = [];
+              for (const doc of snapshot.docs) {
+                  let data = doc.data();
+                  // Special handling for 'ajuan' to include 'history' subcollection
+                  if (collectionName === 'ajuan') {
+                      const historySnapshot = await doc.ref.collection('history').get();
+                      data.history = historySnapshot.docs.map(historyDoc => ({ id: historyDoc.id, ...historyDoc.data() }));
+                  }
+                  docs.push({ id: doc.id, ...data });
+              }
+              backupData[collectionName] = docs;
+          }
+
+          const jsonString = JSON.stringify(backupData, null, 2);
+          const blob = new Blob([jsonString], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");
+          a.href = url;
+          a.download = `sipandai_backup_${timestamp}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          showToast("Backup data berhasil diunduh.", "success");
+      } catch (error) {
+          console.error("Backup failed:", error);
+          showToast(`Backup gagal: ${error.message}`, "danger");
+      } finally {
+          showLoader(false);
+      }
+  }
+
+  async function handleRestoreFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+          try {
+              const data = JSON.parse(e.target.result);
+              
+              const promptMessage = `PERINGATAN: Aksi ini akan MENGHAPUS SEMUA DATA saat ini di koleksi: ${COLLECTIONS_TO_BACKUP.join(', ')} dan menggantinya dengan data dari file backup. \n\nAksi ini tidak dapat dibatalkan. Ketik 'RESTORE' untuk melanjutkan.`;
+              const confirmation = prompt(promptMessage);
+
+              if (confirmation === 'RESTORE') {
+                  await executeRestore(data);
+              } else {
+                  showToast("Restore dibatalkan.", "info");
+              }
+          } catch (error) {
+              showToast(`Gagal membaca file restore: ${error.message}`, "danger");
+              console.error("Restore file read error:", error);
+          } finally {
+              event.target.value = ''; // Reset file input
+          }
+      };
+      reader.readAsText(file);
+  }
+  
+  async function executeRestore(data) {
+      showLoader(true);
+      showToast("Memulai proses restore. JANGAN tutup atau refresh halaman ini.", "info");
+
+      try {
+          // Delete existing data
+          for (const collectionName of COLLECTIONS_TO_BACKUP) {
+              showToast(`Menghapus data lama di '${collectionName}'...`, 'warning');
+              const collectionRef = db.collection(collectionName);
+              const snapshot = await collectionRef.get();
+              if (snapshot.size > 0) {
+                const batchPromises = [];
+                let batch = db.batch();
+                snapshot.docs.forEach((doc, index) => {
+                    batch.delete(doc.ref);
+                    if ((index + 1) % 500 === 0) {
+                        batchPromises.push(batch.commit());
+                        batch = db.batch();
+                    }
+                });
+                batchPromises.push(batch.commit());
+                await Promise.all(batchPromises);
+              }
+          }
+
+          // Write new data
+          for (const collectionName of COLLECTIONS_TO_BACKUP) {
+              if (data[collectionName]) {
+                  showToast(`Menulis data baru ke '${collectionName}'...`, 'info');
+                  const docs = data[collectionName];
+                  const batchPromises = [];
+                  let batch = db.batch();
+                  for (let i = 0; i < docs.length; i++) {
+                      const docData = docs[i];
+                      const { id, history, ...restData } = docData;
+
+                      // Convert timestamp objects back to Firestore Timestamps
+                      for (const key in restData) {
+                          if (restData[key] && restData[key].seconds !== undefined && restData[key].nanoseconds !== undefined) {
+                              restData[key] = new firebase.firestore.Timestamp(restData[key].seconds, restData[key].nanoseconds);
+                          } else if (Array.isArray(restData[key])) { // Handle timestamps in arrays (e.g., Komentar)
+                              restData[key] = restData[key].map(item => {
+                                  if (item && item.timestamp && item.timestamp.seconds !== undefined) {
+                                      item.timestamp = new firebase.firestore.Timestamp(item.timestamp.seconds, item.timestamp.nanoseconds);
+                                  }
+                                  return item;
+                              });
+                          }
+                      }
+
+                      const docRef = db.collection(collectionName).doc(id);
+                      batch.set(docRef, restData);
+
+                      // Handle history subcollection for 'ajuan'
+                      if (collectionName === 'ajuan' && history && Array.isArray(history)) {
+                          for (const historyDoc of history) {
+                              const { id: historyId, ...historyData } = historyDoc;
+                              if (historyData.timestamp && historyData.timestamp.seconds !== undefined) {
+                                  historyData.timestamp = new firebase.firestore.Timestamp(historyData.timestamp.seconds, historyData.timestamp.nanoseconds);
+                              }
+                              const historyRef = docRef.collection('history').doc(historyId);
+                              batch.set(historyRef, historyData);
+                          }
+                      }
+                      
+                      if ((i + 1) % 250 === 0) { // Using smaller batch size for writes with subcollections
+                          batchPromises.push(batch.commit());
+                          batch = db.batch();
+                      }
+                  }
+                  batchPromises.push(batch.commit());
+                  await Promise.all(batchPromises);
+              }
+          }
+
+          showToast("Restore data berhasil diselesaikan! Silakan refresh halaman.", "success");
+      } catch (error) {
+          showToast(`Restore gagal: ${error.message}`, "danger");
+          console.error("Restore execution failed:", error);
+      } finally {
+          showLoader(false);
+      }
+  }
+
+  document.getElementById('btn-backup-data').addEventListener('click', backupAllData);
+  document.getElementById('input-restore-data').addEventListener('change', handleRestoreFile);
 });
 </script>
 
