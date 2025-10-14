@@ -72,23 +72,26 @@
     border-radius: 0.375rem;
   }
   body.login-view {
-    background-image: linear-gradient(rgba(248, 249, 250, 0.05), rgba(248, 249, 250, 0.05)), url('https://www.poltekkeskupang.ac.id/asset/foto_statis/Gedung2.JPG');
-    background-size: contain;
+    background-color: #fff;
+  }
+  
+  #login-image-col {
+    background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://www.poltekkeskupang.ac.id/asset/foto_statis/Gedung2.JPG');
+    background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    background-attachment: fixed;
   }
-  body.login-view .container-fluid {
-    display: flex;
-    min-height: 100vh;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
+
+  #login-form-col {
+    background-color: #f8f9fa; /* Changed for contrast */
   }
+
   #card-login {
-    box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,.1);
-    border: 0;
-    border-radius: 0.75rem;
+    padding: 2.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+    background-color: #fff;
   }
   #tableRPDAwal input[type=number],
   #tableRealisasiAwal input[type=number],
@@ -253,34 +256,48 @@
 <!-- Toast Container -->
 <div class="toast-container position-fixed top-0 end-0 p-3"></div>
 
-<div class="container-fluid py-4 px-3 px-md-4">
-  
-  <div class="card p-4 p-md-5 text-center" id="card-login" style="max-width: 450px; display:none;">
-    <img src="https://si-pandai.netlify.app/LOGO%20POLTEKKES%20KEMENKES%20KUPANG.png" alt="Logo Poltekkes Kupang" class="mx-auto mb-4" style="width: 220px; height: auto;">
-    <h2 class="h4 fw-bold mb-1">Si-Pandai Login</h2>
-    <p class="text-secondary small mb-4">
-      <strong>Sistem Pengajuan dan Data Ajuan Institusi Poltekkes Kemenkes Kupang.</strong>
-      <br>Platform ini mempermudah proses pengajuan kegiatan, monitoring RPD, dan pelaporan realisasi dana secara digital, transparan, dan efisien.
-    </p>
-    <p class="text-muted mb-4">Silakan login untuk melanjutkan</p>
-    <div class="text-start">
-      <div class="mb-3">
-        <label for="input-user-id" class="form-label">Email Pengguna</label>
-        <input type="email" id="input-user-id" class="form-control form-control-lg" placeholder="nama@poltekkeskupang.ac.id" />
+<div class="container-fluid p-0">
+
+  <!-- New Login Page Wrapper -->
+  <div id="login-page-wrapper" style="display: none; min-height: 100vh;">
+    <div class="row g-0 w-100">
+      <!-- Left Column -->
+      <div id="login-image-col" class="col-lg-7 d-none d-lg-flex flex-column justify-content-end text-white p-5">
+        <h1 class="fw-bold mb-3" style="font-size: 2.5rem;">Selamat Datang</h1>
+        <p class="lead" style="font-size: 1.25rem;"><b>Sistem Pengajuan dan Data Ajuan Institusi Poltekkes Kemenkes Kupang</b>. <br>Platform ini mempermudah proses pengajuan kegiatan, monitoring RPD, dan pelaporan realisasi dana secara digital, transparan, dan efisien.</p>
       </div>
-      <div class="mb-3">
-        <label for="input-password" class="form-label">Password</label>
-        <input type="password" id="input-password" class="form-control form-control-lg" placeholder="•••••••••" />
-      </div>
-      <div class="d-grid mt-4">
-        <button id="btn-login" class="btn btn-primary btn-lg"><i class="bi bi-box-arrow-in-right"></i> Login</button>
+      <!-- Right Column -->
+      <div id="login-form-col" class="col-lg-5 d-flex align-items-center justify-content-center p-4">
+        <div id="card-login" class="w-100 text-start" style="max-width: 450px;">
+          <img src="https://si-pandai.netlify.app/LOGO%20POLTEKKES%20KEMENKES%20KUPANG.png" alt="Logo Poltekkes Kupang" class="mb-4" style="width: 320px; height: auto;">
+          <h2 class="h4 fw-bold mb-1">Si-Pandai Login</h2>
+          <h3 class="h4 fw-bold mb-1">Masuk dan Verifikasi</h3>
+          <p class="text-secondary small mb-4">
+
+          <div class="mb-3">
+            <label for="input-user-id" class="form-label">Email/akun pengguna<span class="text-danger">*</span></label>
+            <input type="email" id="input-user-id" class="form-control" placeholder="Masukkan email">
+          </div>
+          
+          <div class="mb-3">
+            <div class="d-flex justify-content-between">
+              <label for="input-password" class="form-label">Password<span class="text-danger">*</span></label>
+              <a href="#" class="small text-decoration-none" tabindex="-1">Lupa kata sandi?</a>
+            </div>
+            <input type="password" id="input-password" class="form-control" placeholder="Masukkan password">
+          </div>
+          
+          <div class="d-grid mt-4">
+            <button id="btn-login" class="btn btn-primary btn-lg">Masuk</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
 
   <!-- Main App Area -->
-  <div id="app-area" style="display:none;">
+  <div id="app-area" class="py-4 px-3 px-md-4" style="display:none;">
        <div class="d-flex justify-content-between align-items-center mb-4">
           <div id="welcome" class="text-muted"></div>
           <div class="d-flex align-items-center gap-3">
@@ -835,7 +852,7 @@ document.addEventListener('DOMContentLoaded', function() {
     STATE.currentUserData = userData;
 
     document.body.classList.remove('login-view');
-    document.getElementById('card-login').style.display = 'none';
+    document.getElementById('login-page-wrapper').style.display = 'none';
     document.getElementById('app-area').style.display = 'block';
     document.getElementById('welcome').innerHTML = `<span class="badge bg-secondary me-2">${STATE.role.toUpperCase()}</span> <strong>${STATE.id} - ${userData.Nama_Prodi}</strong>`;
     
@@ -927,7 +944,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function showLoginPage() {
     clearSession();
     document.body.classList.add('login-view');
-    document.getElementById('card-login').style.display = 'block';
+    document.getElementById('login-page-wrapper').style.display = 'flex';
     document.getElementById('app-area').style.display = 'none';
     document.getElementById('input-password').value = '';
   }
@@ -1589,22 +1606,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // -- NEW: COPY ACCEPTED AJUAN LOGIC (WITH DUPLICATION CHECK) --
+// -- NEW: COPY ACCEPTED AJUAN LOGIC (WITH DUPLICATION CHECK) --
   document.getElementById('btn-copy-accepted').addEventListener('click', async () => {
     if (STATE.role !== 'prodi') return;
     if (!confirm('Anda akan menyalin ajuan awal yang berstatus "Diterima" ke daftar ajuan perubahan. Ajuan yang sudah pernah disalin tidak akan diduplikasi. Lanjutkan?')) return;
     
     showLoader(true);
     try {
-        // BUG FIX 3: Replaced multi-field 'where' clauses with a single 'where' and client-side filtering
-        // This avoids complex queries that require composite indexes and can cause permission errors.
-
-        // 1. Get all ajuan for the current prodi with one simple query.
         const allProdiAjuanSnapshot = await db.collection('ajuan')
             .where('ID_Prodi', '==', STATE.id)
             .get();
         
-        // 2. Filter client-side to find ajuan 'Perubahan' and get their source IDs to prevent duplicates.
         const existingAsalIds = new Set();
         allProdiAjuanSnapshot.docs.forEach(doc => {
             const data = doc.data();
@@ -1613,7 +1625,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // 3. Filter client-side to find 'Ajuan Awal' with 'Diterima' status that can be copied.
         const ajuanAwalDiterimaDocs = allProdiAjuanSnapshot.docs.filter(doc => {
             const data = doc.data();
             return data.Tipe_Ajuan === 'Awal' && data.Status === 'Diterima';
@@ -1622,24 +1633,41 @@ document.addEventListener('DOMContentLoaded', function() {
         const batch = db.batch();
         let copyCount = 0;
         
-        // 4. Iterate over the pre-filtered list to create new ajuan.
         ajuanAwalDiterimaDocs.forEach(doc => {
-            // Only process if the original ID has NOT been copied before
             if (!existingAsalIds.has(doc.id)) {
                 const data = doc.data();
                 const newDocRef = db.collection('ajuan').doc();
+                
+                // --- FIX: WHITELIST FIELDS TO PREVENT PERMISSION ERROR ---
+                // The original code copied all fields, including 'Catatan_Reviewer', which a 'prodi' user cannot write.
+                // This corrected version explicitly lists only the fields that a 'prodi' user is allowed to set.
                 const newData = {
-                    ...data,
+                    // Data inti dari ajuan 'Awal' yang asli
+                    Grub_Belanja_Utama: data.Grub_Belanja_Utama || '',
+                    Judul_Kegiatan: data.Judul_Kegiatan || '',
+                    ID_Prodi: data.ID_Prodi,
+                    ID_Kelompok: data.ID_Kelompok || '',
+                    Nama_Ajuan: data.Nama_Ajuan || 'Salinan',
+                    Jumlah: data.Jumlah || 0,
+                    Satuan: data.Satuan || '',
+                    Harga_Satuan: data.Harga_Satuan || 0,
+                    Total: data.Total || 0,
+                    Keterangan: data.Keterangan || '',
+                    Status_Revisi: data.Status_Revisi || 'Ajuan Baru',
+                    Data_Dukung: data.Data_Dukung || '',
+
+                    // Data baru untuk ajuan 'Perubahan'
                     Tipe_Ajuan: 'Perubahan',
                     Status: 'Menunggu Review',
-                    Catatan_Reviewer: '',
                     Komentar: [],
                     ID_Ajuan_Asal: doc.id,
                     Timestamp: serverTimestamp()
+                    // `Catatan_Reviewer` is intentionally omitted to comply with security rules.
                 };
+                // --- END OF FIX ---
+
                 batch.set(newDocRef, newData);
                 
-                // Log creation and copy event
                 const historyRef = newDocRef.collection('history').doc();
                 batch.set(historyRef, {
                     action: "Ajuan Dibuat (Salinan)",
@@ -2052,4 +2080,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
-
