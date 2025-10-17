@@ -172,80 +172,78 @@
       border-bottom: none;
   }
 
+  /* STYLING BARU UNTUK BERITA ACARA */
+  #berita-acara-content { font-family: 'Times New Roman', Times, serif; color: #000; }
+  .ba-kop { text-align: center; border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+  .ba-kop img { width: 90px; height: auto; }
+  .ba-kop-text { display: inline-block; vertical-align: middle; margin-left: 20px; }
+  .ba-kop-text h5, .ba-kop-text p { margin: 0; line-height: 1.2; font-weight: bold; }
+  .ba-judul { text-align: center; margin: 30px 0; }
+  .ba-judul h5 { text-decoration: underline; margin: 0; font-weight: bold; }
+  .ba-paragraf { text-align: justify; margin: 20px 0; line-height: 1.5; }
+  .ba-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 11pt; }
+  .ba-table th, .ba-table td { border: 1px solid #000; padding: 6px; vertical-align: top; }
+  .ba-table thead th { background-color: #e9ecef; text-align: center; font-weight: bold; }
+  .ba-signatures { margin-top: 50px; }
+  .ba-signatures table { width: 100%; border: none; }
+  .ba-signatures td { vertical-align: top; text-align: center; padding: 10px; width: 50%; }
+  
+  /* --- FIX FOR PRINTING --- */
   @media print {
-    body, .container-fluid {
-      background-color: #fff !important;
-      margin: 0;
-      padding: 0;
+    /* Hide all elements that are not part of the print content */
+    body > .container-fluid > #app-area > .d-flex, /* Hides header */
+    body > .container-fluid > #app-area > .main-layout > #sidebar, /* Hides sidebar */
+    .d-print-none {
+        display: none !important;
     }
-    #app-area > .d-flex.justify-content-between,
-    #sidebar,
-    #card-login, #loading-overlay, .modal, .toast-container,
-    .action-buttons, button, .form-select, input[type=file], .d-print-none {
-      display: none !important;
-    }
-    .main-layout {
+
+    /* Reset the main containers to simple blocks, removing flex/grid constraints */
+    body, .container-fluid, #app-area, .main-layout, #main-content, .tab-content {
         display: block !important;
-        flex-direction: unset !important;
-        gap: 0 !important;
-    }
-    #main-content {
-        width: 100%;
+        position: static !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        margin: 0 !important;
         padding: 0 !important;
-        border: none !important;
         box-shadow: none !important;
-        background-color: transparent !important;
+        border: none !important;
+        background: #fff !important;
+        color: #000 !important;
     }
-    .tab-content, .card {
-      border: none !important;
-      box-shadow: none !important;
-      padding: 0 !important;
-    }
+    
+    /* Hide all tab panes by default */
     .tab-pane {
-      display: none !important;
+        display: none !important;
     }
-    .tab-pane.active {
-      display: block !important;
+    
+    /* Explicitly show ONLY the tab and content we want to print */
+    #tab-berita-acara, #berita-acara-content {
+        display: block !important;
+        visibility: visible !important;
     }
-    .table-responsive {
-      overflow: visible !important;
+    
+    /* Apply specific styling for the printed content */
+    #berita-acara-content {
+         padding: 1.5cm;
+         font-size: 11pt;
     }
-    .table {
-      font-size: 10pt;
+    .ba-table {
+        font-size: 10pt;
     }
     a {
-      text-decoration: none;
-      color: #000;
-    }
-    h5 {
-      margin-top: 1rem;
-      margin-bottom: 1rem;
-      font-size: 14pt;
+        text-decoration: none !important;
+        color: #000 !important;
     }
   }
-  .table-container .table {
-    border: 1px solid #dee2e6;
-  }
-  .table-container .table th,
-  .table-container .table td {
-    border: 1px solid #dee2e6;
-    vertical-align: middle;
-  }
-  .table-container .table thead th {
-    border-bottom-width: 2px;
-  }
-  .table-container tr[class^="group-header-"] td {
-    border-left: none;
-    border-right: none;
-    padding-top: 0.6rem;
-    padding-bottom: 0.6rem;
-  }
-  .table-container .group-header-grub td {
-    border-top: 3px solid #000;
-  }
-  .table-container tbody tr.group-header-grub:first-child td {
-    border-top: 1px solid #dee2e6;
-  }
+  /* --- END OF FIX FOR PRINTING --- */
+
+  .table-container .table { border: 1px solid #dee2e6; }
+  .table-container .table th, .table-container .table td { border: 1px solid #dee2e6; vertical-align: middle; }
+  .table-container .table thead th { border-bottom-width: 2px; }
+  .table-container tr[class^="group-header-"] td { border-left: none; border-right: none; padding-top: 0.6rem; padding-bottom: 0.6rem; }
+  .table-container .group-header-grub td { border-top: 3px solid #000; }
+  .table-container tbody tr.group-header-grub:first-child td { border-top: 1px solid #dee2e6; }
 </style>
 </head>
 <body>
@@ -299,7 +297,7 @@
 
   <!-- Main App Area -->
   <div id="app-area" class="py-4 px-3 px-md-4" style="display:none;">
-       <div class="d-flex justify-content-between align-items-center mb-4">
+       <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
           <div id="welcome" class="text-muted"></div>
           <div class="d-flex align-items-center gap-3">
               <div class="dropdown">
@@ -318,7 +316,7 @@
           </div>
       </div>
     <div class="main-layout d-flex flex-column flex-md-row gap-4">
-      <nav id="sidebar" class="p-3">
+      <nav id="sidebar" class="p-3 d-print-none">
         <div class="text-center pb-3 mb-3 border-bottom border-secondary">
           <img src="https://si-pandai.netlify.app/LOGO%20POLTEKKES%20KEMENKES%20KUPANG.png" alt="Logo" style="width: 150px; height: auto;">
           <h5 class="mt-2 mb-0 text-white fw-light">Si-Pandai</h5>
@@ -330,14 +328,19 @@
           <li class="nav-item" role="presentation" id="nav-item-ajuan-perubahan" style="display:none;"><button class="nav-link" id="link-ajuan-perubahan" data-bs-target="#tab-ajuan" data-bs-toggle="tab"><i class="bi bi-pencil-square"></i> Buat Ajuan Perubahan</button></li>
           
           <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-daftar-awal" data-bs-toggle="tab"><i class="bi bi-list-task"></i> Daftar Ajuan Awal</button></li>
-          <li class="nav-item" role="presentation" id="nav-item-daftar-perubahan" style="display:none;"><button class="nav-link" data-bs-target="#tab-daftar-perubahan" data-bs-toggle="tab"><i class="bi bi-list-check"></i> Daftar Ajuan Perubahan</button></li>
+          <li class="nav-item" role="presentation" id="nav-item-daftar-perubahan" style="display:none;"><button class="nav-link" id="link-daftar-perubahan" data-bs-target="#tab-daftar-perubahan" data-bs-toggle="tab"><i class="bi bi-list-check"></i> Daftar Ajuan Perubahan</button></li>
           
           <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-rpd-awal" data-bs-toggle="tab"><i class="bi bi-calendar2-week"></i> RPD Awal</button></li>
-          <li class="nav-item" role="presentation" id="nav-item-rpd-perubahan" style="display:none;"><button class="nav-link" data-bs-target="#tab-rpd-perubahan" data-bs-toggle="tab"><i class="bi bi-calendar2-event"></i> RPD Perubahan</button></li>
+          <li class="nav-item" role="presentation" id="nav-item-rpd-perubahan" style="display:none;"><button class="nav-link" id="link-rpd-perubahan" data-bs-target="#tab-rpd-perubahan" data-bs-toggle="tab"><i class="bi bi-calendar2-event"></i> RPD Perubahan</button></li>
 
           <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-realisasi-awal" data-bs-toggle="tab"><i class="bi bi-cash-coin"></i> Realisasi Awal</button></li>
-          <li class="nav-item" role="presentation" id="nav-item-realisasi-perubahan" style="display:none;"><button class="nav-link" data-bs-target="#tab-realisasi-perubahan" data-bs-toggle="tab"><i class="bi bi-graph-up-arrow"></i> Realisasi Perubahan</button></li>
+          <li class="nav-item" role="presentation" id="nav-item-realisasi-perubahan" style="display:none;"><button class="nav-link" id="link-realisasi-perubahan" data-bs-target="#tab-realisasi-perubahan" data-bs-toggle="tab"><i class="bi bi-graph-up-arrow"></i> Realisasi Perubahan</button></li>
           
+          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-target="#tab-berita-acara" data-bs-toggle="tab"><i class="bi bi-printer-fill"></i> Cetak Berita Acara</button></li>
+          
+          <!-- MENU PENGATURAN AKUN UNTUK PRODI -->
+          <li class="nav-item" role="presentation" id="tab-pengaturan-akun-link" style="display:none;"><button class="nav-link" data-bs-target="#tab-pengaturan-akun" data-bs-toggle="tab"><i class="bi bi-person-gear"></i> Pengaturan Akun</button></li>
+
           <li class="nav-item" role="presentation" id="tab-manage-link" style="display:none;"><button class="nav-link" data-bs-target="#tab-manage" data-bs-toggle="tab"><i class="bi bi-gear"></i> Manajemen</button></li>
         </ul>
       </nav>
@@ -345,12 +348,12 @@
         <div class="tab-content" id="myTabContent">
           <!-- DASHBOARD TAB -->
           <div class="tab-pane fade show active" id="tab-dashboard" role="tabpanel">
-            <div id="global-announcement-area" class="alert alert-info alert-dismissible fade show" role="alert" style="display: none;">
+            <div id="global-announcement-area" class="alert alert-info alert-dismissible fade show d-print-none" role="alert" style="display: none;">
               <h5 class="alert-heading"><i class="bi bi-megaphone-fill"></i> Pengumuman</h5>
               <p id="global-announcement-text" class="mb-0"></p>
               <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
-            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3 d-print-none">
               <h5 class="m-0"><i class="bi bi-graph-up"></i> Dashboard Monitoring</h5>
               <div class="d-flex gap-2 align-items-center">
                 <select id="filterTahunDashboard" class="form-select form-select-sm" style="width: auto;"><option value="">Semua Tahun</option></select>
@@ -362,21 +365,21 @@
                 <button id="btn-refresh-dashboard" class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
               </div>
             </div>
-            <div id="dashboard-deadline-info" class="alert alert-warning text-center small p-2" style="display:none;"></div>
-            <div class="row g-3 mb-4">
+            <div id="dashboard-deadline-info" class="alert alert-warning text-center small p-2 d-print-none" style="display:none;"></div>
+            <div class="row g-3 mb-4 d-print-none">
               <div class="col"><div class="card p-3 h-100"><div class="d-flex justify-content-between align-items-center"><div class="text-muted small">TOTAL DIAJUKAN</div><i class="bi bi-journal-text fs-2 text-primary opacity-50"></i></div><h4 id="dashboard-total-diajukan" class="fw-bold mt-2">Rp 0</h4></div></div>
               <div class="col"><div class="card p-3 h-100"><div class="d-flex justify-content-between align-items-center"><div class="text-muted small">TOTAL DITERIMA</div><i class="bi bi-check2-circle fs-2 text-success opacity-50"></i></div><h4 id="dashboard-total-diterima" class="fw-bold mt-2">Rp 0</h4></div></div>
               <div id="dashboard-total-pagu-card" class="col" style="display:none;"><div class="card p-3 h-100"><div class="d-flex justify-content-between align-items-center"><div class="text-muted small" id="dashboard-pagu-label">PAGU ANGGARAN</div><i class="bi bi-wallet2 fs-2 text-secondary opacity-50"></i></div><h4 id="dashboard-total-pagu" class="fw-bold mt-2">Rp 0</h4></div></div>
               <div class="col"><div class="card p-3 h-100"><div class="d-flex justify-content-between align-items-center"><div class="text-muted small">TOTAL RPD</div><i class="bi bi-calendar2-check fs-2 text-info opacity-50"></i></div><h4 id="dashboard-total-rpd" class="fw-bold mt-2">Rp 0</h4></div></div>
               <div class="col"><div class="card p-3 h-100"><div class="d-flex justify-content-between align-items-center"><div class="text-muted small">TOTAL REALISASI</div><i class="bi bi-cash-coin fs-2 text-warning opacity-50"></i></div><h4 id="dashboard-total-realisasi" class="fw-bold mt-2">Rp 0</h4></div></div>
             </div>
-            <div class="row g-3 mb-4">
+            <div class="row g-3 mb-4 d-print-none">
                 <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Menunggu Review</div><strong id="dashboard-count-menunggu" class="fs-5">0</strong></div></div>
                 <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Diterima</div><strong id="dashboard-count-diterima" class="fs-5">0</strong></div></div>
                 <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Ditolak</div><strong id="dashboard-count-ditolak" class="fs-5">0</strong></div></div>
                 <div class="col"><div class="card p-2 text-center"><div class="small text-muted">Revisi</div><strong id="dashboard-count-revisi" class="fs-5">0</strong></div></div>
             </div>
-            <div class="row g-4">
+            <div class="row g-4 d-print-none">
                 <div class="col-lg-7">
                     <div class="card p-3 h-100">
                         <h6 class="card-title text-center">Progress Rencana Penarikan (RPD) vs Realisasi</h6>
@@ -448,7 +451,7 @@
           <!-- DAFTAR AJUAN AWAL TAB -->
           <div class="tab-pane fade" id="tab-daftar-awal" role="tabpanel">
             <h5 class="mb-3"><i class="bi bi-list-task"></i> Daftar Ajuan Awal</h5>
-            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center d-print-none">
                 <div class="flex-grow-1 d-flex flex-wrap gap-2">
                     <select id="filterProdiAwal" class="form-select" style="display:none; width: auto; flex-basis: 200px;" title="Filter berdasarkan Prodi"><option value="">Semua Prodi</option></select>
                     <select id="filterGrubAwal" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Grub Belanja"><option value="">Semua Grub Belanja</option></select>
@@ -459,10 +462,10 @@
                 <div class="d-flex gap-2">
                     <button id="btn-refresh-awal" class="btn btn-outline-primary" title="Refresh Data"><i class="bi bi-arrow-clockwise"></i></button>
                     <button id="btn-export-excel-awal" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
-                    <button id="btn-print-daftar-awal" class="btn btn-outline-secondary" title="Cetak Daftar Ajuan"><i class="bi bi-printer"></i> Cetak</button>
+                    <button id="btn-print-daftar-awal" class="btn btn-outline-secondary d-print-none" title="Cetak Daftar Ajuan"><i class="bi bi-printer"></i> Cetak</button>
                 </div>
             </div>
-            <div id="bulk-action-bar-awal" class="bulk-action-bar p-2 mb-3 align-items-center gap-3" style="display:none;">
+            <div id="bulk-action-bar-awal" class="bulk-action-bar p-2 mb-3 align-items-center gap-3 d-print-none" style="display:none;">
                 <strong id="bulk-selected-count-awal">0</strong> item terpilih.
                 <button id="bulk-accept-awal" class="btn btn-sm btn-success"><i class="bi bi-check-lg"></i> Terima</button>
                 <button id="bulk-reject-awal" class="btn btn-sm btn-danger"><i class="bi bi-x-lg"></i> Tolak</button>
@@ -473,8 +476,8 @@
           </div>
           <!-- DAFTAR AJUAN PERUBAHAN TAB -->
           <div class="tab-pane fade" id="tab-daftar-perubahan" role="tabpanel">
-            <h5 class="mb-3"><i class="bi bi-list-check"></i> Daftar Ajuan Perubahan</h5>
-            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+            <h5 class="mb-3" id="daftar-perubahan-title"><i class="bi bi-list-check"></i> Daftar Ajuan Perubahan</h5>
+            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center d-print-none">
                 <div class="flex-grow-1 d-flex flex-wrap gap-2">
                     <select id="filterProdiPerubahan" class="form-select" style="display:none; width: auto; flex-basis: 200px;" title="Filter berdasarkan Prodi"><option value="">Semua Prodi</option></select>
                     <select id="filterGrubPerubahan" class="form-select" style="width: auto; flex-basis: 200px;" title="Filter berdasarkan Grub Belanja"><option value="">Semua Grub Belanja</option></select>
@@ -483,13 +486,13 @@
                 </div>
                 <div id="summary-display-perubahan" class="d-flex flex-wrap gap-3 p-2 border rounded bg-light me-auto" style="display: none;"></div>
                 <div class="d-flex gap-2">
-                    <button id="btn-copy-accepted" class="btn btn-info me-3" title="Salin semua ajuan awal yang diterima ke daftar ini untuk diedit ulang"><i class="bi bi-files"></i> Pindahkan Ajuan Awal Diterima</button>
+                    <button id="btn-copy-accepted" class="btn btn-info me-3" title="Salin semua ajuan dari tahap sebelumnya yang diterima ke daftar ini untuk diedit ulang"><i class="bi bi-files"></i> Pindahkan Ajuan</button>
                     <button id="btn-refresh-perubahan" class="btn btn-outline-primary" title="Refresh Data"><i class="bi bi-arrow-clockwise"></i></button>
                     <button id="btn-export-excel-perubahan" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
-                    <button id="btn-print-daftar-perubahan" class="btn btn-outline-secondary" title="Cetak Daftar Ajuan"><i class="bi bi-printer"></i> Cetak</button>
+                    <button id="btn-print-daftar-perubahan" class="btn btn-outline-secondary d-print-none" title="Cetak Daftar Ajuan"><i class="bi bi-printer"></i> Cetak</button>
                 </div>
             </div>
-            <div id="bulk-action-bar-perubahan" class="bulk-action-bar p-2 mb-3 align-items-center gap-3" style="display:none;">
+            <div id="bulk-action-bar-perubahan" class="bulk-action-bar p-2 mb-3 align-items-center gap-3 d-print-none" style="display:none;">
                 <strong id="bulk-selected-count-perubahan">0</strong> item terpilih.
                 <button id="bulk-accept-perubahan" class="btn btn-sm btn-success"><i class="bi bi-check-lg"></i> Terima</button>
                 <button id="bulk-reject-perubahan" class="btn btn-sm btn-danger"><i class="bi bi-x-lg"></i> Tolak</button>
@@ -500,59 +503,132 @@
           </div>
           <!-- RPD AWAL TAB -->
           <div class="tab-pane fade" id="tab-rpd-awal" role="tabpanel">
-            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center d-print-none">
                 <h5 class="m-0 me-3"><i class="bi bi-calendar2-week"></i> Rencana Penarikan Dana (RPD) Awal</h5>
                 <select id="filterProdiRPDAwal" class="form-select" style="display:none; width: auto; flex-basis: 250px;" title="Filter RPD berdasarkan Prodi"><option value="">Semua Prodi</option></select>
                 <div class="ms-auto d-flex gap-2">
                   <button id="btn-refresh-rpd-awal" class="btn btn-outline-primary" title="Refresh Data RPD"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-                  <button id="btn-print-rpd-awal" class="btn btn-outline-secondary" title="Cetak RPD"><i class="bi bi-printer"></i> Cetak</button>
+                  <button id="btn-export-excel-rpd-awal" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+                  <button id="btn-print-rpd-awal" class="btn btn-outline-secondary d-print-none" title="Cetak RPD"><i class="bi bi-printer"></i> Cetak</button>
                 </div>
             </div>
-            <p class="text-muted small">Daftar ini berisi semua ajuan awal yang telah berstatus "Diterima".</p>
+            <p class="text-muted small d-print-none">Daftar ini berisi semua ajuan awal yang telah berstatus "Diterima".</p>
             <div class="table-responsive"><div id="tableRPDAwal"><div class="text-center text-muted p-5">Memuat data RPD Awal...</div></div></div>
           </div>
           <!-- RPD PERUBAHAN TAB -->
           <div class="tab-pane fade" id="tab-rpd-perubahan" role="tabpanel">
-            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
-                <h5 class="m-0 me-3"><i class="bi bi-calendar2-event"></i> Rencana Penarikan Dana (RPD) Perubahan</h5>
+            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center d-print-none">
+                <h5 class="m-0 me-3" id="rpd-perubahan-title"><i class="bi bi-calendar2-event"></i> Rencana Penarikan Dana (RPD) Perubahan</h5>
                 <select id="filterProdiRPDPerubahan" class="form-select" style="display:none; width: auto; flex-basis: 250px;" title="Filter RPD berdasarkan Prodi"><option value="">Semua Prodi</option></select>
                 <div class="ms-auto d-flex gap-2">
-                  <button id="btn-refresh-rpd-perubahan" class="btn btn-outline-primary" title="Refresh Data RPD"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-                  <button id="btn-print-rpd-perubahan" class="btn btn-outline-secondary" title="Cetak RPD"><i class="bi bi-printer"></i> Cetak</button>
+                  <button id="btn-refresh-rpd-perubahan" class="btn btn-outline-primary" title="Refresh Data RPD"><i class="bi bi-arrow-clockwise"></i></button>
+                  <button id="btn-export-excel-rpd-perubahan" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+                  <button id="btn-print-rpd-perubahan" class="btn btn-outline-secondary d-print-none" title="Cetak RPD"><i class="bi bi-printer"></i> Cetak</button>
                 </div>
             </div>
-            <p class="text-muted small">Daftar ini berisi semua ajuan perubahan yang telah berstatus "Diterima".</p>
+            <p class="text-muted small d-print-none">Daftar ini berisi semua ajuan perubahan yang telah berstatus "Diterima".</p>
             <div class="table-responsive"><div id="tableRPDPerubahan"><div class="text-center text-muted p-5">Memuat data RPD Perubahan...</div></div></div>
           </div>
           <!-- REALISASI AWAL TAB -->
           <div class="tab-pane fade" id="tab-realisasi-awal" role="tabpanel">
-            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center d-print-none">
                 <h5 class="m-0 me-3"><i class="bi bi-cash-coin"></i> Realisasi Dana Awal</h5>
                 <select id="filterProdiRealisasiAwal" class="form-select" style="display:none; width: auto; flex-basis: 250px;" title="Filter Realisasi berdasarkan Prodi"><option value="">Semua Prodi</option></select>
                 <div class="ms-auto d-flex gap-2">
                   <button id="btn-refresh-realisasi-awal" class="btn btn-outline-primary" title="Refresh Data Realisasi"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-                  <button id="btn-print-realisasi-awal" class="btn btn-outline-secondary" title="Cetak Realisasi"><i class="bi bi-printer"></i> Cetak</button>
+                  <button id="btn-export-excel-realisasi-awal" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+                  <button id="btn-print-realisasi-awal" class="btn btn-outline-secondary d-print-none" title="Cetak Realisasi"><i class="bi bi-printer"></i> Cetak</button>
                 </div>
             </div>
-            <div id="realisasi-summary-area-awal" class="mb-4"></div>
-            <p class="text-muted small">Input realisasi dana bulanan untuk setiap ajuan awal yang telah berstatus "Diterima".</p>
+            <div id="realisasi-summary-area-awal" class="mb-4 d-print-none"></div>
+            <p class="text-muted small d-print-none">Input realisasi dana bulanan untuk setiap ajuan awal yang telah berstatus "Diterima".</p>
             <div class="table-responsive"><div id="tableRealisasiAwal"><div class="text-center text-muted p-5">Memuat data Realisasi Awal...</div></div></div>
           </div>
           <!-- REALISASI PERUBAHAN TAB -->
           <div class="tab-pane fade" id="tab-realisasi-perubahan" role="tabpanel">
-            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
-                <h5 class="m-0 me-3"><i class="bi bi-graph-up-arrow"></i> Realisasi Dana Perubahan</h5>
+            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center d-print-none">
+                <h5 class="m-0 me-3" id="realisasi-perubahan-title"><i class="bi bi-graph-up-arrow"></i> Realisasi Dana Perubahan</h5>
                 <select id="filterProdiRealisasiPerubahan" class="form-select" style="display:none; width: auto; flex-basis: 250px;" title="Filter Realisasi berdasarkan Prodi"><option value="">Semua Prodi</option></select>
                 <div class="ms-auto d-flex gap-2">
                   <button id="btn-refresh-realisasi-perubahan" class="btn btn-outline-primary" title="Refresh Data Realisasi"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-                  <button id="btn-print-realisasi-perubahan" class="btn btn-outline-secondary" title="Cetak Realisasi"><i class="bi bi-printer"></i> Cetak</button>
+                  <button id="btn-export-excel-realisasi-perubahan" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+                  <button id="btn-print-realisasi-perubahan" class="btn btn-outline-secondary d-print-none" title="Cetak Realisasi"><i class="bi bi-printer"></i> Cetak</button>
                 </div>
             </div>
-            <div id="realisasi-summary-area-perubahan" class="mb-4"></div>
-            <p class="text-muted small">Input realisasi dana bulanan untuk setiap ajuan perubahan yang telah berstatus "Diterima".</p>
+            <div id="realisasi-summary-area-perubahan" class="mb-4 d-print-none"></div>
+            <p class="text-muted small d-print-none">Input realisasi dana bulanan untuk setiap ajuan perubahan yang telah berstatus "Diterima".</p>
             <div class="table-responsive"><div id="tableRealisasiPerubahan"><div class="text-center text-muted p-5">Memuat data Realisasi Perubahan...</div></div></div>
           </div>
-          <!-- MANAJEMEN TAB -->
+          <!-- BERITA ACARA TAB -->
+          <div class="tab-pane fade" id="tab-berita-acara" role="tabpanel">
+            <div class="d-print-none">
+              <h5 class="mb-3"><i class="bi bi-printer-fill"></i> Cetak Berita Acara</h5>
+              <div class="d-flex flex-wrap gap-3 mb-3 align-items-end bg-light p-3 rounded-3">
+    <!-- Filter -->
+    <div class="flex-grow-1 d-flex flex-wrap gap-2">
+        <div>
+            <label for="filterTipeBA" class="form-label small mb-1">Tipe Ajuan</label>
+            <select id="filterTipeBA" class="form-select" style="width: auto;" title="Pilih Tipe Ajuan"><option value="Awal">Ajuan Awal</option></select>
+        </div>
+        <div>
+            <label for="filterProdiBA" class="form-label small mb-1">Prodi</label>
+            <select id="filterProdiBA" class="form-select" style="display:none; width: auto;" title="Filter berdasarkan Prodi"><option value="">Semua Prodi</option></select>
+        </div>
+    </div>
+
+    <!-- Tombol Aksi dan Pengaturan PDF -->
+    <div class="d-flex gap-2 align-items-end">
+        <button id="btn-preview-ba" class="btn btn-outline-primary"><i class="bi bi-eye"></i> Tampilkan Pratinjau</button>
+        <div class="vr mx-2"></div> <!-- Pemisah visual -->
+        
+        <!-- START: Elemen Baru untuk Pengaturan PDF -->
+        <div>
+            <label for="ba-paper-size" class="form-label small mb-1">Ukuran Kertas</label>
+            <select id="ba-paper-size" class="form-select form-select-sm">
+                <option value="a4" selected>A4</option>
+                <option value="a3">A3</option>
+                <option value="letter">Letter</option>
+                <option value="legal">Legal</option>
+            </select>
+        </div>
+        <div>
+            <label for="ba-orientation" class="form-label small mb-1">Orientasi</label>
+            <select id="ba-orientation" class="form-select form-select-sm">
+                <option value="portrait" selected>Potret</option>
+                <option value="landscape">Lanskap</option>
+            </select>
+        </div>
+        <!-- END: Elemen Baru untuk Pengaturan PDF -->
+        
+        <button id="btn-download-pdf-ba" class="btn btn-success"><i class="bi bi-file-earmark-pdf-fill"></i> Download PDF</button>
+    </div>
+</div>
+            <div id="berita-acara-content" class="bg-white p-4 border rounded">
+              <div class="text-center text-muted p-5 d-print-none">Pilih Tipe Ajuan dan Prodi (jika ada), lalu klik "Tampilkan Pratinjau".</div>
+            </div>
+          </div>
+          <!-- TAB PENGATURAN AKUN (UNTUK PRODI) -->
+          <div class="tab-pane fade" id="tab-pengaturan-akun" role="tabpanel">
+              <h5 class="mb-3"><i class="bi bi-person-gear"></i> Pengaturan Akun</h5>
+              <div class="row">
+                  <div class="col-md-8 col-lg-6">
+                      <div class="card p-3">
+                          <h6 class="card-title"><i class="bi bi-pen-fill"></i> Tanda Tangan Berita Acara</h6>
+                          <p class="small text-muted">Informasi ini akan digunakan sebagai penanda tangan dari pihak Anda (Prodi/Jurusan) pada dokumen Berita Acara.</p>
+                          <div class="mb-3">
+                              <label for="prodi_ba_jabatan" class="form-label">Jabatan</label>
+                              <input type="text" id="prodi_ba_jabatan" class="form-control" placeholder="Contoh: Ketua Jurusan Keperawatan">
+                          </div>
+                          <div class="mb-3">
+                              <label for="prodi_ba_nama" class="form-label">Nama Lengkap & Gelar</label>
+                              <input type="text" id="prodi_ba_nama" class="form-control" placeholder="Contoh: Nama Lengkap, S.Kep., Ns., M.Kes">
+                          </div>
+                          <button id="btn-save-prodi-ba-settings" class="btn btn-primary mt-2"><i class="bi bi-save"></i> Simpan Pengaturan</button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+          <!-- MANAJEMEN TAB (UNTUK DIREKTORAT) -->
           <div class="tab-pane fade" id="tab-manage" role="tabpanel">
             <div class="row g-4">
               <div class="col-lg-6">
@@ -583,6 +659,13 @@
                       <option value="prodi">prodi</option>
                       <option value="direktorat">direktorat</option>
                     </select>
+                    <!-- Field Tanda Tangan BA untuk Prodi -->
+                    <div id="mp_ba_fields_wrapper" style="display: none;">
+                        <hr>
+                        <label class="form-label small text-muted">Pengaturan TTD Berita Acara Prodi:</label>
+                        <input id="mp_BA_Jabatan" class="form-control form-control-sm mb-2" placeholder="Jabatan Penanda Tangan (Prodi)" />
+                        <input id="mp_BA_Nama" class="form-control form-control-sm mb-2" placeholder="Nama Lengkap & Gelar (Prodi)" />
+                    </div>
                     <button id="btn-save-prodi" class="btn btn-primary w-100"><i class="bi bi-save"></i> Simpan Perubahan</button>
                   </div>
                   
@@ -635,6 +718,19 @@
                           <h6 id="current-tahap-display" class="text-center fw-bold">...</h6>
                         </div>
                         
+                        <div class="mb-3">
+                          <label for="ms_jumlah_tahap_perubahan" class="form-label fw-bold">Jumlah Tahap Perubahan</label>
+                          <input type="number" id="ms_jumlah_tahap_perubahan" class="form-control" min="1" value="1">
+                        </div>
+                        <div class="mb-3">
+                          <label for="ms_tahap_perubahan_aktif" class="form-label fw-bold">Tahap Perubahan Aktif Saat Ini</label>
+                          <select id="ms_tahap_perubahan_aktif" class="form-select">
+                            <option value="1">Tahap 1</option>
+                          </select>
+                          <p class="text-muted small mt-2 mb-1">Tahap Aktif Saat Ini:</p>
+                          <h6 id="current-tahap-aktif-display" class="text-center fw-bold">...</h6>
+                        </div>
+                        
                         <hr>
                         <div class="mb-3">
                           <label for="ms_deadline" class="form-label fw-bold">Batas Tanggal Akhir Pengajuan</label>
@@ -660,6 +756,38 @@
                     </div>
                   </div>
               </div>
+              <!-- PENGATURAN BERITA ACARA GLOBAL -->
+              <div class="col-12 mt-4">
+                <div class="card p-3">
+                  <h6 class="card-title"><i class="bi bi-pen-fill"></i> Pengaturan Default Penanda Tangan Berita Acara</h6>
+                  <p class="small text-muted">Pengaturan ini akan menjadi fallback. Pengaturan spesifik per-prodi (diatur di Manajemen Pengguna atau oleh Prodi sendiri) akan lebih diprioritaskan.</p>
+                  <div class="row">
+                    <div class="col-md-6">
+                      <h6 class="small fw-bold border-bottom pb-2 mb-3">Tanda Tangan Pihak Kiri (Prodi - Default)</h6>
+                      <div class="mb-3">
+                        <label for="ba_ttd_kiri_jabatan" class="form-label">Jabatan</label>
+                        <input type="text" id="ba_ttd_kiri_jabatan" class="form-control" placeholder="Contoh: Ketua Jurusan Keperawatan">
+                      </div>
+                      <div class="mb-3">
+                        <label for="ba_ttd_kiri_nama" class="form-label">Nama Lengkap & Gelar</label>
+                        <input type="text" id="ba_ttd_kiri_nama" class="form-control" placeholder="Contoh: Nama Lengkap, S.Kep., Ns., M.Kes">
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <h6 class="small fw-bold border-bottom pb-2 mb-3">Tanda Tangan Pihak Kanan (Direktorat)</h6>
+                      <div class="mb-3">
+                        <label for="ba_ttd_kanan_jabatan" class="form-label">Jabatan</label>
+                        <input type="text" id="ba_ttd_kanan_jabatan" class="form-control" placeholder="Contoh: Wakil Direktur II">
+                      </div>
+                      <div class="mb-3">
+                        <label for="ba_ttd_kanan_nama" class="form-label">Nama Lengkap & Gelar</label>
+                        <input type="text" id="ba_ttd_kanan_nama" class="form-control" placeholder="Contoh: Nama Lengkap, S.E., M.M.">
+                      </div>
+                    </div>
+                  </div>
+                  <button id="btn-save-ba-settings" class="btn btn-primary mt-2"><i class="bi bi-save"></i> Simpan Pengaturan Default</button>
+                </div>
+              </div>
               <div class="col-12 mt-4">
                   <div class="card p-3">
                     <h6 class="card-title"><i class="bi bi-database-fill-gear"></i> Backup & Restore Data</h6>
@@ -682,6 +810,7 @@
   </div>
 </div>
 
+<!-- Modal-modal lainnya tidak berubah... -->
 <!-- Edit Ajuan Modal -->
 <div class="modal fade" id="editAjuanModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
@@ -769,6 +898,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -811,7 +941,8 @@ document.addEventListener('DOMContentLoaded', function() {
     stagingList: [], 
     selectedAjuanIdsAwal: new Set(), selectedAjuanIdsPerubahan: new Set(),
     allDashboardData: [], globalSettings: {},
-    currentAjuanType: 'Awal', // Default ke Ajuan Awal
+    beritaAcaraSettings: {},
+    currentAjuanType: 'Awal',
     notificationListener: null
   };
   
@@ -846,6 +977,79 @@ document.addEventListener('DOMContentLoaded', function() {
   function getSession() { try { return JSON.parse(localStorage.getItem('siPandaiSession')); } catch (e) { return null; } }
   function clearSession() { localStorage.removeItem('siPandaiSession'); }
 
+  function updatePerubahanUI(settings) {
+    const isTahapPerubahanOpen = settings.Status_Ajuan_Perubahan === 'Dibuka';
+    const tahapAktif = settings.Tahap_Perubahan_Aktif || 1;
+    const tahapStr = `Perubahan ${tahapAktif}`;
+    document.getElementById('nav-item-ajuan-perubahan').style.display = isTahapPerubahanOpen ? 'block' : 'none';
+    document.getElementById('nav-item-daftar-perubahan').style.display = isTahapPerubahanOpen ? 'block' : 'none';
+    document.getElementById('nav-item-rpd-perubahan').style.display = isTahapPerubahanOpen ? 'block' : 'none';
+    document.getElementById('nav-item-realisasi-perubahan').style.display = isTahapPerubahanOpen ? 'block' : 'none';
+    if (isTahapPerubahanOpen) {
+      document.querySelector('#link-ajuan-perubahan').innerHTML = `<i class="bi bi-pencil-square"></i> Buat Ajuan ${tahapStr}`;
+      document.querySelector('#link-daftar-perubahan').innerHTML = `<i class="bi bi-list-check"></i> Daftar Ajuan ${tahapStr}`;
+      document.querySelector('#link-rpd-perubahan').innerHTML = `<i class="bi bi-calendar2-event"></i> RPD ${tahapStr}`;
+      document.querySelector('#link-realisasi-perubahan').innerHTML = `<i class="bi bi-graph-up-arrow"></i> Realisasi ${tahapStr}`;
+    }
+    document.getElementById('daftar-perubahan-title').innerHTML = `<i class="bi bi-list-check"></i> Daftar Ajuan ${tahapStr}`;
+    document.getElementById('rpd-perubahan-title').innerHTML = `<i class="bi bi-calendar2-event"></i> RPD ${tahapStr}`;
+    document.getElementById('realisasi-perubahan-title').innerHTML = `<i class="bi bi-graph-up-arrow"></i> Realisasi ${tahapStr}`;
+    const copyBtn = document.getElementById('btn-copy-accepted');
+    copyBtn.style.display = (isTahapPerubahanOpen && STATE.role === 'prodi') ? 'block' : 'none';
+    if (tahapAktif == 1) {
+      copyBtn.innerHTML = `<i class="bi bi-files"></i> Pindahkan Ajuan Awal Diterima`;
+      copyBtn.title = "Salin semua ajuan awal yang diterima ke daftar ini untuk diedit ulang";
+    } else {
+      copyBtn.innerHTML = `<i class="bi bi-files"></i> Pindahkan dari Perubahan ${tahapAktif - 1}`;
+      copyBtn.title = `Salin semua ajuan dari Tahap Perubahan ${tahapAktif - 1} yang diterima ke daftar ini`;
+    }
+  }
+
+  // --- START: FUNGSI BARU YANG HILANG ---
+  async function updateProdiPaguInfo(userData) {
+    if (!userData || STATE.role !== 'prodi') return;
+    const paguInfoArea = document.getElementById('pagu-info-area');
+    try {
+        const paguAnggaran = Number(userData.Pagu_Anggaran) || 0;
+        
+        // Hanya hitung ajuan yang membebani pagu (bukan yang sudah ditolak)
+        const activeAjuanQuery = await db.collection('ajuan')
+            .where('ID_Prodi', '==', STATE.id)
+            .where('Status', 'in', ['Menunggu Review', 'Diterima', 'Revisi'])
+            .get();
+
+        let totalDiajukan = 0;
+        activeAjuanQuery.forEach(doc => {
+            totalDiajukan += Number(doc.data().Total) || 0;
+        });
+
+        const sisaPagu = paguAnggaran - totalDiajukan;
+        const sisaPaguClass = sisaPagu < 0 ? 'text-danger fw-bold' : 'text-success';
+
+        paguInfoArea.innerHTML = `
+            <div class="d-flex flex-wrap justify-content-around text-center small">
+                <div>
+                    <span class="text-muted">Pagu Anggaran Anda:</span>
+                    <strong class="d-block fs-6">Rp ${paguAnggaran.toLocaleString('id-ID')}</strong>
+                </div>
+                <div>
+                    <span class="text-muted">Total Telah Diajukan:</span>
+                    <strong class="d-block fs-6">Rp ${totalDiajukan.toLocaleString('id-ID')}</strong>
+                </div>
+                <div>
+                    <span class="text-muted">Sisa Pagu:</span>
+                    <strong class="d-block fs-6 ${sisaPaguClass}">Rp ${sisaPagu.toLocaleString('id-ID')}</strong>
+                </div>
+            </div>
+        `;
+
+    } catch (error) {
+        console.error("Gagal update Pagu Info:", error);
+        paguInfoArea.innerHTML = `<div class="text-danger small text-center">Gagal memuat informasi pagu anggaran.</div>`;
+    }
+  }
+  // --- END: FUNGSI BARU YANG HILANG ---
+
   async function initializeApp(userData) {
     STATE.role = userData.Role;
     STATE.id = userData.ID_Prodi;
@@ -857,45 +1061,29 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('app-area').style.display = 'block';
     document.getElementById('welcome').innerHTML = `<span class="badge bg-secondary me-2">${STATE.role.toUpperCase()}</span> <strong>${STATE.id} - ${userData.Nama_Prodi}</strong>`;
     
-    // Load global settings first to decide which menus to show
     await loadGlobalSettings(); 
-    
-    const isTahapPerubahan = STATE.globalSettings.Status_Ajuan_Perubahan === 'Dibuka';
-    
-    // Menu visibility logic
-    const menuItems = {
-        'nav-item-ajuan-perubahan': isTahapPerubahan,
-        'nav-item-daftar-perubahan': isTahapPerubahan,
-        'nav-item-rpd-perubahan': isTahapPerubahan,
-        'nav-item-realisasi-perubahan': isTahapPerubahan,
-        'btn-copy-accepted': isTahapPerubahan && STATE.role === 'prodi',
-        'nav-item-ajuan-awal': !isTahapPerubahan, // Hide "Buat Ajuan Awal" if "Perubahan" is open
-        'tab-manage-link': STATE.role === 'direktorat'
-    };
-    for (const [id, isVisible] of Object.entries(menuItems)) {
-        const el = document.getElementById(id);
-        if(el) el.style.display = isVisible ? 'block' : 'none';
-    }
+    await loadBeritaAcaraSettings();
+    updatePerubahanUI(STATE.globalSettings);
+    document.getElementById('nav-item-ajuan-awal').style.display = (STATE.globalSettings.Status_Ajuan_Perubahan === 'Dibuka') ? 'none' : 'block';
+    document.getElementById('tab-manage-link').style.display = STATE.role === 'direktorat' ? 'block' : 'none';
+    document.getElementById('tab-pengaturan-akun-link').style.display = STATE.role === 'prodi' ? 'block' : 'none';
 
-    // Role-specific UI adjustments
     if (STATE.role === 'prodi') {
       document.getElementById('pagu-info-area').style.display = 'block';
       await updateProdiPaguInfo(userData);
-      ['filterProdiAwal', 'filterProdiPerubahan', 'filterProdiRPDAwal', 'filterProdiRPDPerubahan', 'filterProdiRealisasiAwal', 'filterProdiRealisasiPerubahan'].forEach(id => {
+      ['filterProdiAwal', 'filterProdiPerubahan', 'filterProdiRPDAwal', 'filterProdiRPDPerubahan', 'filterProdiRealisasiAwal', 'filterProdiRealisasiPerubahan', 'filterProdiBA'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.style.display = 'none';
       });
       document.getElementById('direktorat-charts').style.display = 'none';
     } else { // direktorat
-      ['filterProdiAwal', 'filterProdiPerubahan', 'filterProdiRPDAwal', 'filterProdiRPDPerubahan', 'filterProdiRealisasiAwal', 'filterProdiRealisasiPerubahan'].forEach(id => {
+      ['filterProdiAwal', 'filterProdiPerubahan', 'filterProdiRPDAwal', 'filterProdiRPDPerubahan', 'filterProdiRealisasiAwal', 'filterProdiRealisasiPerubahan', 'filterProdiBA'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.style.display = 'block';
       });
       document.getElementById('direktorat-charts').style.display = 'flex';
-      document.getElementById('btn-copy-accepted').style.display = 'none'; // Direktorat cannot copy
     }
     
-    // Set active tab and load initial data
     new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-dashboard"]')).show();
     loadDashboardData();
     loadInitialData();
@@ -933,7 +1121,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   document.getElementById('btn-logout').addEventListener('click', async () => {
     try {
-        if(STATE.notificationListener) STATE.notificationListener(); // Detach listener
+        if(STATE.notificationListener) STATE.notificationListener();
         await auth.signOut();
         clearSession();
         window.location.reload();
@@ -992,18 +1180,13 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function setupNotificationListener() {
-      if (STATE.notificationListener) STATE.notificationListener(); // Unsubscribe from previous listener
+      if (STATE.notificationListener) STATE.notificationListener();
       if (!STATE.uid) return;
-      // BUG FIX 1: Removed .orderBy('timestamp', 'desc') to prevent query requiring a composite index.
-      // Sorting is now handled on the client-side after data is received.
       STATE.notificationListener = db.collection('notifications').where('targetUid', '==', STATE.uid)
+          .orderBy('timestamp', 'desc')
           .limit(20)
           .onSnapshot(snapshot => {
               let notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-              // Perform client-side sorting to maintain chronological order.
-              notifications.sort((a, b) => {
-                  return (b.timestamp?.toDate() || 0) - (a.timestamp?.toDate() || 0);
-              });
               const unreadCount = notifications.filter(n => !n.isRead).length;
               const countEl = document.getElementById('notification-count');
               
@@ -1139,12 +1322,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // --- REVISED PAGU LOGIC STARTS HERE ---
         const prodiDoc = await db.collection('users').doc(STATE.uid).get();
         const paguAnggaran = prodiDoc.data().Pagu_Anggaran || 0;
         
         if (paguAnggaran > 0) {
-            // Query all ajuan for the prodi that are NOT 'Ditolak'
             const activeAjuanQuery = await db.collection('ajuan')
                 .where('ID_Prodi', '==', STATE.id)
                 .where('Status', 'in', ['Menunggu Review', 'Diterima', 'Revisi'])
@@ -1163,7 +1344,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`Gagal. Total ajuan yang diajukan (Rp ${projectedTotal.toLocaleString('id-ID')}) akan melebihi pagu anggaran Anda (Rp ${paguAnggaran.toLocaleString('id-ID')}).`);
             }
         }
-        // --- REVISED PAGU LOGIC ENDS HERE ---
 
         const batch = db.batch();
         STATE.stagingList.forEach(ajuan => {
@@ -1175,7 +1355,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 Komentar: [], 
                 Timestamp: serverTimestamp() 
             });
-            // Log creation in subcollection
             const historyRef = ajuanRef.collection('history').doc();
             batch.set(historyRef, {
                 action: "Ajuan Dibuat",
@@ -1188,7 +1367,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         await batch.commit();
 
-        // Send notifications to all directorate users
         STATE.allDirektoratUids.forEach(uid => {
             createNotification(uid, `${STATE.id} telah mengirim ${STATE.stagingList.length} ajuan baru untuk direview.`);
         });
@@ -1196,7 +1374,6 @@ document.addEventListener('DOMContentLoaded', function() {
         showToast(`${STATE.stagingList.length} ajuan berhasil dikirim.`);
         STATE.stagingList = []; renderStagingTable(); clearAjuanForm();
         
-        // Refresh the correct table and switch to it
         if (STATE.currentAjuanType === 'Awal') {
             refreshAjuanTableAwal();
             new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-daftar-awal"]')).show();
@@ -1219,8 +1396,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('ajuan-form-title').innerHTML = `<i class="bi bi-file-earmark-plus"></i> Formulir Ajuan Awal`;
   });
   document.getElementById('link-ajuan-perubahan').addEventListener('click', () => {
-    STATE.currentAjuanType = 'Perubahan';
-    document.getElementById('ajuan-form-title').innerHTML = `<i class="bi bi-pencil-square"></i> Formulir Ajuan Anggaran Perubahan`;
+    const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
+    STATE.currentAjuanType = `Perubahan ${tahapAktif}`;
+    document.getElementById('ajuan-form-title').innerHTML = `<i class="bi bi-pencil-square"></i> Formulir Ajuan Perubahan ${tahapAktif}`;
   });
   
   // -- INITIAL DATA LOADING & POPULATION --
@@ -1236,20 +1414,18 @@ document.addEventListener('DOMContentLoaded', function() {
         ['selectGrub', 'edit-selectGrub'].forEach(id => populateGrubBelanja(id));
         ['filterGrubAwal', 'filterGrubPerubahan'].forEach(id => populateGrubBelanja(id, true));
         
-        await refreshKelompokData(); // Populates all Kelompok dropdowns
+        await refreshKelompokData(); 
         
         if (STATE.role === 'direktorat') {
-            await refreshProdiData(); // Populates user management list
+            await refreshProdiData(); 
             const prodiList = STATE.allProdi.filter(p => p.Role === 'prodi');
-            // Populate all Prodi filters
-            ['filterProdiAwal', 'filterProdiPerubahan', 'filterProdiRPDAwal', 'filterProdiRPDPerubahan', 'filterProdiRealisasiAwal', 'filterProdiRealisasiPerubahan'].forEach(id => populateProdiFilter(prodiList, id));
+            ['filterProdiAwal', 'filterProdiPerubahan', 'filterProdiRPDAwal', 'filterProdiRPDPerubahan', 'filterProdiRealisasiAwal', 'filterProdiRealisasiPerubahan', 'filterProdiBA'].forEach(id => populateProdiFilter(prodiList, id));
         }
         
-        // Fetch directorate UIDs for notifications
         const direktoratSnapshot = await db.collection('users').where('Role', '==', 'direktorat').get();
         STATE.allDirektoratUids = direktoratSnapshot.docs.map(doc => doc.id);
 
-        refreshAjuanTableAwal(); // Load the default tab data
+        refreshAjuanTableAwal();
     } catch (error) {
         console.error("Error loading initial data:", error);
         showToast('Gagal memuat data awal aplikasi. Coba refresh halaman.', 'danger');
@@ -1283,48 +1459,68 @@ document.addEventListener('DOMContentLoaded', function() {
   function populateKelompok(list, selectId) { const sel = document.getElementById(selectId); sel.innerHTML = '<option value="">-- Pilih Kelompok --</option>'; (list || []).forEach(it => sel.add(new Option(`${it.ID_Kelompok} - ${it.Nama_Kelompok}`, it.ID_Kelompok))); }
   function populateProdiFilter(list, selectId) { const sel = document.getElementById(selectId); sel.innerHTML = '<option value="">Semua Prodi</option>';(list || []).forEach(it => sel.add(new Option(`${it.ID_Prodi} - ${it.Nama_Prodi}`, it.ID_Prodi))); }
   function populateKelompokFilter(list, selectId) { const sel = document.getElementById(selectId); sel.innerHTML = '<option value="">Semua Kelompok</option>'; (list || []).forEach(it => sel.add(new Option(`${it.ID_Kelompok} - ${it.Nama_Kelompok}`, it.ID_Kelompok))); }
-  function populateProdiList(list) {  const container = document.getElementById('listProdi'); const prodiOnly = (list || []).filter(p => p.Role === 'prodi'); container.innerHTML = prodiOnly.map(p => { const paguValue = p.Pagu_Anggaran || 0; return `<div class="border p-2 mb-2 rounded-2"><div class="d-flex justify-content-between align-items-center"><div><strong>${p.ID_Prodi}</strong> - ${escapeHtml(p.Nama_Prodi)}<div class="small text-muted">${p.Email || ''}</div></div><div class="btn-group"><button class="btn btn-sm btn-outline-secondary" onclick="window.fillEditProdi('${p.uid}','${p.ID_Prodi}','${escapeHtml(p.Nama_Prodi)}','${p.Email}','${p.Role}')" title="Edit Profil"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" onclick="window.deleteUser('${p.uid}','${escapeHtml(p.ID_Prodi)}')" title="Hapus Profil"><i class="bi bi-trash"></i></button></div></div><div class="input-group input-group-sm mt-2"><span class="input-group-text">Pagu Rp</span><input type="number" class="form-control" id="pagu-input-${p.uid}" value="${paguValue}" min="0" placeholder="0"><button class="btn btn-outline-success" onclick="window.savePagu('${p.uid}')" title="Simpan Pagu"><i class="bi bi-save"></i></button></div></div>` }).join(''); }
+  function populateProdiList(list) {  const container = document.getElementById('listProdi'); const prodiOnly = (list || []).filter(p => p.Role === 'prodi'); container.innerHTML = prodiOnly.map(p => { const paguValue = p.Pagu_Anggaran || 0; const baSettings = p.beritaAcaraSettings || {}; return `<div class="border p-2 mb-2 rounded-2"><div class="d-flex justify-content-between align-items-center"><div><strong>${p.ID_Prodi}</strong> - ${escapeHtml(p.Nama_Prodi)}<div class="small text-muted">${p.Email || ''}</div></div><div class="btn-group"><button class="btn btn-sm btn-outline-secondary" onclick="window.fillEditProdi('${p.uid}','${p.ID_Prodi}','${escapeHtml(p.Nama_Prodi)}','${p.Email}','${p.Role}', '${escapeHtml(baSettings.TTD_Jabatan || '')}', '${escapeHtml(baSettings.TTD_Nama || '')}')" title="Edit Profil"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" onclick="window.deleteUser('${p.uid}','${escapeHtml(p.ID_Prodi)}')" title="Hapus Profil"><i class="bi bi-trash"></i></button></div></div><div class="input-group input-group-sm mt-2"><span class="input-group-text">Pagu Rp</span><input type="number" class="form-control" id="pagu-input-${p.uid}" value="${paguValue}" min="0" placeholder="0"><button class="btn btn-outline-success" onclick="window.savePagu('${p.uid}')" title="Simpan Pagu"><i class="bi bi-save"></i></button></div></div>` }).join(''); }
   function populateKelompokList(list) { const container = document.getElementById('listKelompok'); container.innerHTML = (list || []).map(k => `<div class="border p-2 mb-2 rounded-2 d-flex justify-content-between align-items-center"><div><strong>${k.ID_Kelompok}</strong> - ${escapeHtml(k.Nama_Kelompok)}</div><div class="btn-group"><button class="btn btn-sm btn-outline-secondary" onclick="window.fillEditKelompok('${k.ID_Kelompok}','${escapeHtml(k.Nama_Kelompok)}')"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" onclick="window.deleteKelompok('${k.ID_Kelompok}')" title="Hapus"><i class="bi bi-trash"></i></button></div></div>`).join(''); }
   
   // -- AJUAN TABLE LOGIC (SEPARATED) --
 
   async function refreshAjuanTable(tipe) {
-    const tableId = `tableAjuan${tipe}`;
-    const summaryId = `summary-display-${tipe.toLowerCase()}`;
+    const isPerubahan = tipe.startsWith('Perubahan');
+    const tableId = isPerubahan ? `tableAjuanPerubahan` : `tableAjuanAwal`;
+    const summaryId = isPerubahan ? `summary-display-perubahan` : `summary-display-awal`;
+    
     showLoader(true);
     document.getElementById(tableId).innerHTML = `<div class="text-center text-muted p-5">Memuat data...</div>`;
     document.getElementById(summaryId).style.display = 'none';
-    if (tipe === 'Awal') STATE.selectedAjuanIdsAwal.clear(); else STATE.selectedAjuanIdsPerubahan.clear();
-    updateBulkActionBar(tipe);
+
+    if (isPerubahan) {
+        STATE.selectedAjuanIdsPerubahan.clear();
+        updateBulkActionBar('Perubahan');
+    } else {
+        STATE.selectedAjuanIdsAwal.clear();
+        updateBulkActionBar('Awal');
+    }
     
     try {
         let query = db.collection('ajuan').where('Tipe_Ajuan', '==', tipe);
-
-        const prodiFilter = document.getElementById(`filterProdi${tipe}`).value;
-        if (STATE.role === 'prodi') { query = query.where('ID_Prodi', '==', STATE.id); }
-        else if (prodiFilter) { query = query.where('ID_Prodi', '==', prodiFilter); }
         
-        const grubFilter = document.getElementById(`filterGrub${tipe}`).value; if (grubFilter) query = query.where('Grub_Belanja_Utama', '==', grubFilter);
-        const kelompokFilter = document.getElementById(`filterKelompok${tipe}`).value; if (kelompokFilter) query = query.where('ID_Kelompok', '==', kelompokFilter);
-        const statusFilter = document.getElementById(`filterStatus${tipe}`).value; if (statusFilter) query = query.where('Status', '==', statusFilter);
+        const prodiFilterEl = document.getElementById(isPerubahan ? 'filterProdiPerubahan' : 'filterProdiAwal');
+        if (STATE.role === 'prodi') {
+            query = query.where('ID_Prodi', '==', STATE.id);
+        } else if (prodiFilterEl.value) {
+            query = query.where('ID_Prodi', '==', prodiFilterEl.value);
+        }
         
-        // --- FIX STARTS HERE ---
+        const grubFilter = document.getElementById(isPerubahan ? `filterGrubPerubahan` : `filterGrubAwal`).value; if (grubFilter) query = query.where('Grub_Belanja_Utama', '==', grubFilter);
+        const kelompokFilter = document.getElementById(isPerubahan ? `filterKelompokPerubahan` : `filterKelompokAwal`).value; if (kelompokFilter) query = query.where('ID_Kelompok', '==', kelompokFilter);
+        const statusFilter = document.getElementById(isPerubahan ? `filterStatusPerubahan` : `filterStatusAwal`).value; if (statusFilter) query = query.where('Status', '==', statusFilter);
+        
         const snapshot = await query.get();
         let ajuanData = snapshot.docs.map(doc => {
             const data = doc.data();
-            // Convert Firestore Timestamp to a JS Date object to enable sorting
-            if (data.Timestamp && data.Timestamp.toDate) {
-                data.Timestamp = data.Timestamp.toDate();
-            }
+            if (data.Timestamp && data.Timestamp.toDate) data.Timestamp = data.Timestamp.toDate();
             return { ID_Ajuan: doc.id, ...data };
         });
         
-        // BUG FIX 4: Added client-side sorting because the 'orderBy' clause was removed from the query to prevent an index error.
         ajuanData.sort((a, b) => (b.Timestamp || 0) - (a.Timestamp || 0));
 
-        if (tipe === 'Awal') STATE.currentAjuanDataAwal = ajuanData; else STATE.currentAjuanDataPerubahan = ajuanData;
+        if (isPerubahan) {
+            STATE.currentAjuanDataPerubahan = ajuanData;
+            const asalIds = [...new Set(ajuanData.map(d => d.ID_Ajuan_Asal).filter(Boolean))];
+            const awalDataMap = new Map();
+            if (asalIds.length > 0) {
+                const chunks = []; for (let i = 0; i < asalIds.length; i += 30) { chunks.push(asalIds.slice(i, i + 30)); }
+                for (const chunk of chunks) {
+                    const originalSnapshot = await db.collection('ajuan').where(firebase.firestore.FieldPath.documentId(), 'in', chunk).get();
+                    originalSnapshot.forEach(doc => awalDataMap.set(doc.id, doc.data()));
+                }
+            }
+            renderAjuanTable(ajuanData, 'Perubahan', awalDataMap);
+        } else { // 'Awal'
+            STATE.currentAjuanDataAwal = ajuanData;
+            renderAjuanTable(ajuanData, 'Awal');
+        }
         
-        renderAjuanTable(ajuanData, tipe);
     } catch (error) {
         console.error(`Error getting ajuan ${tipe}:`, error);
         showToast(`Gagal memuat data ajuan ${tipe.toLowerCase()}.`, "danger");
@@ -1335,20 +1531,23 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   const refreshAjuanTableAwal = () => refreshAjuanTable('Awal');
-  const refreshAjuanTablePerubahan = () => refreshAjuanTable('Perubahan');
+  const refreshAjuanTablePerubahan = () => {
+    const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
+    refreshAjuanTable(`Perubahan ${tahapAktif}`);
+  };
 
   document.getElementById('btn-refresh-awal').addEventListener('click', refreshAjuanTableAwal);
   ['filterStatusAwal', 'filterProdiAwal', 'filterKelompokAwal', 'filterGrubAwal'].forEach(id => document.getElementById(id).addEventListener('change', refreshAjuanTableAwal));
   document.getElementById('btn-refresh-perubahan').addEventListener('click', refreshAjuanTablePerubahan);
   ['filterStatusPerubahan', 'filterProdiPerubahan', 'filterKelompokPerubahan', 'filterGrubPerubahan'].forEach(id => document.getElementById(id).addEventListener('change', refreshAjuanTablePerubahan));
   
-  // Connect tabs to refresh functions
   document.querySelector('[data-bs-target="#tab-daftar-awal"]').addEventListener('shown.bs.tab', refreshAjuanTableAwal);
   document.querySelector('[data-bs-target="#tab-daftar-perubahan"]').addEventListener('shown.bs.tab', refreshAjuanTablePerubahan);
 
-  function renderAjuanTable(rows, tipe) {
-    const container = document.getElementById(`tableAjuan${tipe}`);
-    const summaryContainerId = `summary-display-${tipe.toLowerCase()}`;
+  function renderAjuanTable(rows, tipe, originalDataMap = null) {
+    const isPerubahan = tipe === 'Perubahan';
+    const container = document.getElementById(isPerubahan ? `tableAjuanPerubahan` : `tableAjuanAwal`);
+    const summaryContainerId = isPerubahan ? `summary-display-perubahan` : `summary-display-awal`;
     if (rows.length === 0) { container.innerHTML = '<div class="text-center text-muted p-5">Belum ada ajuan.</div>'; document.getElementById(summaryContainerId).style.display = 'none'; return; }
     
     let grandTotal = 0, acceptedTotal = 0, rejectedTotal = 0;
@@ -1357,38 +1556,111 @@ document.addEventListener('DOMContentLoaded', function() {
     summaryContainer.innerHTML = `<div><strong>Total Diajukan:</strong> Rp ${grandTotal.toLocaleString('id-ID')}</div><div><strong class="text-success">Total Diterima:</strong> Rp ${acceptedTotal.toLocaleString('id-ID')}</div><div><strong class="text-danger">Total Ditolak:</strong> Rp ${rejectedTotal.toLocaleString('id-ID')}</div>`;
     summaryContainer.style.display = 'flex';
     
-    const groupedData = rows.reduce((acc, row) => {
-        const grubKey = row.Grub_Belanja_Utama || 'Lain-lain'; const kelompokId = row.ID_Kelompok || 'Lain-lain';
-        const namaKelompok = (STATE.allKelompok.find(k => k.ID_Kelompok === kelompokId) || {}).Nama_Kelompok || 'Lain-lain';
-        const kelompokKey = `${kelompokId} - ${namaKelompok}`; const kegiatanKey = row.Judul_Kegiatan || 'Tanpa Judul';
-        if (!acc[grubKey]) acc[grubKey] = {}; if (!acc[grubKey][kelompokKey]) acc[grubKey][kelompokKey] = {}; if (!acc[grubKey][kelompokKey][kegiatanKey]) acc[grubKey][kelompokKey][kegiatanKey] = [];
-        acc[grubKey][kelompokKey][kegiatanKey].push(row); return acc;
-    }, {});
-    
-    const sortedGrubKeys = Object.keys(groupedData).sort(); const statusClass = { "Menunggu Review": "status-menunggu-review", "Diterima": "status-diterima", "Ditolak": "status-ditolak", "Revisi": "status-revisi" };
-    const prodiNameMap = STATE.allProdi.reduce((acc, prodi) => { acc[prodi.ID_Prodi] = prodi.Nama_Prodi; return acc; }, {});
+    if (isPerubahan) {
+        let html = `<table class="table table-hover align-middle" style="min-width: 2200px;"><thead class="table-light"><tr>
+                        <th style="width: 30px;" rowspan="2" class="align-middle"><input type="checkbox" id="select-all-ajuan-${tipe}" title="Pilih Semua"></th>
+                        <th colspan="3" class="text-center bg-secondary-subtle">DATA AJUAN LAMA</th>
+                        <th colspan="3" class="text-center bg-light">DATA AJUAN BARU</th>
+                        <th rowspan="2" class="align-middle text-end" style="min-width: 120px;">Selisih</th>
+                        <th rowspan="2" class="align-middle text-center">Dakung</th>
+                        <th rowspan="2" class="align-middle" style="min-width: 140px;">Status</th>
+                        <th rowspan="2" class="align-middle" style="min-width: 200px;">Catatan Reviewer</th>
+                        <th rowspan="2" class="align-middle text-end action-buttons" style="min-width: 200px;">Aksi</th>
+                      </tr>
+                      <tr class="table-light">
+                        <th style="min-width: 250px;">Rincian Ajuan (Lama)</th>
+                        <th style="min-width: 200px;">Detail Kuantitas (Lama)</th>
+                        <th class="text-end" style="min-width: 130px;">Total Biaya (Lama)</th>
+                        <th style="min-width: 250px;">Rincian Ajuan (Baru)</th>
+                        <th style="min-width: 200px;">Detail Kuantitas (Baru)</th>
+                        <th class="text-end" style="min-width: 130px;">Total Biaya (Baru)</th>
+                      </tr>
+                    </thead><tbody>`;
+        
+        const groupedData = rows.reduce((acc, row) => {
+            const grubKey = row.Grub_Belanja_Utama || 'Lain-lain'; const kelompokId = row.ID_Kelompok || 'Lain-lain';
+            const namaKelompok = (STATE.allKelompok.find(k => k.ID_Kelompok === kelompokId) || {}).Nama_Kelompok || 'Lain-lain';
+            const kelompokKey = `${kelompokId} - ${namaKelompok}`; const kegiatanKey = row.Judul_Kegiatan || 'Tanpa Judul';
+            if (!acc[grubKey]) acc[grubKey] = {}; if (!acc[grubKey][kelompokKey]) acc[grubKey][kelompokKey] = {}; if (!acc[grubKey][kelompokKey][kegiatanKey]) acc[grubKey][kelompokKey][kegiatanKey] = [];
+            acc[grubKey][kelompokKey][kegiatanKey].push(row); return acc;
+        }, {});
 
-    let html = `<table class="table table-hover align-middle" style="min-width: 1350px;"><thead class="table-light"><tr><th style="width: 30px;"><input type="checkbox" id="select-all-ajuan-${tipe}" title="Pilih Semua"></th><th style="min-width: 250px;">Rincian Ajuan</th><th style="min-width: 200px;">Detail Kuantitas</th><th class="text-end" style="min-width: 130px;">Total Biaya</th><th class="text-center">Dakung</th><th style="min-width: 140px;">Status</th><th style="min-width: 200px;">Catatan Reviewer</th><th class="text-end action-buttons" style="min-width: 200px;">Aksi</th></tr></thead><tbody>`;
-    sortedGrubKeys.forEach(grubKey => {
-      html += `<tr class="group-header-grub"><td colspan="8" class="fw-bold"><i class="bi bi-folder-fill"></i> ${escapeHtml(grubKey)}</td></tr>`;
-      const sortedKelompokKeys = Object.keys(groupedData[grubKey]).sort();
-      sortedKelompokKeys.forEach(kelompokKey => {
-          const sortedKegiatanKeys = Object.keys(groupedData[grubKey][kelompokKey]).sort();
-          html += `<tr class="group-header-kelompok"><td colspan="8" class="fw-bold ps-4"><i class="bi bi-tags-fill"></i> Kelompok: ${escapeHtml(kelompokKey)}</td></tr>`;
-          sortedKegiatanKeys.forEach(kegiatanKey => {
-              html += `<tr class="group-header-kegiatan"><td colspan="8" class="fw-bold ps-5"><i class="bi bi-collection-fill text-secondary"></i> Kegiatan: ${escapeHtml(kegiatanKey)}</td></tr>`;
-              groupedData[grubKey][kelompokKey][kegiatanKey].forEach(r => {
-                  const dataDukungLink = r.Data_Dukung ? `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Lihat"><i class="bi bi-box-arrow-up-right"></i></a>` : `<span class="text-muted small fst-italic">N/A</span>`;
-                  const prodiColor = getColorForProdi(r.ID_Prodi);
-                  const prodiNama = prodiNameMap[r.ID_Prodi] || r.ID_Prodi;
-                  const prodiInfoHtml = STATE.role === 'direktorat' ? `<div class="small text-muted">Oleh: <strong>${escapeHtml(prodiNama)}</strong></div>` : '';
-                  const idAjuanAsal = r.ID_Ajuan_Asal ? `<span class="badge bg-light text-dark fw-normal fst-italic">Asal: ${r.ID_Ajuan_Asal.substring(0,6)}..</span>` : '';
-                  html += `<tr class="prodi-indicator" style="border-left-color: ${prodiColor};"><td><input type="checkbox" class="ajuan-checkbox-${tipe}" data-id="${r.ID_Ajuan}"></td><td><div class="d-flex justify-content-between align-items-start"><strong class="me-2">${escapeHtml(r.Nama_Ajuan)}</strong><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal text-nowrap">${r.ID_Ajuan.substring(0, 6)}..</span></div>${prodiInfoHtml}<div class="mt-1"><span class="badge bg-info-subtle text-info-emphasis fw-normal">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</span> ${idAjuanAsal}</div></td><td><div class="small text-nowrap">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)} X Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div></td><td class="text-end text-nowrap"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td><td class="text-center">${dataDukungLink}</td><td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span></td><td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td><td class="text-end action-buttons">${renderActionsForRow(r, tipe)}</td></tr>`;
+        const sortedGrubKeys = Object.keys(groupedData).sort();
+        const prodiNameMap = STATE.allProdi.reduce((acc, prodi) => { acc[prodi.ID_Prodi] = prodi.Nama_Prodi; return acc; }, {});
+        const statusClass = { "Menunggu Review": "status-menunggu-review", "Diterima": "status-diterima", "Ditolak": "status-ditolak", "Revisi": "status-revisi" };
+        
+        sortedGrubKeys.forEach(grubKey => {
+          html += `<tr class="group-header-grub"><td colspan="12" class="fw-bold"><i class="bi bi-folder-fill"></i> ${escapeHtml(grubKey)}</td></tr>`;
+          const sortedKelompokKeys = Object.keys(groupedData[grubKey]).sort();
+          sortedKelompokKeys.forEach(kelompokKey => {
+              html += `<tr class="group-header-kelompok"><td colspan="12" class="fw-bold ps-4"><i class="bi bi-tags-fill"></i> Kelompok: ${escapeHtml(kelompokKey)}</td></tr>`;
+              const sortedKegiatanKeys = Object.keys(groupedData[grubKey][kelompokKey]).sort();
+              sortedKegiatanKeys.forEach(kegiatanKey => {
+                  html += `<tr class="group-header-kegiatan"><td colspan="12" class="fw-bold ps-5"><i class="bi bi-collection-fill text-secondary"></i> Kegiatan: ${escapeHtml(kegiatanKey)}</td></tr>`;
+                  groupedData[grubKey][kelompokKey][kegiatanKey].forEach(r => {
+                      const original = originalDataMap && originalDataMap.has(r.ID_Ajuan_Asal) ? originalDataMap.get(r.ID_Ajuan_Asal) : {};
+                      const totalLama = Number(original.Total) || 0;
+                      const totalBaru = Number(r.Total) || 0;
+                      const selisih = totalBaru - totalLama;
+                      const selisihClass = selisih > 0 ? 'text-success' : (selisih < 0 ? 'text-danger' : '');
+                      const selisihText = selisih > 0 ? `+${selisih.toLocaleString('id-ID')}` : selisih.toLocaleString('id-ID');
+                      const dataDukungLink = r.Data_Dukung ? `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Lihat"><i class="bi bi-box-arrow-up-right"></i></a>` : `<span class="text-muted small fst-italic">N/A</span>`;
+                      const prodiColor = getColorForProdi(r.ID_Prodi);
+                      const prodiNama = prodiNameMap[r.ID_Prodi] || r.ID_Prodi;
+                      const prodiInfoHtml = STATE.role === 'direktorat' ? `<div class="small text-muted">Oleh: <strong>${escapeHtml(prodiNama)}</strong></div>` : '';
+                      const idAjuanAsal = r.ID_Ajuan_Asal ? `<span class="badge bg-light text-dark fw-normal fst-italic">Asal: ${r.ID_Ajuan_Asal.substring(0,6)}..</span>` : '';
+
+                      html += `<tr class="prodi-indicator" style="border-left-color: ${prodiColor};">
+                                  <td><input type="checkbox" class="ajuan-checkbox-${tipe}" data-id="${r.ID_Ajuan}"></td>
+                                  <td class="bg-secondary-subtle"><small>${escapeHtml(original.Nama_Ajuan || 'N/A')}</small></td>
+                                  <td class="bg-secondary-subtle"><small class="text-nowrap">${Number(original.Jumlah || 0).toLocaleString('id-ID')} ${escapeHtml(original.Satuan || '')} X Rp ${Number(original.Harga_Satuan || 0).toLocaleString('id-ID')}</small></td>
+                                  <td class="text-end bg-secondary-subtle"><small>Rp ${totalLama.toLocaleString('id-ID')}</small></td>
+                                  <td><div class="d-flex justify-content-between align-items-start"><strong class="me-2">${escapeHtml(r.Nama_Ajuan)}</strong><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal text-nowrap">${r.ID_Ajuan.substring(0, 6)}..</span></div>${prodiInfoHtml}<div class="mt-1"><span class="badge bg-info-subtle text-info-emphasis fw-normal">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</span> ${idAjuanAsal}</div></td>
+                                  <td><div class="small text-nowrap">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)} X Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div></td>
+                                  <td class="text-end text-nowrap"><strong>Rp ${totalBaru.toLocaleString('id-ID')}</strong></td>
+                                  <td class="text-end text-nowrap fw-bold ${selisihClass}">${selisihText}</td>
+                                  <td class="text-center">${dataDukungLink}</td>
+                                  <td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span></td>
+                                  <td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td>
+                                  <td class="text-end action-buttons">${renderActionsForRow(r, tipe)}</td>
+                              </tr>`;
+                  });
               });
           });
-      });
-    });
-    container.innerHTML = html + '</tbody></table>'; 
+        });
+        container.innerHTML = html + '</tbody></table>';
+    } else { // This is for tipe === 'Awal'
+        const groupedData = rows.reduce((acc, row) => {
+            const grubKey = row.Grub_Belanja_Utama || 'Lain-lain'; const kelompokId = row.ID_Kelompok || 'Lain-lain';
+            const namaKelompok = (STATE.allKelompok.find(k => k.ID_Kelompok === kelompokId) || {}).Nama_Kelompok || 'Lain-lain';
+            const kelompokKey = `${kelompokId} - ${namaKelompok}`; const kegiatanKey = row.Judul_Kegiatan || 'Tanpa Judul';
+            if (!acc[grubKey]) acc[grubKey] = {}; if (!acc[grubKey][kelompokKey]) acc[grubKey][kelompokKey] = {}; if (!acc[grubKey][kelompokKey][kegiatanKey]) acc[grubKey][kelompokKey][kegiatanKey] = [];
+            acc[grubKey][kelompokKey][kegiatanKey].push(row); return acc;
+        }, {});
+        const sortedGrubKeys = Object.keys(groupedData).sort(); const statusClass = { "Menunggu Review": "status-menunggu-review", "Diterima": "status-diterima", "Ditolak": "status-ditolak", "Revisi": "status-revisi" };
+        const prodiNameMap = STATE.allProdi.reduce((acc, prodi) => { acc[prodi.ID_Prodi] = prodi.Nama_Prodi; return acc; }, {});
+        let html = `<table class="table table-hover align-middle" style="min-width: 1350px;"><thead class="table-light"><tr><th style="width: 30px;"><input type="checkbox" id="select-all-ajuan-${tipe}" title="Pilih Semua"></th><th style="min-width: 250px;">Rincian Ajuan</th><th style="min-width: 200px;">Detail Kuantitas</th><th class="text-end" style="min-width: 130px;">Total Biaya</th><th class="text-center">Dakung</th><th style="min-width: 140px;">Status</th><th style="min-width: 200px;">Catatan Reviewer</th><th class="text-end action-buttons" style="min-width: 200px;">Aksi</th></tr></thead><tbody>`;
+        sortedGrubKeys.forEach(grubKey => {
+          html += `<tr class="group-header-grub"><td colspan="8" class="fw-bold"><i class="bi bi-folder-fill"></i> ${escapeHtml(grubKey)}</td></tr>`;
+          const sortedKelompokKeys = Object.keys(groupedData[grubKey]).sort();
+          sortedKelompokKeys.forEach(kelompokKey => {
+              const sortedKegiatanKeys = Object.keys(groupedData[grubKey][kelompokKey]).sort();
+              html += `<tr class="group-header-kelompok"><td colspan="8" class="fw-bold ps-4"><i class="bi bi-tags-fill"></i> Kelompok: ${escapeHtml(kelompokKey)}</td></tr>`;
+              sortedKegiatanKeys.forEach(kegiatanKey => {
+                  html += `<tr class="group-header-kegiatan"><td colspan="8" class="fw-bold ps-5"><i class="bi bi-collection-fill text-secondary"></i> Kegiatan: ${escapeHtml(kegiatanKey)}</td></tr>`;
+                  groupedData[grubKey][kelompokKey][kegiatanKey].forEach(r => {
+                      const dataDukungLink = r.Data_Dukung ? `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Lihat"><i class="bi bi-box-arrow-up-right"></i></a>` : `<span class="text-muted small fst-italic">N/A</span>`;
+                      const prodiColor = getColorForProdi(r.ID_Prodi);
+                      const prodiNama = prodiNameMap[r.ID_Prodi] || r.ID_Prodi;
+                      const prodiInfoHtml = STATE.role === 'direktorat' ? `<div class="small text-muted">Oleh: <strong>${escapeHtml(prodiNama)}</strong></div>` : '';
+                      const idAjuanAsal = r.ID_Ajuan_Asal ? `<span class="badge bg-light text-dark fw-normal fst-italic">Asal: ${r.ID_Ajuan_Asal.substring(0,6)}..</span>` : '';
+                      html += `<tr class="prodi-indicator" style="border-left-color: ${prodiColor};"><td><input type="checkbox" class="ajuan-checkbox-${tipe}" data-id="${r.ID_Ajuan}"></td><td><div class="d-flex justify-content-between align-items-start"><strong class="me-2">${escapeHtml(r.Nama_Ajuan)}</strong><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal text-nowrap">${r.ID_Ajuan.substring(0, 6)}..</span></div>${prodiInfoHtml}<div class="mt-1"><span class="badge bg-info-subtle text-info-emphasis fw-normal">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</span> ${idAjuanAsal}</div></td><td><div class="small text-nowrap">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)} X Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div></td><td class="text-end text-nowrap"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td><td class="text-center">${dataDukungLink}</td><td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span></td><td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td><td class="text-end action-buttons">${renderActionsForRow(r, tipe)}</td></tr>`;
+                  });
+              });
+          });
+        });
+        container.innerHTML = html + '</tbody></table>'; 
+    }
     addCheckboxListeners(tipe);
   }
   function renderActionsForRow(r, tipe) {
@@ -1400,13 +1672,12 @@ document.addEventListener('DOMContentLoaded', function() {
     actions += `<button class="btn btn-sm btn-outline-secondary" onclick="window.openHistoryModal('${r.ID_Ajuan}', '${escapeHtml(r.Nama_Ajuan)}')" title="Lihat Riwayat"><i class="bi bi-clock-history"></i></button>`;
     actions += `<span class="comment-btn-wrapper"><button class="btn btn-sm btn-outline-info" onclick="window.openKomentarModal('${r.ID_Ajuan}', '${escapeHtml(r.Nama_Ajuan)}')" title="Diskusi (${commentCount})"><i class="bi bi-chat-dots-fill"></i></button>${hasNewComment ? '<span class="comment-notification-dot"></span>' : ''}</span>`;
     
-    // Editability logic
     let isEditableForProdi = false;
-    const isTahapPerubahan = STATE.globalSettings.Status_Ajuan_Perubahan === 'Dibuka';
+    const isTahapPerubahanOpen = STATE.globalSettings.Status_Ajuan_Perubahan === 'Dibuka';
     
-    if(tipe === 'Awal' && !isTahapPerubahan) { // Can edit 'Awal' only before 'Perubahan' opens
+    if (tipe === 'Awal' && !isTahapPerubahanOpen) {
         isEditableForProdi = true;
-    } else if (tipe === 'Perubahan') { // Can always edit 'Perubahan'
+    } else if (tipe === 'Perubahan') {
         isEditableForProdi = true;
     }
 
@@ -1467,7 +1738,6 @@ document.addEventListener('DOMContentLoaded', function() {
             Data_Dukung: document.getElementById('edit-dataDukung').value
         };
 
-        // PAGU CHECK LOGIC
         if (STATE.role === 'prodi') {
             const prodiDoc = await db.collection('users').doc(STATE.uid).get();
             const paguAnggaran = prodiDoc.data().Pagu_Anggaran || 0;
@@ -1483,7 +1753,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // LOGGING CHANGES
         let changes = [];
         for (const key in dataAfter) {
             if (dataAfter[key] !== dataBefore[key]) {
@@ -1497,7 +1766,7 @@ document.addEventListener('DOMContentLoaded', function() {
         await ajuanRef.update(dataAfter);
         showToast('Ajuan berhasil diperbarui.');
         EDIT_MODAL.hide();
-        if (tipeAjuan === 'Awal') refreshAjuanTableAwal(); else refreshAjuanTablePerubahan();
+        if (tipeAjuan.startsWith('Perubahan')) refreshAjuanTablePerubahan(); else refreshAjuanTableAwal();
         if (STATE.role === 'prodi') updateProdiPaguInfo(STATE.currentUserData);
 
     } catch (error) {
@@ -1512,7 +1781,6 @@ document.addEventListener('DOMContentLoaded', function() {
           showLoader(true);
           try {
               await db.collection('ajuan').doc(id).delete();
-              // Note: History subcollection is not deleted automatically, but this is often desired behavior for audit purposes.
               showToast('Ajuan berhasil dihapus.');
               if(tipe === 'Awal') refreshAjuanTableAwal(); else refreshAjuanTablePerubahan();
           } catch(error) { showToast(`Gagal menghapus: ${error.message}`, 'danger'); } finally { showLoader(false); }
@@ -1520,7 +1788,7 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   window.openReviewModal = (id, action, tipe, oldStatus) => {
-    document.getElementById('review-id-ajuan').value = `${id}|${tipe}`; // Store tipe with id
+    document.getElementById('review-id-ajuan').value = `${id}|${tipe}`;
     document.getElementById('review-action').value = action; document.getElementById('reviewModalAjuanId').innerText = id.includes(',') ? 'Beberapa Ajuan' : id.substring(0, 6) + '...'; document.getElementById('review-action-text').innerText = action;
     document.getElementById('review-old-status').value = oldStatus || '';
     const targetInfo = document.getElementById('review-target-info');
@@ -1542,16 +1810,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const batch = db.batch();
         const ajuanProdiMap = new Map();
 
-        // Prepare updates and gather prodi info for notifications
         for (const id of ids) {
             const ajuanRef = db.collection('ajuan').doc(id);
             batch.update(ajuanRef, data);
             
-            // Log history for each ajuan
             const detailLog = `Status diubah dari '${oldStatus || "N/A"}' menjadi '${newStatus}'. Catatan: ${catatan || 'Tidak ada.'}`;
             logHistory(id, "Status Direview", detailLog);
             
-            // Get prodi UID for notification
             if (STATE.role === 'direktorat') {
                 const ajuanDoc = await ajuanRef.get();
                 if (ajuanDoc.exists) {
@@ -1566,7 +1831,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         await batch.commit();
 
-        // Send notifications
         if (STATE.role === 'direktorat') {
             for (const [prodiId, ajuanNames] of ajuanProdiMap.entries()) {
                 const prodiUser = STATE.allProdi.find(p => p.ID_Prodi === prodiId);
@@ -1607,10 +1871,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-// -- NEW: COPY ACCEPTED AJUAN LOGIC (WITH DUPLICATION CHECK) --
-  document.getElementById('btn-copy-accepted').addEventListener('click', async () => {
+// -- MODIFIED: Dynamic copy logic for multi-stage revisions --
+document.getElementById('btn-copy-accepted').addEventListener('click', async () => {
     if (STATE.role !== 'prodi') return;
-    if (!confirm('Anda akan menyalin ajuan awal yang berstatus "Diterima" ke daftar ajuan perubahan. Ajuan yang sudah pernah disalin tidak akan diduplikasi. Lanjutkan?')) return;
+
+    const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
+    const sourceType = tahapAktif === 1 ? 'Awal' : `Perubahan ${tahapAktif - 1}`;
+    const destinationType = `Perubahan ${tahapAktif}`;
+
+    if (!confirm(`Anda akan menyalin ajuan dari tahap "${sourceType}" yang berstatus "Diterima" ke daftar "${destinationType}". Ajuan yang sudah pernah disalin tidak akan diduplikasi. Lanjutkan?`)) return;
     
     showLoader(true);
     try {
@@ -1621,58 +1890,35 @@ document.addEventListener('DOMContentLoaded', function() {
         const existingAsalIds = new Set();
         allProdiAjuanSnapshot.docs.forEach(doc => {
             const data = doc.data();
-            if (data.Tipe_Ajuan === 'Perubahan' && data.ID_Ajuan_Asal) {
+            if (data.Tipe_Ajuan === destinationType && data.ID_Ajuan_Asal) {
                 existingAsalIds.add(data.ID_Ajuan_Asal);
             }
         });
 
-        const ajuanAwalDiterimaDocs = allProdiAjuanSnapshot.docs.filter(doc => {
+        const sourceDocs = allProdiAjuanSnapshot.docs.filter(doc => {
             const data = doc.data();
-            return data.Tipe_Ajuan === 'Awal' && data.Status === 'Diterima';
+            return data.Tipe_Ajuan === sourceType && data.Status === 'Diterima';
         });
 
         const batch = db.batch();
         let copyCount = 0;
         
-        ajuanAwalDiterimaDocs.forEach(doc => {
+        sourceDocs.forEach(doc => {
             if (!existingAsalIds.has(doc.id)) {
                 const data = doc.data();
                 const newDocRef = db.collection('ajuan').doc();
                 
-                // --- FIX: WHITELIST FIELDS TO PREVENT PERMISSION ERROR ---
-                // The original code copied all fields, including 'Catatan_Reviewer', which a 'prodi' user cannot write.
-                // This corrected version explicitly lists only the fields that a 'prodi' user is allowed to set.
                 const newData = {
-                    // Data inti dari ajuan 'Awal' yang asli
-                    Grub_Belanja_Utama: data.Grub_Belanja_Utama || '',
-                    Judul_Kegiatan: data.Judul_Kegiatan || '',
-                    ID_Prodi: data.ID_Prodi,
-                    ID_Kelompok: data.ID_Kelompok || '',
-                    Nama_Ajuan: data.Nama_Ajuan || 'Salinan',
-                    Jumlah: data.Jumlah || 0,
-                    Satuan: data.Satuan || '',
-                    Harga_Satuan: data.Harga_Satuan || 0,
-                    Total: data.Total || 0,
-                    Keterangan: data.Keterangan || '',
-                    Status_Revisi: data.Status_Revisi || 'Ajuan Baru',
-                    Data_Dukung: data.Data_Dukung || '',
-
-                    // Data baru untuk ajuan 'Perubahan'
-                    Tipe_Ajuan: 'Perubahan',
-                    Status: 'Menunggu Review',
-                    Komentar: [],
-                    ID_Ajuan_Asal: doc.id,
-                    Timestamp: serverTimestamp()
-                    // `Catatan_Reviewer` is intentionally omitted to comply with security rules.
+                    Grub_Belanja_Utama: data.Grub_Belanja_Utama || '', Judul_Kegiatan: data.Judul_Kegiatan || '', ID_Prodi: data.ID_Prodi, ID_Kelompok: data.ID_Kelompok || '', Nama_Ajuan: data.Nama_Ajuan || 'Salinan', Jumlah: data.Jumlah || 0, Satuan: data.Satuan || '', Harga_Satuan: data.Harga_Satuan || 0, Total: data.Total || 0, Keterangan: data.Keterangan || '', Status_Revisi: data.Status_Revisi || 'Ajuan Baru', Data_Dukung: data.Data_Dukung || '',
+                    Tipe_Ajuan: destinationType, Status: 'Menunggu Review', Komentar: [], ID_Ajuan_Asal: doc.id, Timestamp: serverTimestamp()
                 };
-                // --- END OF FIX ---
-
+                
                 batch.set(newDocRef, newData);
                 
                 const historyRef = newDocRef.collection('history').doc();
                 batch.set(historyRef, {
                     action: "Ajuan Dibuat (Salinan)",
-                    details: `Disalin dari Ajuan Awal ID ${doc.id.substring(0,6)}..`,
+                    details: `Disalin dari ${sourceType} ID ${doc.id.substring(0,6)}..`,
                     userId: STATE.id, userUid: STATE.uid, timestamp: serverTimestamp()
                 });
 
@@ -1682,7 +1928,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (copyCount > 0) {
             await batch.commit();
-            showToast(`${copyCount} ajuan baru berhasil disalin ke daftar ajuan perubahan.`, 'success');
+            showToast(`${copyCount} ajuan baru berhasil disalin ke daftar ${destinationType}.`, 'success');
             refreshAjuanTablePerubahan();
         } else {
             showToast('Tidak ada ajuan baru untuk disalin.', 'info');
@@ -1694,13 +1940,14 @@ document.addEventListener('DOMContentLoaded', function() {
     } finally {
         showLoader(false);
     }
-  });
+});
 
-  // -- RPD AND REALISASI LOGIC (SEPARATED) --
+  // -- RPD AND REALISASI LOGIC (MODIFIED FOR STAGES) --
 
   async function refreshTable(baseName, tipe) {
-    const tableContainerId = `table${baseName}${tipe}`;
-    const filterProdiId = `filterProdi${baseName}${tipe}`;
+    const isPerubahan = tipe.startsWith("Perubahan");
+    const tableContainerId = isPerubahan ? `table${baseName}Perubahan` : `table${baseName}Awal`;
+    const filterProdiId = isPerubahan ? `filterProdi${baseName}Perubahan` : `filterProdi${baseName}Awal`;
     const tableContainer = document.getElementById(tableContainerId);
     
     tableContainer.innerHTML = `<div class="text-center text-muted p-5">Memuat data...</div>`;
@@ -1719,11 +1966,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const snapshot = await query.get();
         const data = snapshot.docs.map(doc => ({ ID_Ajuan: doc.id, ...doc.data() }));
         
+        const tipeSuffix = isPerubahan ? 'Perubahan' : 'Awal';
         if (baseName === 'RPD') {
-            renderRPDTable(data, tipe);
+            renderRPDTable(data, tipeSuffix);
         } else if (baseName === 'Realisasi') {
-            renderRealisasiTable(data, tipe);
-            renderRealisasiSummary(data, tipe);
+            renderRealisasiTable(data, tipeSuffix);
+            renderRealisasiSummary(data, tipeSuffix);
         }
     } catch(error) {
         tableContainer.innerHTML = `<div class="text-center text-danger p-5">Gagal memuat data.</div>`;
@@ -1737,91 +1985,351 @@ document.addEventListener('DOMContentLoaded', function() {
   
   function renderRPDTable(data, tipe) { const container = document.getElementById(`tableRPD${tipe}`); if (data.length === 0) { container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada ajuan diterima.</div>'; return; } const isDirektorat = STATE.role === 'direktorat'; const readOnlyAttr = isDirektorat ? 'readonly' : ''; const disabledBtnClass = isDirektorat ? 'disabled' : ''; let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Prodi</th><th rowspan="2" class="align-middle">Rincian</th><th rowspan="2" class="align-middle text-end">Total Diterima</th><th colspan="12" class="text-center">Rencana Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end">Total RPD</th><th rowspan="2" class="align-middle text-end">Sisa</th><th rowspan="2" class="align-middle text-center">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}</tr>`; const tableRows = data.map(r => { const ajuanId = r.ID_Ajuan; let totalAllocated = 0; const rpdInputs = RPD_MONTHS.map(month => { const value = Number(r[`RPD_${month}`] || 0); totalAllocated += value; return `<td><input type="number" class="form-control form-control-sm rpd-input" data-ajuan-id="${ajuanId}" value="${value}" oninput="window.updateRpdRowSummary('${ajuanId}', '${tipe}')" min="0" ${readOnlyAttr}></td>`; }).join(''); const totalAjuan = Number(r.Total) || 0; const sisa = totalAjuan - totalAllocated; const sisaClass = sisa < 0 ? 'text-danger fw-bold' : ''; return `<tr id="rpd-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td><td>${escapeHtml(r.ID_Prodi)}</td><td><strong>${escapeHtml(r.Nama_Ajuan)}</strong><div class="small text-muted">${escapeHtml(r.Judul_Kegiatan)}</div></td><td class="text-end fw-bold" data-total="${totalAjuan}">${totalAjuan.toLocaleString('id-ID')}</td>${rpdInputs}<td class="text-end fw-bold rpd-total-allocated">${totalAllocated.toLocaleString('id-ID')}</td><td class="text-end fw-bold rpd-sisa ${sisaClass}">${sisa.toLocaleString('id-ID')}</td><td class="text-center"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRPD('${ajuanId}', '${tipe}')" title="Simpan RPD"><i class="bi bi-save"></i></button></td></tr>`; }).join(''); container.innerHTML = `<table class="table table-bordered table-sm small"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`; }
   window.updateRpdRowSummary = (ajuanId, tipe) => { const row = document.getElementById(`rpd-row-${tipe}-${ajuanId}`); if (!row) return false; const totalValue = parseFloat(row.querySelector('[data-total]').dataset.total); let currentSum = 0; row.querySelectorAll('.rpd-input').forEach(input => { currentSum += Number(input.value) || 0; }); const sisa = totalValue - currentSum; row.querySelector('.rpd-total-allocated').textContent = currentSum.toLocaleString('id-ID'); row.querySelector('.rpd-sisa').textContent = sisa.toLocaleString('id-ID'); if (sisa < 0) { row.querySelector('.rpd-sisa').classList.add('text-danger'); return false; } else { row.querySelector('.rpd-sisa').classList.remove('text-danger'); return true; } }
-  window.saveRPD = async (ajuanId, tipe) => { if (!window.updateRpdRowSummary(ajuanId, tipe)) { showToast('Gagal. Total alokasi RPD melebihi total diterima.', 'danger'); return; } showLoader(true); const row = document.getElementById(`rpd-row-${tipe}-${ajuanId}`); const rpdData = {}; let totalRpd = 0; row.querySelectorAll('.rpd-input').forEach((input, index) => { const value = Number(input.value) || 0; rpdData[`RPD_${RPD_MONTHS[index]}`] = value; totalRpd += value; }); try { await db.collection('ajuan').doc(ajuanId).update(rpdData); logHistory(ajuanId, "RPD Disimpan", `Total RPD yang disimpan: Rp ${totalRpd.toLocaleString('id-ID')}.`); showToast(`RPD untuk ${ajuanId.substring(0,6)}.. disimpan.`); refreshTable('RPD', tipe); } catch (error) { showToast(`Gagal menyimpan RPD: ${error.message}`, 'danger'); } finally { showLoader(false); } };
+  window.saveRPD = async (ajuanId, tipe) => { if (!window.updateRpdRowSummary(ajuanId, tipe)) { showToast('Gagal. Total alokasi RPD melebihi total diterima.', 'danger'); return; } showLoader(true); const row = document.getElementById(`rpd-row-${tipe}-${ajuanId}`); const rpdData = {}; let totalRpd = 0; row.querySelectorAll('.rpd-input').forEach((input, index) => { const value = Number(input.value) || 0; rpdData[`RPD_${RPD_MONTHS[index]}`] = value; totalRpd += value; }); try { await db.collection('ajuan').doc(ajuanId).update(rpdData); logHistory(ajuanId, "RPD Disimpan", `Total RPD yang disimpan: Rp ${totalRpd.toLocaleString('id-ID')}.`); showToast(`RPD untuk ${ajuanId.substring(0,6)}.. disimpan.`); if (tipe === 'Awal') refreshTable('RPD', 'Awal'); else refreshTable('RPD', `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}`); } catch (error) { showToast(`Gagal menyimpan RPD: ${error.message}`, 'danger'); } finally { showLoader(false); } };
 
   function renderRealisasiTable(data, tipe) { const container = document.getElementById(`tableRealisasi${tipe}`); if (data.length === 0) { container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada ajuan diterima.</div>'; return; } const isDirektorat = STATE.role === 'direktorat'; const readOnlyAttr = isDirektorat ? 'readonly' : ''; const disabledBtnClass = isDirektorat ? 'disabled' : ''; let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Rincian</th><th rowspan="2" class="align-middle text-end">Total RPD</th><th colspan="12" class="text-center">Realisasi Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end">Total Realisasi</th><th rowspan="2" class="align-middle text-center">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}</tr>`; const tableRows = data.map(r => { const ajuanId = r.ID_Ajuan; let totalRealisasi = 0; let totalRPD = 0; const realisasiInputs = RPD_MONTHS.map(month => { const value = Number(r[`Realisasi_${month}`] || 0); totalRealisasi += value; totalRPD += Number(r[`RPD_${month}`] || 0); return `<td><input type="number" class="form-control form-control-sm realisasi-input" value="${value}" oninput="window.updateRealisasiRowSummary('${ajuanId}', '${tipe}')" min="0" ${readOnlyAttr}></td>`; }).join(''); return `<tr id="realisasi-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td><td><strong>${escapeHtml(r.Nama_Ajuan)}</strong></td><td class="text-end fw-bold">${totalRPD.toLocaleString('id-ID')}</td>${realisasiInputs}<td class="text-end fw-bold realisasi-total">${totalRealisasi.toLocaleString('id-ID')}</td><td class="text-center"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRealisasi('${ajuanId}', '${tipe}')" title="Simpan Realisasi"><i class="bi bi-save"></i></button></td></tr>`; }).join(''); container.innerHTML = `<table class="table table-bordered table-sm small"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`; }
   function renderRealisasiSummary(data, tipe) { const container = document.getElementById(`realisasi-summary-area-${tipe.toLowerCase()}`); const rpdPerBulan = Array(12).fill(0); const realisasiPerBulan = Array(12).fill(0); data.forEach(ajuan => { RPD_MONTHS.forEach((month, index) => { rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0; realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0; }); }); const totalRPD = rpdPerBulan.reduce((a, b) => a + b, 0); const totalRealisasi = realisasiPerBulan.reduce((a, b) => a + b, 0); const rpdTriwulan = calculateQuarterlySummary(rpdPerBulan, totalRPD); const realisasiTriwulan = calculateQuarterlySummary(realisasiPerBulan, totalRealisasi); let summaryHtml = `<div class="card d-print-none"><div class="card-header fw-bold">Ringkasan Realisasi Anggaran ${tipe}</div><div class="card-body"><div class="row g-4"><div class="col-lg-6"><h6 class="text-center small text-muted">Realisasi per Bulan</h6><table class="table table-sm table-striped small"><thead class="table-light"><tr><th>Bulan</th><th class="text-end">RPD</th><th class="text-end">Realisasi</th><th class="text-center">%</th></tr></thead><tbody>${rpdPerBulan.map((rpd, i) => { const real = realisasiPerBulan[i]; const percent = rpd > 0 ? ((real / rpd) * 100).toFixed(1) : '0.0'; return `<tr><td>${RPD_MONTHS[i]}</td><td class="text-end">${rpd.toLocaleString('id-ID')}</td><td class="text-end">${real.toLocaleString('id-ID')}</td><td class="text-center"><span class="badge ${percent >= 100 ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'}">${percent}%</span></td></tr>`; }).join('')}<tr class="table-dark"><td><strong>Total</strong></td><td class="text-end"><strong>${totalRPD.toLocaleString('id-ID')}</strong></td><td class="text-end"><strong>${totalRealisasi.toLocaleString('id-ID')}</strong></td><td class="text-center"><strong>${totalRPD > 0 ? ((totalRealisasi/totalRPD)*100).toFixed(1) : '0.0'}%</strong></td></tr></tbody></table></div><div class="col-lg-6"><h6 class="text-center small text-muted">Realisasi per Triwulan</h6><table class="table table-sm table-striped small"><thead class="table-light"><tr><th>Triwulan</th><th class="text-end">RPD</th><th class="text-end">Realisasi</th><th class="text-center">%</th></tr></thead><tbody>${rpdTriwulan.values.map((rpd, i) => { const real = realisasiTriwulan.values[i]; const percent = rpd > 0 ? ((real / rpd) * 100).toFixed(1) : '0.0'; return `<tr><td><strong>Q${i+1}</strong></td><td class="text-end">${rpd.toLocaleString('id-ID')}</td><td class="text-end">${real.toLocaleString('id-ID')}</td><td class="text-center"><span class="badge ${percent >= 100 ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'}">${percent}%</span></td></tr>`; }).join('')}</tbody></table></div></div></div></div>`; container.innerHTML = summaryHtml; }
   window.updateRealisasiRowSummary = (ajuanId, tipe) => { const row = document.getElementById(`realisasi-row-${tipe}-${ajuanId}`); if (!row) return; let currentSum = 0; row.querySelectorAll('.realisasi-input').forEach(input => currentSum += Number(input.value) || 0); row.querySelector('.realisasi-total').textContent = currentSum.toLocaleString('id-ID'); }
-  window.saveRealisasi = async (ajuanId, tipe) => { showLoader(true); const row = document.getElementById(`realisasi-row-${tipe}-${ajuanId}`); const realisasiData = {}; let totalRealisasi = 0; row.querySelectorAll('.realisasi-input').forEach((input, index) => { const value = Number(input.value) || 0; realisasiData[`Realisasi_${RPD_MONTHS[index]}`] = value; totalRealisasi += value; }); try { await db.collection('ajuan').doc(ajuanId).update(realisasiData); logHistory(ajuanId, "Realisasi Disimpan", `Total Realisasi yang disimpan: Rp ${totalRealisasi.toLocaleString('id-ID')}.`); showToast(`Realisasi untuk ${ajuanId.substring(0,6)}.. disimpan.`); refreshTable('Realisasi', tipe); } catch (error) { showToast(`Gagal menyimpan Realisasi: ${error.message}`, 'danger'); } finally { showLoader(false); } };
+  window.saveRealisasi = async (ajuanId, tipe) => { showLoader(true); const row = document.getElementById(`realisasi-row-${tipe}-${ajuanId}`); const realisasiData = {}; let totalRealisasi = 0; row.querySelectorAll('.realisasi-input').forEach((input, index) => { const value = Number(input.value) || 0; realisasiData[`Realisasi_${RPD_MONTHS[index]}`] = value; totalRealisasi += value; }); try { await db.collection('ajuan').doc(ajuanId).update(realisasiData); logHistory(ajuanId, "Realisasi Disimpan", `Total Realisasi yang disimpan: Rp ${totalRealisasi.toLocaleString('id-ID')}.`); showToast(`Realisasi untuk ${ajuanId.substring(0,6)}.. disimpan.`); if (tipe === 'Awal') refreshTable('Realisasi', 'Awal'); else refreshTable('Realisasi', `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}`); } catch (error) { showToast(`Gagal menyimpan Realisasi: ${error.message}`, 'danger'); } finally { showLoader(false); } };
 
   // Attach listeners to all RPD/Realisasi tabs and buttons
   ['Awal', 'Perubahan'].forEach(tipe => {
-    document.querySelector(`[data-bs-target="#tab-rpd-${tipe.toLowerCase()}"]`).addEventListener('shown.bs.tab', () => refreshTable('RPD', tipe));
-    document.getElementById(`btn-refresh-rpd-${tipe.toLowerCase()}`).addEventListener('click', () => refreshTable('RPD', tipe));
-    document.getElementById(`filterProdiRPD${tipe}`).addEventListener('change', () => refreshTable('RPD', tipe));
+      const isPerubahan = tipe === 'Perubahan';
+      const tipeLower = tipe.toLowerCase();
+      
+      document.querySelector(`[data-bs-target="#tab-rpd-${tipeLower}"]`).addEventListener('shown.bs.tab', () => {
+          const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
+          refreshTable('RPD', tipeQuery);
+      });
+      document.getElementById(`btn-refresh-rpd-${tipeLower}`).addEventListener('click', () => {
+          const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
+          refreshTable('RPD', tipeQuery);
+      });
+      document.getElementById(`filterProdiRPD${tipe}`).addEventListener('change', () => {
+          const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
+          refreshTable('RPD', tipeQuery);
+      });
 
-    document.querySelector(`[data-bs-target="#tab-realisasi-${tipe.toLowerCase()}"]`).addEventListener('shown.bs.tab', () => refreshTable('Realisasi', tipe));
-    document.getElementById(`btn-refresh-realisasi-${tipe.toLowerCase()}`).addEventListener('click', () => refreshTable('Realisasi', tipe));
-    document.getElementById(`filterProdiRealisasi${tipe}`).addEventListener('change', () => refreshTable('Realisasi', tipe));
+      document.querySelector(`[data-bs-target="#tab-realisasi-${tipeLower}"]`).addEventListener('shown.bs.tab', () => {
+          const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
+          refreshTable('Realisasi', tipeQuery);
+      });
+      document.getElementById(`btn-refresh-realisasi-${tipeLower}`).addEventListener('click', () => {
+          const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
+          refreshTable('Realisasi', tipeQuery);
+      });
+      document.getElementById(`filterProdiRealisasi${tipe}`).addEventListener('change', () => {
+          const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
+          refreshTable('Realisasi', tipeQuery);
+      });
   });
 
-  // -- REMAINDER OF THE SCRIPT (UNCHANGED OR MINOR CHANGES) --
-  
-  // (The rest of the script for comments, management, dashboard, export, etc., is largely unaffected by the core logic change.
-  // It's included here for completeness, with minor fixes to ensure it continues to work.)
-
-  window.openKomentarModal = async (id, nama) => {
-    document.getElementById('komentar-id-ajuan').value = id;
-    document.getElementById('komentarModalAjuanId').innerText = id.substring(0, 6) + '...';
-    document.getElementById('komentarModalAjuanNama').innerText = nama;
-    const commentListEl = document.getElementById('komentar-list');
-    commentListEl.innerHTML = `<div class="text-center text-muted">Memuat...</div>`;
-    KOMENTAR_MODAL.show();
-    try {
-        const doc = await db.collection('ajuan').doc(id).get();
-        if (doc.exists) { renderComments(doc.data().Komentar || []); } 
-        else { commentListEl.innerHTML = `<div class="text-center text-muted">Ajuan tidak ditemukan.</div>`; }
-    } catch (error) { commentListEl.innerHTML = `<div class="text-center text-danger">Gagal memuat komentar.</div>`; }
-  };
-  function renderComments(comments) {
-    const container = document.getElementById('komentar-list');
-    if (!comments || comments.length === 0) { container.innerHTML = `<div class="text-center text-muted fst-italic p-3">Belum ada komentar.</div>`; return; }
-    container.innerHTML = comments.map(c => {
-        const isUser = c.author === STATE.id; const bubbleClass = isUser ? 'comment-bubble-user' : 'comment-bubble-other';
-        const authorName = isUser ? `Anda (${c.author})` : c.author;
-        const dateObj = c.timestamp && c.timestamp.toDate ? c.timestamp.toDate() : new Date(c.timestamp);
-        const formattedTimestamp = !isNaN(dateObj) ? dateObj.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : 'no date';
-        return `<div class="comment-bubble ${bubbleClass}"><div class="author">${escapeHtml(authorName)}</div><div>${escapeHtml(c.text)}</div><div class="timestamp">${formattedTimestamp}</div></div>`;
-    }).join(''); container.scrollTop = container.scrollHeight;
+  // -- LOGIKA BARU: BERITA ACARA --
+  function setupBeritaAcaraTab() {
+    const select = document.getElementById('filterTipeBA');
+    select.innerHTML = '<option value="Awal">Ajuan Awal</option>';
+    if (STATE.globalSettings.Status_Ajuan_Perubahan === 'Dibuka') {
+        const totalTahap = STATE.globalSettings.Jumlah_Tahap_Perubahan || 1;
+        for (let i = 1; i <= totalTahap; i++) {
+            const tahapStr = `Perubahan ${i}`;
+            select.add(new Option(`Ajuan ${tahapStr}`, tahapStr));
+        }
+    }
   }
-  document.getElementById('btn-submit-komentar').addEventListener('click', async () => {
-    const id = document.getElementById('komentar-id-ajuan').value; const inputEl = document.getElementById('komentar-input'); const text = inputEl.value.trim(); if (!text) return;
-    const newComment = { text: text, author: STATE.id, timestamp: new Date() }; showLoader(true);
+
+  async function renderBeritaAcara() {
+    const container = document.getElementById('berita-acara-content');
+    container.innerHTML = `<div class="text-center text-muted p-5">Memuat data Berita Acara...</div>`;
+    showLoader(true);
+    
     try {
-        const ref = db.collection('ajuan').doc(id);
-        await ref.update({ Komentar: arrayUnion(newComment) });
-        await logHistory(id, "Komentar Ditambahkan", text);
+        const tipeAjuan = document.getElementById('filterTipeBA').value;
+        const prodiFilter = document.getElementById('filterProdiBA').value;
+
+        let prodiId = STATE.role === 'prodi' ? STATE.id : prodiFilter;
+        if (STATE.role === 'direktorat' && !prodiId) {
+            throw new Error('Silakan pilih Prodi untuk mencetak Berita Acara.');
+        }
+
+        const prodiData = (STATE.role === 'direktorat') 
+            ? STATE.allProdi.find(p => p.ID_Prodi === prodiId) || { Nama_Prodi: prodiId }
+            : STATE.currentUserData;
         
-        // Notify other party
-        const ajuanDoc = await ref.get();
-        const ajuanData = ajuanDoc.data();
-        if (STATE.role === 'prodi') { // Prodi commenting, notify all directorate
-            STATE.allDirektoratUids.forEach(uid => {
-                createNotification(uid, `Komentar baru dari ${STATE.id} pada ajuan '${ajuanData.Nama_Ajuan.substring(0, 20)}...'`);
+        let query = db.collection('ajuan')
+          .where('Tipe_Ajuan', '==', tipeAjuan)
+          .where('ID_Prodi', '==', prodiId)
+          .where('Status', '==', 'Diterima');
+
+        const snapshot = await query.get();
+        const data = snapshot.docs.map(doc => doc.data());
+        if (data.length === 0) {
+            throw new Error(`Tidak ada ajuan berstatus "Diterima" untuk ${prodiId} pada tahap ${tipeAjuan}.`);
+        }
+
+        // Tentukan TTD Pihak Kiri (Prodi)
+        const prodiBaSettings = prodiData.beritaAcaraSettings || {};
+        const ttdKiriJabatan = prodiBaSettings.TTD_Jabatan || STATE.beritaAcaraSettings.TTD_Kiri_Jabatan || 'Ketua Jurusan/Program Studi';
+        const ttdKiriNama = prodiBaSettings.TTD_Nama || STATE.beritaAcaraSettings.TTD_Kiri_Nama || '(..................................................)';
+
+        // Tentukan TTD Pihak Kanan (Direktorat)
+        const ttdKananJabatan = STATE.beritaAcaraSettings.TTD_Kanan_Jabatan || 'Wakil Direktur II';
+        const ttdKananNama = STATE.beritaAcaraSettings.TTD_Kanan_Nama || '(..................................................)';
+        
+        const today = new Date();
+        const tglCetak = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+        const tahunAnggaran = today.getFullYear();
+
+        const groupedData = data.reduce((acc, row) => {
+            const grubKey = row.Grub_Belanja_Utama || 'Lain-lain';
+            if (!acc[grubKey]) acc[grubKey] = [];
+            acc[grubKey].push(row);
+            return acc;
+        }, {});
+        const sortedGrubKeys = Object.keys(groupedData).sort();
+        let grandTotal = 0;
+        
+        let tableRowsHtml = '';
+        let no = 1;
+        sortedGrubKeys.forEach(grubKey => {
+            tableRowsHtml += `<tr><td colspan="5" style="background-color: #f2f2f2;"><strong>${escapeHtml(grubKey)}</strong></td></tr>`;
+            groupedData[grubKey].forEach(r => {
+                grandTotal += Number(r.Total) || 0;
+                tableRowsHtml += `<tr><td style="text-align: center;">${no++}</td><td>${escapeHtml(r.Nama_Ajuan)}</td><td style="text-align: center;">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)}</td><td style="text-align: right;">${Number(r.Harga_Satuan).toLocaleString('id-ID')}</td><td style="text-align: right;">${Number(r.Total).toLocaleString('id-ID')}</td></tr>`;
             });
-        } else { // Directorate commenting, notify prodi
-            const prodiUser = STATE.allProdi.find(p => p.ID_Prodi === ajuanData.ID_Prodi);
-            if (prodiUser && prodiUser.uid) {
-                createNotification(prodiUser.uid, `Komentar baru dari ${STATE.id} pada ajuan Anda '${ajuanData.Nama_Ajuan.substring(0, 20)}...'`);
+        });
+
+        const contentHtml = `
+            <div class="ba-kop">
+                <table><tr><td style="width: 100px; text-align: right; border:none; padding-right: 15px;"><img src="https://si-pandai.netlify.app/LOGO%20POLTEKKES%20KEMENKES%20KUPANG.png" alt="Logo"></td><td style="text-align: left; border:none;"><div class="ba-kop-text"><h5>KEMENTERIAN KESEHATAN REPUBLIK INDONESIA</h5><h5>BADAN PENGEMBANGAN DAN PEMBERDAYAAN SUMBER DAYA MANUSIA KESEHATAN</h5><h5 style="font-size: 1.3em;">POLITEKNIK KESEHATAN KEMENKES KUPANG</h5><p style="font-weight: normal; font-size: 0.9em;">Jalan Piet A. Tallo, Liliba - Kupang, Nusa Tenggara Timur</p></div></td></tr></table>
+            </div>
+            <div class="ba-judul">
+                <h5>BERITA ACARA</h5><h5>PENETAPAN USULAN KEGIATAN DAN ANGGARAN</h5><p>Nomor: .......................................</p>
+            </div>
+            <div class="ba-paragraf">
+                Pada hari ini, tanggal ${tglCetak}, telah dilaksanakan pembahasan dan penetapan usulan kegiatan dan anggaran untuk <strong>${escapeHtml(prodiData.Nama_Prodi)}</strong> Tahun Anggaran ${tahunAnggaran} (${tipeAjuan}). Berdasarkan hasil pembahasan, dengan ini ditetapkan rincian kegiatan dan anggaran yang diterima adalah sebagai berikut:
+            </div>
+            <table class="ba-table">
+                <thead><tr><th style="width: 5%;">No</th><th style="width: 45%;">Uraian/Rincian Kegiatan</th><th style="width: 15%;">Volume</th><th style="width: 15%;">Harga Satuan (Rp)</th><th style="width: 20%;">Jumlah Biaya (Rp)</th></tr></thead>
+                <tbody>${tableRowsHtml}<tr><td colspan="4" style="text-align: right; font-weight: bold;">TOTAL ANGGARAN DITERIMA</td><td style="text-align: right; font-weight: bold;">${grandTotal.toLocaleString('id-ID')}</td></tr></tbody>
+            </table>
+            <div class="ba-paragraf">Demikian Berita Acara ini dibuat untuk dapat dipergunakan sebagaimana mestinya.</div>
+            <div class="ba-signatures">
+                <table><tr><td><p>Kupang, ${tglCetak}</p><p><strong>${escapeHtml(ttdKiriJabatan)}</strong></p><br><br><br><br><p><strong><u>${escapeHtml(ttdKiriNama)}</u></strong></p></td><td><p><br></p><p><strong>${escapeHtml(ttdKananJabatan)}</strong></p><br><br><br><br><p><strong><u>${escapeHtml(ttdKananNama)}</u></strong></p></td></tr></table>
+            </div>
+        `;
+        container.innerHTML = contentHtml;
+    } catch (error) {
+        container.innerHTML = `<div class="text-center text-danger p-5"><strong>Gagal membuat pratinjau:</strong> ${error.message}</div>`;
+        showToast(error.message, 'danger');
+    } finally {
+        showLoader(false);
+    }
+  }
+
+  document.querySelector('[data-bs-target="#tab-berita-acara"]').addEventListener('shown.bs.tab', setupBeritaAcaraTab);
+  document.getElementById('btn-preview-ba').addEventListener('click', renderBeritaAcara);
+  document.getElementById('btn-download-pdf-ba').addEventListener('click', () => {
+    const contentElement = document.getElementById('berita-acara-content');
+    if (contentElement.querySelector('.ba-kop')) {
+        showLoader(true);
+        showToast('Mempersiapkan file PDF... Ini mungkin memerlukan beberapa saat.', 'info');
+        
+        // Dynamic filename generation
+        const prodiSelect = document.getElementById('filterProdiBA');
+        const prodiText = prodiSelect.style.display !== 'none' && prodiSelect.value ? prodiSelect.options[prodiSelect.selectedIndex].text : STATE.id;
+        const tipeAjuan = document.getElementById('filterTipeBA').value;
+        const cleanProdiName = prodiText.split(' - ')[0].replace(/[^a-z0-9]/gi, '_');
+        const fileName = `Berita_Acara_${tipeAjuan}_${cleanProdiName}.pdf`;
+
+        // START: Baca nilai dari dropdown baru
+        const paperSize = document.getElementById('ba-paper-size').value;
+        const orientation = document.getElementById('ba-orientation').value;
+        // END: Baca nilai dari dropdown baru
+
+        const opt = {
+          margin:       [15, 10, 15, 10], // top, left, bottom, right in mm
+          filename:     fileName,
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+          // Gunakan variabel untuk mengatur ukuran dan orientasi secara dinamis
+          jsPDF:        { unit: 'mm', format: paperSize, orientation: orientation }
+        };
+        
+        // Using promise based approach for better feedback
+        html2pdf().from(contentElement).set(opt).save().then(() => {
+            showLoader(false);
+        }).catch(err => {
+            showLoader(false);
+            showToast('Gagal membuat PDF. Silakan coba lagi.', 'danger');
+            console.error('PDF generation error:', err);
+        });
+
+    } else {
+        showToast('Tampilkan pratinjau terlebih dahulu sebelum mengunduh PDF.', 'warning');
+    }
+  });
+
+
+  // -- MANAJEMEN DAN PENGATURAN LAINNYA --
+  document.querySelector('[data-bs-target="#tab-pengaturan-akun"]').addEventListener('shown.bs.tab', async () => {
+    if (STATE.role === 'prodi') {
+      const userDoc = await db.collection('users').doc(STATE.uid).get();
+      if(userDoc.exists) {
+        const userData = userDoc.data();
+        const baSettings = userData.beritaAcaraSettings || {};
+        document.getElementById('prodi_ba_jabatan').value = baSettings.TTD_Jabatan || '';
+        document.getElementById('prodi_ba_nama').value = baSettings.TTD_Nama || '';
+      }
+    }
+  });
+
+  document.getElementById('btn-save-prodi-ba-settings').addEventListener('click', async () => {
+    if (STATE.role !== 'prodi') return;
+    const settings = {
+        TTD_Jabatan: document.getElementById('prodi_ba_jabatan').value.trim(),
+        TTD_Nama: document.getElementById('prodi_ba_nama').value.trim(),
+    };
+    showLoader(true);
+    try {
+        await db.collection('users').doc(STATE.uid).update({ beritaAcaraSettings: settings });
+        // Update local state as well
+        STATE.currentUserData.beritaAcaraSettings = settings;
+        showToast("Pengaturan tanda tangan berhasil disimpan.", "success");
+    } catch (error) {
+        showToast(`Gagal menyimpan: ${error.message}`, "danger");
+    } finally {
+        showLoader(false);
+    }
+  });
+  
+  window.fillEditProdi = (uid, id, nama, email, role, baJabatan, baNama) => { 
+    document.getElementById('mp_UID').value = uid; 
+    document.getElementById('mp_ID').value = id; 
+    document.getElementById('mp_Nama').value = nama; 
+    document.getElementById('mp_Email').value = email; 
+    document.getElementById('mp_Role').value = role; 
+    
+    const baFieldsWrapper = document.getElementById('mp_ba_fields_wrapper');
+    if (role === 'prodi') {
+      baFieldsWrapper.style.display = 'block';
+      document.getElementById('mp_BA_Jabatan').value = baJabatan || '';
+      document.getElementById('mp_BA_Nama').value = baNama || '';
+    } else {
+      baFieldsWrapper.style.display = 'none';
+      document.getElementById('mp_BA_Jabatan').value = '';
+      document.getElementById('mp_BA_Nama').value = '';
+    }
+  };
+
+  document.getElementById('btn-save-prodi').addEventListener('click', async () => { 
+    const uid = document.getElementById('mp_UID').value; 
+    if (!uid) { showToast('Silakan pilih pengguna dari daftar untuk diedit.', 'warning'); return; } 
+    const role = document.getElementById('mp_Role').value;
+    const dataToUpdate = { 
+      Nama_Prodi: document.getElementById('mp_Nama').value.trim(), 
+      Role: role 
+    }; 
+    if (!dataToUpdate.Nama_Prodi) { showToast('Nama Prodi / Direktorat tidak boleh kosong.', 'warning'); return; } 
+    
+    if (role === 'prodi') {
+      dataToUpdate.beritaAcaraSettings = {
+        TTD_Jabatan: document.getElementById('mp_BA_Jabatan').value.trim(),
+        TTD_Nama: document.getElementById('mp_BA_Nama').value.trim()
+      };
+    }
+
+    showLoader(true); 
+    try { 
+      await db.collection('users').doc(uid).update(dataToUpdate); 
+      showToast('Data pengguna berhasil diperbarui.'); 
+      clearUserForm(); 
+      refreshProdiData(); 
+    } catch (error) { showToast(`Gagal memperbarui pengguna: ${error.message}`, 'danger'); } finally { showLoader(false); } 
+  });
+  
+  async function loadBeritaAcaraSettings() {
+    try {
+        const doc = await db.collection('appConfig').doc('beritaAcaraSettings').get();
+        if (doc.exists) {
+            STATE.beritaAcaraSettings = doc.data();
+            if (STATE.role === 'direktorat') {
+                document.getElementById('ba_ttd_kiri_jabatan').value = STATE.beritaAcaraSettings.TTD_Kiri_Jabatan || '';
+                document.getElementById('ba_ttd_kiri_nama').value = STATE.beritaAcaraSettings.TTD_Kiri_Nama || '';
+                document.getElementById('ba_ttd_kanan_jabatan').value = STATE.beritaAcaraSettings.TTD_Kanan_Jabatan || '';
+                document.getElementById('ba_ttd_kanan_nama').value = STATE.beritaAcaraSettings.TTD_Kanan_Nama || '';
             }
         }
-        
-        inputEl.value = '';
-        renderComments((await ref.get()).data().Komentar || []);
-    } catch (error) { showToast(`Gagal mengirim komentar: ${error.message}`, 'danger'); } finally { showLoader(false); }
-  });
+    } catch (error) {
+        console.error("Gagal memuat pengaturan Berita Acara:", error);
+    }
+  }
+
+  async function saveBeritaAcaraSettings() {
+    if (STATE.role !== 'direktorat') return;
+    const settings = {
+        TTD_Kiri_Jabatan: document.getElementById('ba_ttd_kiri_jabatan').value.trim(),
+        TTD_Kiri_Nama: document.getElementById('ba_ttd_kiri_nama').value.trim(),
+        TTD_Kanan_Jabatan: document.getElementById('ba_ttd_kanan_jabatan').value.trim(),
+        TTD_Kanan_Nama: document.getElementById('ba_ttd_kanan_nama').value.trim()
+    };
+    showLoader(true);
+    try {
+        await db.collection('appConfig').doc('beritaAcaraSettings').set(settings, { merge: true });
+        STATE.beritaAcaraSettings = settings;
+        showToast("Pengaturan default Berita Acara berhasil disimpan.", "success");
+    } catch (error) {
+        showToast(`Gagal menyimpan pengaturan: ${error.message}`, "danger");
+    } finally {
+        showLoader(false);
+    }
+  }
+  document.getElementById('btn-save-ba-settings').addEventListener('click', saveBeritaAcaraSettings);
   
-  // MANAGEMENT FUNCTIONS (largely unchanged)
-  document.querySelector('[data-bs-target="#tab-manage"]').addEventListener('shown.bs.tab', async () => { if (STATE.role === 'direktorat') { await refreshProdiData(); await loadGlobalSettings(); await loadAnnouncement(); } });
+  // -- Sisa fungsi-fungsi (dashboard, backup, dll) tidak berubah dari versi sebelumnya. --
+  // (Kode sengaja diringkas untuk menghindari redundansi, karena tidak ada perubahan di blok ini)
+  
+  document.getElementById('btn-refresh-dashboard').addEventListener('click', loadDashboardData); document.querySelector('[data-bs-target="#tab-dashboard"]').addEventListener('shown.bs.tab', loadDashboardData); ['filterTahunDashboard', 'filterTipeDashboard'].forEach(id => document.getElementById(id).addEventListener('change', () => processDataForDashboard()));
+  async function loadDashboardData() { showLoader(true); try { let query = db.collection('ajuan'); if (STATE.role === 'prodi') { query = query.where('ID_Prodi', '==', STATE.id); } const snapshot = await query.get(); STATE.allDashboardData = snapshot.docs.map(doc => { const data = doc.data(); if (data.Timestamp && data.Timestamp.toDate) data.Timestamp = data.Timestamp.toDate(); return { ID_Ajuan: doc.id, ...data }; }); populateDashboardFilters(STATE.allDashboardData); processDataForDashboard(); await displayGlobalAnnouncement(); } catch(error) { showToast('Gagal memuat data dashboard.', 'danger'); console.error("Dashboard error:", error); } finally { showLoader(false); } }
+  function populateDashboardFilters(data) { const yearSelect = document.getElementById('filterTahunDashboard'); const years = [...new Set(data.map(d => { if(d.Timestamp) return new Date(d.Timestamp).getFullYear(); return null; }))].filter(Boolean).sort((a, b) => b - a); yearSelect.innerHTML = '<option value="">Semua Tahun</option>'; years.forEach(year => { if (!isNaN(year)) yearSelect.innerHTML += `<option value="${year}">${year}</option>`; }); }
+  function setupChart(canvasId, type, data, options) { const canvas = document.getElementById(canvasId); if (!canvas) return; if (CHARTS[canvasId]) CHARTS[canvasId].destroy(); CHARTS[canvasId] = new Chart(canvas.getContext('2d'), { type, data, options }); }
+  function calculateQuarterlySummary(monthlyData, total) { const quarters = [0, 0, 0, 0]; for (let i = 0; i < 12; i++) { if (i < 3) quarters[0] += monthlyData[i]; else if (i < 6) quarters[1] += monthlyData[i]; else if (i < 9) quarters[2] += monthlyData[i]; else quarters[3] += monthlyData[i]; } return { values: quarters, percentages: quarters.map(q => total > 0 ? ((q / total) * 100).toFixed(1) + '%' : '0.0%') }; }
+  function updateDashboardDeadlineInfo() { const deadlineInfoEl = document.getElementById('dashboard-deadline-info'); const deadline = STATE.globalSettings.Batas_Tanggal_Pengajuan; if (deadline && deadline.toDate) { const deadlineDate = deadline.toDate(); const today = new Date(); today.setHours(23, 59, 59, 999); let alertClass = 'alert-info'; let message = `Batas waktu pengajuan adalah <strong>${deadlineDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong>.`; if (today > deadlineDate) { alertClass = 'alert-danger'; message = `Periode pengajuan telah berakhir pada <strong>${deadlineDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}</strong>.`; } deadlineInfoEl.innerHTML = `<i class="bi bi-info-circle-fill me-2"></i> ${message}`; deadlineInfoEl.className = `alert ${alertClass} text-center small p-2`; deadlineInfoEl.style.display = 'block'; } else { deadlineInfoEl.innerHTML = `<i class="bi bi-info-circle-fill me-2"></i> Batas waktu pengajuan belum ditentukan oleh direktorat.`; deadlineInfoEl.className = 'alert alert-warning text-center small p-2'; deadlineInfoEl.style.display = 'block'; } }
+  function processDataForDashboard() { 
+      updateDashboardDeadlineInfo(); 
+      const selectedYear = document.getElementById('filterTahunDashboard').value; 
+      const selectedTipe = document.getElementById('filterTipeDashboard').value; 
+      let filteredData = STATE.allDashboardData.filter(d => { 
+          const date = d.Timestamp ? new Date(d.Timestamp) : null; 
+          if (!date) return false; 
+          const yearMatch = !selectedYear || date.getFullYear() == selectedYear; 
+          const tipeMatch = !selectedTipe || (selectedTipe === 'Awal' && (d.Tipe_Ajuan || 'Awal') === 'Awal') || (selectedTipe === 'Perubahan' && (d.Tipe_Ajuan || '').startsWith('Perubahan'));
+          return yearMatch && tipeMatch; 
+      }); 
+      renderDashboardSummary(filteredData); 
+      if (STATE.role === 'direktorat') { 
+          renderDirektoratDashboard(filteredData); 
+      } 
+  }
+  function renderDashboardSummary(data, containerPrefix = 'dashboard-', chartPrefix = 'chart') { let totalDiajukan = 0, totalDiterima = 0; let statusCounts = { 'Menunggu Review': 0, 'Diterima': 0, 'Ditolak': 0, 'Revisi': 0 }; const rpdPerBulan = Array(12).fill(0); const realisasiPerBulan = Array(12).fill(0); data.forEach(ajuan => { totalDiajukan += Number(ajuan.Total) || 0; if (ajuan.Status) { statusCounts[ajuan.Status] = (statusCounts[ajuan.Status] || 0) + 1; } if (ajuan.Status === 'Diterima') { totalDiterima += Number(ajuan.Total) || 0; RPD_MONTHS.forEach((month, index) => { rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0; realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0; }); } }); const totalRPD = rpdPerBulan.reduce((a, b) => a + b, 0); const totalRealisasi = realisasiPerBulan.reduce((a, b) => a + b, 0); document.getElementById(`${containerPrefix}total-diajukan`).textContent = 'Rp ' + totalDiajukan.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}total-diterima`).textContent = 'Rp ' + totalDiterima.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}total-rpd`).textContent = 'Rp ' + totalRPD.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}total-realisasi`).textContent = 'Rp ' + totalRealisasi.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}count-menunggu`).textContent = statusCounts['Menunggu Review']; document.getElementById(`${containerPrefix}count-diterima`).textContent = statusCounts['Diterima']; document.getElementById(`${containerPrefix}count-ditolak`).textContent = statusCounts['Ditolak']; document.getElementById(`${containerPrefix}count-revisi`).textContent = statusCounts['Revisi']; const paguCard = document.getElementById('dashboard-total-pagu-card'); const paguValueEl = document.getElementById('dashboard-total-pagu'); const paguLabelEl = document.getElementById('dashboard-pagu-label'); paguCard.style.display = 'none'; if (STATE.role === 'direktorat') { const totalPagu = (STATE.allProdi || []).filter(p => p.Role === 'prodi').reduce((sum, p) => sum + (Number(p.Pagu_Anggaran) || 0), 0); paguValueEl.textContent = 'Rp ' + totalPagu.toLocaleString('id-ID'); paguLabelEl.textContent = 'TOTAL PAGU PRODI'; paguCard.style.display = 'block'; } else if (STATE.role === 'prodi' && STATE.currentUserData) { const pagu = STATE.currentUserData.Pagu_Anggaran || 0; paguValueEl.textContent = 'Rp ' + pagu.toLocaleString('id-ID'); paguLabelEl.textContent = 'PAGU ANGGARAN SAYA'; paguCard.style.display = 'block'; } setupChart(`${chartPrefix}RPDvsRealisasi`, 'bar', { labels: RPD_MONTHS, datasets: [{ label: 'Realisasi (Rp)', data: realisasiPerBulan, backgroundColor: 'rgba(255, 193, 7, 0.7)' }, { label: 'RPD (Rp)', data: rpdPerBulan, backgroundColor: 'rgba(13, 110, 253, 0.6)' }] }, { responsive: true, scales: { x: { stacked: false }, y: { stacked: false, beginAtZero: true } } }); if (containerPrefix === 'dashboard-') { const persentaseRealisasi = totalRPD > 0 ? (totalRealisasi / totalRPD) * 100 : 0; document.getElementById('dashboard-persen-realisasi').textContent = persentaseRealisasi.toFixed(1) + '%'; const progressBar = document.getElementById('dashboard-persen-realisasi-bar'); if (progressBar) progressBar.style.width = `${Math.min(persentaseRealisasi, 100)}%`; const rpdTriwulan = calculateQuarterlySummary(rpdPerBulan, totalRPD); const realisasiTriwulan = calculateQuarterlySummary(realisasiPerBulan, totalRealisasi); const summariesContainer = document.getElementById('dashboard-triwulan-summaries'); if (summariesContainer) { summariesContainer.innerHTML = `<h6 class="small text-muted mt-2">Rencana Penarikan Dana (RPD)</h6><table class="table table-sm table-borderless text-center small"><thead class="table-light"><tr><th>Triwulan</th><th>Total RPD</th><th>%</th></tr></thead><tbody>${rpdTriwulan.values.map((val, i) => `<tr><td><strong>Q${i+1}</strong></td><td>Rp ${val.toLocaleString('id-ID')}</td><td><span class="badge bg-primary-subtle text-primary-emphasis">${rpdTriwulan.percentages[i]}</span></td></tr>`).join('')}</tbody></table><h6 class="small text-muted mt-3">Realisasi</h6><table class="table table-sm table-borderless text-center small"><thead class="table-light"><tr><th>Triwulan</th><th>Total Realisasi</th><th>%</th></tr></thead><tbody>${realisasiTriwulan.values.map((val, i) => `<tr><td><strong>Q${i+1}</strong></td><td>Rp ${val.toLocaleString('id-ID')}</td><td><span class="badge bg-success-subtle text-success-emphasis">${realisasiTriwulan.percentages[i]}</span></td></tr>`).join('')}</tbody></table>`; } } }
+  function renderDirektoratDashboard(data) { const ajuanPerBulan = Array(12).fill(0); data.forEach(ajuan => { if(ajuan.Timestamp) { const month = new Date(ajuan.Timestamp).getMonth(); if (month >= 0 && month < 12) ajuanPerBulan[month]++; } }); setupChart('chartAjuanPerBulan', 'bar', { labels: RPD_MONTHS, datasets: [{ label: 'Jumlah Ajuan', data: ajuanPerBulan, backgroundColor: 'rgba(54, 162, 235, 0.6)' }] }, { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }); const ajuanPerStatus = data.reduce((acc, ajuan) => { acc[ajuan.Status] = (acc[ajuan.Status] || 0) + 1; return acc; }, {}); setupChart('chartAjuanPerStatus', 'doughnut', { labels: Object.keys(ajuanPerStatus), datasets: [{ data: Object.values(ajuanPerStatus), backgroundColor: ['#ffc107', '#198754', '#dc3545', '#fd7e14', '#6c757d'] }] }, { responsive: true, plugins: { legend: { position: 'top' } } }); const perProdiStats = data.reduce((acc, ajuan) => { const prodiId = ajuan.ID_Prodi || 'N/A'; if (!acc[prodiId]) acc[prodiId] = { count: 0, total: 0 }; acc[prodiId].count++; acc[prodiId].total += Number(ajuan.Total) || 0; return acc; }, {}); const prodiLabels = Object.keys(perProdiStats).sort(); const anggaranPerProdiData = prodiLabels.map(id => perProdiStats[id].total); const ajuanPerProdiData = prodiLabels.map(id => perProdiStats[id].count); setupChart('chartAnggaranPerProdi', 'bar', { labels: prodiLabels, datasets: [{ label: 'Total Anggaran (Rp)', data: anggaranPerProdiData, backgroundColor: 'rgba(25, 135, 84, 0.6)' }] }, { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } }); setupChart('chartAjuanPerProdi', 'pie', { labels: prodiLabels, datasets: [{ data: ajuanPerProdiData, backgroundColor: ['#0dcaf0', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#212529', '#ffc107'] }] }, { responsive: true, plugins: { legend: { position: 'top' } } }); const reportsContainer = document.getElementById('direktorat-prodi-reports'); reportsContainer.innerHTML = ''; const dataByProdi = data.reduce((acc, curr) => { (acc[curr.ID_Prodi] = acc[curr.ID_Prodi] || []).push(curr); return acc; }, {}); Object.keys(dataByProdi).sort().forEach(prodiId => renderProdiDetailReport(prodiId, dataByProdi[prodiId], reportsContainer)); }
+  function renderProdiDetailReport(prodiId, prodiData, container) { const prodiSafeId = prodiId.replace(/[^a-zA-Z0-9]/g, ''); const prodiHtml = `<div class="col-12 col-lg-6"><div class="card p-3 h-100"><h6 class="card-title mb-3 border-bottom pb-2"><strong><i class="bi bi-building"></i> Laporan: ${escapeHtml(prodiId)}</strong></h6><div class="row g-3"><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">PAGU ANGGARAN</div><strong id="prodi-${prodiSafeId}-pagu" class="fs-6 text-primary"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">SISA PAGU</div><strong id="prodi-${prodiSafeId}-sisa-pagu" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">DIAJUKAN</div><strong id="prodi-${prodiSafeId}-diajukan" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">DITERIMA</div><strong id="prodi-${prodiSafeId}-diterima" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">RPD</div><strong id="prodi-${prodiSafeId}-rpd" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">REALISASI</div><strong id="prodi-${prodiSafeId}-realisasi" class="fs-6"></strong></div></div><div class="col-12"><div class="card p-2 text-center bg-light"><div class="small text-muted">% REALISASI (DARI RPD)</div><strong id="prodi-${prodiSafeId}-persen" class="fs-4 text-primary">0.0%</strong><div class="progress mt-1" role="progressbar" style="height: 5px;"><div id="prodi-${prodiSafeId}-persen-bar" class="progress-bar" style="width: 0%;"></div></div></div></div></div><div class="mt-3"><h6 class="text-center small text-muted">Progress Bulanan</h6><canvas id="chart-prodi-${prodiSafeId}-progress"></canvas></div></div></div>`; container.insertAdjacentHTML('beforeend', prodiHtml); const prodiInfo = (STATE.allProdi || []).find(p => p.ID_Prodi === prodiId); const pagu = prodiInfo ? (Number(prodiInfo.Pagu_Anggaran) || 0) : 0; let totalDiajukan = 0, totalDiterima = 0, totalRPD = 0, totalRealisasi = 0; const rpdPerBulan = Array(12).fill(0); const realisasiPerBulan = Array(12).fill(0); prodiData.forEach(ajuan => { totalDiajukan += Number(ajuan.Total) || 0; if (ajuan.Status === 'Diterima') { totalDiterima += Number(ajuan.Total) || 0; RPD_MONTHS.forEach((month, index) => { const rpdVal = Number(ajuan[`RPD_${month}`]) || 0; const realVal = Number(ajuan[`Realisasi_${month}`]) || 0; totalRPD += rpdVal; totalRealisasi += realVal; rpdPerBulan[index] += rpdVal; realisasiPerBulan[index] += realVal; }); } }); const sisaPagu = pagu - totalDiterima; const sisaPaguClass = sisaPagu < 0 ? 'text-danger' : 'text-success'; document.getElementById(`prodi-${prodiSafeId}-pagu`).textContent = 'Rp ' + pagu.toLocaleString('id-ID'); const sisaPaguEl = document.getElementById(`prodi-${prodiSafeId}-sisa-pagu`); sisaPaguEl.textContent = 'Rp ' + sisaPagu.toLocaleString('id-ID'); sisaPaguEl.className = `fs-6 fw-bold ${sisaPaguClass}`; const persentaseRealisasi = totalRPD > 0 ? (totalRealisasi / totalRPD) * 100 : 0; document.getElementById(`prodi-${prodiSafeId}-diajukan`).textContent = 'Rp ' + totalDiajukan.toLocaleString('id-ID'); document.getElementById(`prodi-${prodiSafeId}-diterima`).textContent = 'Rp ' + totalDiterima.toLocaleString('id-ID'); document.getElementById(`prodi-${prodiSafeId}-rpd`).textContent = 'Rp ' + totalRPD.toLocaleString('id-ID'); document.getElementById(`prodi-${prodiSafeId}-realisasi`).textContent = 'Rp ' + totalRealisasi.toLocaleString('id-ID'); const persenEl = document.getElementById(`prodi-${prodiSafeId}-persen`); if (persenEl) persenEl.textContent = persentaseRealisasi.toFixed(1) + '%'; const persenBarEl = document.getElementById(`prodi-${prodiSafeId}-persen-bar`); if (persenBarEl) persenBarEl.style.width = `${Math.min(persentaseRealisasi, 100)}%`; setupChart(`chart-prodi-${prodiSafeId}-progress`, 'bar', { labels: RPD_MONTHS, datasets: [{ label: 'Realisasi (Rp)', data: realisasiPerBulan, backgroundColor: 'rgba(255, 193, 7, 0.7)' }, { label: 'RPD (Rp)', data: rpdPerBulan, backgroundColor: 'rgba(13, 110, 253, 0.6)' }] }, { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }); }
+  
+  document.querySelector('[data-bs-target="#tab-manage"]').addEventListener('shown.bs.tab', async () => { if (STATE.role === 'direktorat') { await refreshProdiData(); await loadGlobalSettings(); await loadAnnouncement(); await loadBeritaAcaraSettings(); } });
   window.savePagu = async (uid) => { const paguInput = document.getElementById(`pagu-input-${uid}`); const newPagu = Number(paguInput.value) || 0; if (newPagu < 0) { showToast("Pagu tidak boleh negatif.", "warning"); return; } showLoader(true); try { await db.collection('users').doc(uid).update({ Pagu_Anggaran: newPagu }); showToast(`Pagu anggaran berhasil disimpan.`, "success"); } catch (error) { showToast(`Gagal menyimpan pagu: ${error.message}`, "danger"); } finally { showLoader(false); } };
   document.getElementById('btn-save-settings').addEventListener('click', async () => {
     const deadlineInput = document.getElementById('ms_deadline').value;
     const tahapPerubahan = document.getElementById('ms_tahap_perubahan').value;
-    const settingsToUpdate = { Status_Ajuan_Perubahan: tahapPerubahan };
+    const jumlahTahap = parseInt(document.getElementById('ms_jumlah_tahap_perubahan').value, 10) || 1;
+    const tahapAktif = parseInt(document.getElementById('ms_tahap_perubahan_aktif').value, 10) || 1;
+
+    const settingsToUpdate = { 
+        Status_Ajuan_Perubahan: tahapPerubahan,
+        Jumlah_Tahap_Perubahan: jumlahTahap,
+        Tahap_Perubahan_Aktif: tahapAktif
+    };
     if (deadlineInput) {
         const deadlineDate = new Date(deadlineInput);
         deadlineDate.setHours(23, 59, 59, 999);
-        // FIX: Convert the native JS Date object to a Firestore Timestamp object.
         settingsToUpdate.Batas_Tanggal_Pengajuan = firebase.firestore.Timestamp.fromDate(deadlineDate);
     } else {
         settingsToUpdate.Batas_Tanggal_Pengajuan = null;
@@ -1837,80 +2345,36 @@ document.addEventListener('DOMContentLoaded', function() {
         showLoader(false);
     }
   });
-  async function loadGlobalSettings() { try { const doc = await db.collection('appConfig').doc('settings').get(); if (doc.exists) { STATE.globalSettings = doc.data(); const deadline = STATE.globalSettings.Batas_Tanggal_Pengajuan; if (deadline && deadline.toDate) { const deadlineDate = deadline.toDate(); document.getElementById('current-deadline-display').textContent = deadlineDate.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); const yyyy = deadlineDate.getFullYear(); const mm = String(deadlineDate.getMonth() + 1).padStart(2, '0'); const dd = String(deadlineDate.getDate()).padStart(2, '0'); document.getElementById('ms_deadline').value = `${yyyy}-${mm}-${dd}`; } else { document.getElementById('current-deadline-display').textContent = "Belum ditentukan"; } const tahapStatus = STATE.globalSettings.Status_Ajuan_Perubahan || 'Ditutup'; const tahapDisplay = document.getElementById('current-tahap-display'); tahapDisplay.textContent = tahapStatus; document.getElementById('ms_tahap_perubahan').value = tahapStatus; tahapDisplay.classList.toggle('text-success', tahapStatus === 'Dibuka'); tahapDisplay.classList.toggle('text-danger', tahapStatus !== 'Dibuka'); } else { document.getElementById('current-deadline-display').textContent = "Belum ditentukan"; document.getElementById('current-tahap-display').textContent = "Ditutup"; STATE.globalSettings.Status_Ajuan_Perubahan = 'Ditutup'; } } catch (error) { console.error("Gagal memuat pengaturan global:", error); } }
-  
-  // -- REVISED PAGU DISPLAY LOGIC STARTS HERE --
-  async function updateProdiPaguInfo(prodiData) {
-      if (STATE.role !== 'prodi') return;
-      const paguInfoEl = document.getElementById('pagu-info-area');
-      try {
-          const pagu = prodiData.Pagu_Anggaran || 0;
-          let content = '';
-          if (pagu > 0) {
-              const activeAjuanQuery = await db.collection('ajuan')
-                  .where('ID_Prodi', '==', STATE.id)
-                  .where('Status', 'in', ['Menunggu Review', 'Diterima', 'Revisi'])
-                  .get();
-              
-              let totalDigunakan = 0;
-              activeAjuanQuery.forEach(doc => {
-                  totalDigunakan += Number(doc.data().Total) || 0;
-              });
-              
-              const sisaPagu = pagu - totalDigunakan;
-              const persenTerpakai = pagu > 0 ? (totalDigunakan / pagu * 100) : 0;
-              const persenTerpakaiFormatted = persenTerpakai.toFixed(1);
-
-              content = `
-                  <div class="fw-bold">Pagu Anggaran Anda: Rp ${pagu.toLocaleString('id-ID')}</div>
-                  <div class="small">Telah Diajukan (non-ditolak): Rp ${totalDigunakan.toLocaleString('id-ID')} | Sisa: <strong class="text-${sisaPagu < 0 ? 'danger' : 'success'}">Rp ${sisaPagu.toLocaleString('id-ID')}</strong></div>
-                  <div class="progress mt-1" role="progressbar" style="height: 10px;">
-                      <div class="progress-bar ${persenTerpakai > 100 ? 'bg-danger' : ''}" style="width: ${Math.min(persenTerpakai, 100)}%;">${persenTerpakaiFormatted}%</div>
-                  </div>
-              `;
-          } else {
-              content = `<div class="fw-bold">Pagu Anggaran Anda belum ditentukan oleh direktorat.</div>`;
-          }
-          paguInfoEl.innerHTML = content;
-      } catch(e) {
-          paguInfoEl.innerHTML = `Gagal memuat info pagu anggaran.`;
-          console.error("Error updating pagu info:", e);
-      }
+  async function loadGlobalSettings() { try { const doc = await db.collection('appConfig').doc('settings').get(); if (doc.exists) { STATE.globalSettings = doc.data(); const deadline = STATE.globalSettings.Batas_Tanggal_Pengajuan; if (deadline && deadline.toDate) { const deadlineDate = deadline.toDate(); document.getElementById('current-deadline-display').textContent = deadlineDate.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); const yyyy = deadlineDate.getFullYear(); const mm = String(deadlineDate.getMonth() + 1).padStart(2, '0'); const dd = String(deadlineDate.getDate()).padStart(2, '0'); document.getElementById('ms_deadline').value = `${yyyy}-${mm}-${dd}`; } else { document.getElementById('current-deadline-display').textContent = "Belum ditentukan"; } const tahapStatus = STATE.globalSettings.Status_Ajuan_Perubahan || 'Ditutup'; const tahapDisplay = document.getElementById('current-tahap-display'); tahapDisplay.textContent = tahapStatus; document.getElementById('ms_tahap_perubahan').value = tahapStatus; tahapDisplay.classList.toggle('text-success', tahapStatus === 'Dibuka'); tahapDisplay.classList.toggle('text-danger', tahapStatus !== 'Dibuka'); 
+        
+        const jumlahTahap = STATE.globalSettings.Jumlah_Tahap_Perubahan || 1;
+        const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
+        document.getElementById('ms_jumlah_tahap_perubahan').value = jumlahTahap;
+        const selectAktif = document.getElementById('ms_tahap_perubahan_aktif');
+        selectAktif.innerHTML = '';
+        for (let i = 1; i <= jumlahTahap; i++) {
+            selectAktif.add(new Option(`Tahap ${i}`, i));
+        }
+        selectAktif.value = tahapAktif;
+        document.getElementById('current-tahap-aktif-display').textContent = `Tahap ${tahapAktif}`;
+        
+      } else { 
+        document.getElementById('current-deadline-display').textContent = "Belum ditentukan"; 
+        document.getElementById('current-tahap-display').textContent = "Ditutup"; 
+        document.getElementById('current-tahap-aktif-display').textContent = "Tahap 1";
+        STATE.globalSettings = { Status_Ajuan_Perubahan: 'Ditutup', Jumlah_Tahap_Perubahan: 1, Tahap_Perubahan_Aktif: 1 };
+      } } catch (error) { console.error("Gagal memuat pengaturan global:", error); } 
   }
-  // -- REVISED PAGU DISPLAY LOGIC ENDS HERE --
   
-  // DASHBOARD FUNCTIONS (mostly unchanged)
-  document.getElementById('btn-refresh-dashboard').addEventListener('click', loadDashboardData); document.querySelector('[data-bs-target="#tab-dashboard"]').addEventListener('shown.bs.tab', loadDashboardData); ['filterTahunDashboard', 'filterTipeDashboard'].forEach(id => document.getElementById(id).addEventListener('change', () => processDataForDashboard()));
-  async function loadDashboardData() { showLoader(true); try { let query = db.collection('ajuan'); if (STATE.role === 'prodi') { query = query.where('ID_Prodi', '==', STATE.id); } const snapshot = await query.get(); STATE.allDashboardData = snapshot.docs.map(doc => { const data = doc.data(); if (data.Timestamp && data.Timestamp.toDate) data.Timestamp = data.Timestamp.toDate(); return { ID_Ajuan: doc.id, ...data }; }); populateDashboardFilters(STATE.allDashboardData); processDataForDashboard(); await displayGlobalAnnouncement(); } catch(error) { showToast('Gagal memuat data dashboard.', 'danger'); console.error("Dashboard error:", error); } finally { showLoader(false); } }
-  function populateDashboardFilters(data) { const yearSelect = document.getElementById('filterTahunDashboard'); const years = [...new Set(data.map(d => { if(d.Timestamp) return new Date(d.Timestamp).getFullYear(); return null; }))].filter(Boolean).sort((a, b) => b - a); yearSelect.innerHTML = '<option value="">Semua Tahun</option>'; years.forEach(year => { if (!isNaN(year)) yearSelect.innerHTML += `<option value="${year}">${year}</option>`; }); }
-  function setupChart(canvasId, type, data, options) { const canvas = document.getElementById(canvasId); if (!canvas) return; if (CHARTS[canvasId]) CHARTS[canvasId].destroy(); CHARTS[canvasId] = new Chart(canvas.getContext('2d'), { type, data, options }); }
-  function calculateQuarterlySummary(monthlyData, total) { const quarters = [0, 0, 0, 0]; for (let i = 0; i < 12; i++) { if (i < 3) quarters[0] += monthlyData[i]; else if (i < 6) quarters[1] += monthlyData[i]; else if (i < 9) quarters[2] += monthlyData[i]; else quarters[3] += monthlyData[i]; } return { values: quarters, percentages: quarters.map(q => total > 0 ? ((q / total) * 100).toFixed(1) + '%' : '0.0%') }; }
-  function updateDashboardDeadlineInfo() { const deadlineInfoEl = document.getElementById('dashboard-deadline-info'); const deadline = STATE.globalSettings.Batas_Tanggal_Pengajuan; if (deadline && deadline.toDate) { const deadlineDate = deadline.toDate(); const today = new Date(); today.setHours(23, 59, 59, 999); let alertClass = 'alert-info'; let message = `Batas waktu pengajuan adalah <strong>${deadlineDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong>.`; if (today > deadlineDate) { alertClass = 'alert-danger'; message = `Periode pengajuan telah berakhir pada <strong>${deadlineDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}</strong>.`; } deadlineInfoEl.innerHTML = `<i class="bi bi-info-circle-fill me-2"></i> ${message}`; deadlineInfoEl.className = `alert ${alertClass} text-center small p-2`; deadlineInfoEl.style.display = 'block'; } else { deadlineInfoEl.innerHTML = `<i class="bi bi-info-circle-fill me-2"></i> Batas waktu pengajuan belum ditentukan oleh direktorat.`; deadlineInfoEl.className = 'alert alert-warning text-center small p-2'; deadlineInfoEl.style.display = 'block'; } }
-  function processDataForDashboard() { updateDashboardDeadlineInfo(); const selectedYear = document.getElementById('filterTahunDashboard').value; const selectedTipe = document.getElementById('filterTipeDashboard').value; let filteredData = STATE.allDashboardData.filter(d => { const date = d.Timestamp ? new Date(d.Timestamp) : null; if (!date) return false; const yearMatch = !selectedYear || date.getFullYear() == selectedYear; const tipeMatch = !selectedTipe || (d.Tipe_Ajuan || 'Awal') === selectedTipe; return yearMatch && tipeMatch; }); renderDashboardSummary(filteredData); if (STATE.role === 'direktorat') { renderDirektoratDashboard(filteredData); } }
-  function renderDashboardSummary(data, containerPrefix = 'dashboard-', chartPrefix = 'chart') { let totalDiajukan = 0, totalDiterima = 0; let statusCounts = { 'Menunggu Review': 0, 'Diterima': 0, 'Ditolak': 0, 'Revisi': 0 }; const rpdPerBulan = Array(12).fill(0); const realisasiPerBulan = Array(12).fill(0); data.forEach(ajuan => { totalDiajukan += Number(ajuan.Total) || 0; if (ajuan.Status) { statusCounts[ajuan.Status] = (statusCounts[ajuan.Status] || 0) + 1; } if (ajuan.Status === 'Diterima') { totalDiterima += Number(ajuan.Total) || 0; RPD_MONTHS.forEach((month, index) => { rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0; realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0; }); } }); const totalRPD = rpdPerBulan.reduce((a, b) => a + b, 0); const totalRealisasi = realisasiPerBulan.reduce((a, b) => a + b, 0); document.getElementById(`${containerPrefix}total-diajukan`).textContent = 'Rp ' + totalDiajukan.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}total-diterima`).textContent = 'Rp ' + totalDiterima.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}total-rpd`).textContent = 'Rp ' + totalRPD.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}total-realisasi`).textContent = 'Rp ' + totalRealisasi.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}count-menunggu`).textContent = statusCounts['Menunggu Review']; document.getElementById(`${containerPrefix}count-diterima`).textContent = statusCounts['Diterima']; document.getElementById(`${containerPrefix}count-ditolak`).textContent = statusCounts['Ditolak']; document.getElementById(`${containerPrefix}count-revisi`).textContent = statusCounts['Revisi']; const paguCard = document.getElementById('dashboard-total-pagu-card'); const paguValueEl = document.getElementById('dashboard-total-pagu'); const paguLabelEl = document.getElementById('dashboard-pagu-label'); paguCard.style.display = 'none'; if (STATE.role === 'direktorat') { const totalPagu = (STATE.allProdi || []).filter(p => p.Role === 'prodi').reduce((sum, p) => sum + (Number(p.Pagu_Anggaran) || 0), 0); paguValueEl.textContent = 'Rp ' + totalPagu.toLocaleString('id-ID'); paguLabelEl.textContent = 'TOTAL PAGU PRODI'; paguCard.style.display = 'block'; } else if (STATE.role === 'prodi' && STATE.currentUserData) { const pagu = STATE.currentUserData.Pagu_Anggaran || 0; paguValueEl.textContent = 'Rp ' + pagu.toLocaleString('id-ID'); paguLabelEl.textContent = 'PAGU ANGGARAN SAYA'; paguCard.style.display = 'block'; } setupChart(`${chartPrefix}RPDvsRealisasi`, 'bar', { labels: RPD_MONTHS, datasets: [{ label: 'Realisasi (Rp)', data: realisasiPerBulan, backgroundColor: 'rgba(255, 193, 7, 0.7)' }, { label: 'RPD (Rp)', data: rpdPerBulan, backgroundColor: 'rgba(13, 110, 253, 0.6)' }] }, { responsive: true, scales: { x: { stacked: false }, y: { stacked: false, beginAtZero: true } } }); if (containerPrefix === 'dashboard-') { const persentaseRealisasi = totalRPD > 0 ? (totalRealisasi / totalRPD) * 100 : 0; document.getElementById('dashboard-persen-realisasi').textContent = persentaseRealisasi.toFixed(1) + '%'; const progressBar = document.getElementById('dashboard-persen-realisasi-bar'); if (progressBar) progressBar.style.width = `${Math.min(persentaseRealisasi, 100)}%`; const rpdTriwulan = calculateQuarterlySummary(rpdPerBulan, totalRPD); const realisasiTriwulan = calculateQuarterlySummary(realisasiPerBulan, totalRealisasi); const summariesContainer = document.getElementById('dashboard-triwulan-summaries'); if (summariesContainer) { summariesContainer.innerHTML = `<h6 class="small text-muted mt-2">Rencana Penarikan Dana (RPD)</h6><table class="table table-sm table-borderless text-center small"><thead class="table-light"><tr><th>Triwulan</th><th>Total RPD</th><th>%</th></tr></thead><tbody>${rpdTriwulan.values.map((val, i) => `<tr><td><strong>Q${i+1}</strong></td><td>Rp ${val.toLocaleString('id-ID')}</td><td><span class="badge bg-primary-subtle text-primary-emphasis">${rpdTriwulan.percentages[i]}</span></td></tr>`).join('')}</tbody></table><h6 class="small text-muted mt-3">Realisasi</h6><table class="table table-sm table-borderless text-center small"><thead class="table-light"><tr><th>Triwulan</th><th>Total Realisasi</th><th>%</th></tr></thead><tbody>${realisasiTriwulan.values.map((val, i) => `<tr><td><strong>Q${i+1}</strong></td><td>Rp ${val.toLocaleString('id-ID')}</td><td><span class="badge bg-success-subtle text-success-emphasis">${realisasiTriwulan.percentages[i]}</span></td></tr>`).join('')}</tbody></table>`; } } }
-  function renderDirektoratDashboard(data) { const ajuanPerBulan = Array(12).fill(0); data.forEach(ajuan => { if(ajuan.Timestamp) { const month = new Date(ajuan.Timestamp).getMonth(); if (month >= 0 && month < 12) ajuanPerBulan[month]++; } }); setupChart('chartAjuanPerBulan', 'bar', { labels: RPD_MONTHS, datasets: [{ label: 'Jumlah Ajuan', data: ajuanPerBulan, backgroundColor: 'rgba(54, 162, 235, 0.6)' }] }, { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }); const ajuanPerStatus = data.reduce((acc, ajuan) => { acc[ajuan.Status] = (acc[ajuan.Status] || 0) + 1; return acc; }, {}); setupChart('chartAjuanPerStatus', 'doughnut', { labels: Object.keys(ajuanPerStatus), datasets: [{ data: Object.values(ajuanPerStatus), backgroundColor: ['#ffc107', '#198754', '#dc3545', '#fd7e14', '#6c757d'] }] }, { responsive: true, plugins: { legend: { position: 'top' } } }); const perProdiStats = data.reduce((acc, ajuan) => { const prodiId = ajuan.ID_Prodi || 'N/A'; if (!acc[prodiId]) acc[prodiId] = { count: 0, total: 0 }; acc[prodiId].count++; acc[prodiId].total += Number(ajuan.Total) || 0; return acc; }, {}); const prodiLabels = Object.keys(perProdiStats).sort(); const anggaranPerProdiData = prodiLabels.map(id => perProdiStats[id].total); const ajuanPerProdiData = prodiLabels.map(id => perProdiStats[id].count); setupChart('chartAnggaranPerProdi', 'bar', { labels: prodiLabels, datasets: [{ label: 'Total Anggaran (Rp)', data: anggaranPerProdiData, backgroundColor: 'rgba(25, 135, 84, 0.6)' }] }, { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } }); setupChart('chartAjuanPerProdi', 'pie', { labels: prodiLabels, datasets: [{ data: ajuanPerProdiData, backgroundColor: ['#0dcaf0', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#212529', '#ffc107'] }] }, { responsive: true, plugins: { legend: { position: 'top' } } }); const reportsContainer = document.getElementById('direktorat-prodi-reports'); reportsContainer.innerHTML = ''; const dataByProdi = data.reduce((acc, curr) => { (acc[curr.ID_Prodi] = acc[curr.ID_Prodi] || []).push(curr); return acc; }, {}); Object.keys(dataByProdi).sort().forEach(prodiId => renderProdiDetailReport(prodiId, dataByProdi[prodiId], reportsContainer)); }
-  function renderProdiDetailReport(prodiId, prodiData, container) { const prodiSafeId = prodiId.replace(/[^a-zA-Z0-9]/g, ''); const prodiHtml = `<div class="col-12 col-lg-6"><div class="card p-3 h-100"><h6 class="card-title mb-3 border-bottom pb-2"><strong><i class="bi bi-building"></i> Laporan: ${escapeHtml(prodiId)}</strong></h6><div class="row g-3"><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">PAGU ANGGARAN</div><strong id="prodi-${prodiSafeId}-pagu" class="fs-6 text-primary"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">SISA PAGU</div><strong id="prodi-${prodiSafeId}-sisa-pagu" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">DIAJUKAN</div><strong id="prodi-${prodiSafeId}-diajukan" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">DITERIMA</div><strong id="prodi-${prodiSafeId}-diterima" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">RPD</div><strong id="prodi-${prodiSafeId}-rpd" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">REALISASI</div><strong id="prodi-${prodiSafeId}-realisasi" class="fs-6"></strong></div></div><div class="col-12"><div class="card p-2 text-center bg-light"><div class="small text-muted">% REALISASI (DARI RPD)</div><strong id="prodi-${prodiSafeId}-persen" class="fs-4 text-primary">0.0%</strong><div class="progress mt-1" role="progressbar" style="height: 5px;"><div id="prodi-${prodiSafeId}-persen-bar" class="progress-bar" style="width: 0%;"></div></div></div></div></div><div class="mt-3"><h6 class="text-center small text-muted">Progress Bulanan</h6><canvas id="chart-prodi-${prodiSafeId}-progress"></canvas></div></div></div>`; container.insertAdjacentHTML('beforeend', prodiHtml); const prodiInfo = (STATE.allProdi || []).find(p => p.ID_Prodi === prodiId); const pagu = prodiInfo ? (Number(prodiInfo.Pagu_Anggaran) || 0) : 0; let totalDiajukan = 0, totalDiterima = 0, totalRPD = 0, totalRealisasi = 0; const rpdPerBulan = Array(12).fill(0); const realisasiPerBulan = Array(12).fill(0); prodiData.forEach(ajuan => { totalDiajukan += Number(ajuan.Total) || 0; if (ajuan.Status === 'Diterima') { totalDiterima += Number(ajuan.Total) || 0; RPD_MONTHS.forEach((month, index) => { const rpdVal = Number(ajuan[`RPD_${month}`]) || 0; const realVal = Number(ajuan[`Realisasi_${month}`]) || 0; totalRPD += rpdVal; totalRealisasi += realVal; rpdPerBulan[index] += rpdVal; realisasiPerBulan[index] += realVal; }); } }); const sisaPagu = pagu - totalDiterima; const sisaPaguClass = sisaPagu < 0 ? 'text-danger' : 'text-success'; document.getElementById(`prodi-${prodiSafeId}-pagu`).textContent = 'Rp ' + pagu.toLocaleString('id-ID'); const sisaPaguEl = document.getElementById(`prodi-${prodiSafeId}-sisa-pagu`); sisaPaguEl.textContent = 'Rp ' + sisaPagu.toLocaleString('id-ID'); sisaPaguEl.className = `fs-6 fw-bold ${sisaPaguClass}`; const persentaseRealisasi = totalRPD > 0 ? (totalRealisasi / totalRPD) * 100 : 0; document.getElementById(`prodi-${prodiSafeId}-diajukan`).textContent = 'Rp ' + totalDiajukan.toLocaleString('id-ID'); document.getElementById(`prodi-${prodiSafeId}-diterima`).textContent = 'Rp ' + totalDiterima.toLocaleString('id-ID'); document.getElementById(`prodi-${prodiSafeId}-rpd`).textContent = 'Rp ' + totalRPD.toLocaleString('id-ID'); document.getElementById(`prodi-${prodiSafeId}-realisasi`).textContent = 'Rp ' + totalRealisasi.toLocaleString('id-ID'); const persenEl = document.getElementById(`prodi-${prodiSafeId}-persen`); if (persenEl) persenEl.textContent = persentaseRealisasi.toFixed(1) + '%'; const persenBarEl = document.getElementById(`prodi-${prodiSafeId}-persen-bar`); if (persenBarEl) persenBarEl.style.width = `${Math.min(persentaseRealisasi, 100)}%`; setupChart(`chart-prodi-${prodiSafeId}-progress`, 'bar', { labels: RPD_MONTHS, datasets: [{ label: 'Realisasi (Rp)', data: realisasiPerBulan, backgroundColor: 'rgba(255, 193, 7, 0.7)' }, { label: 'RPD (Rp)', data: rpdPerBulan, backgroundColor: 'rgba(13, 110, 253, 0.6)' }] }, { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }); }
-  
-  // PRINT/EXPORT (Adjusted to be context-aware)
-  ['btn-print-daftar-awal', 'btn-print-daftar-perubahan', 'btn-print-rpd-awal', 'btn-print-rpd-perubahan', 'btn-print-realisasi-awal', 'btn-print-realisasi-perubahan'].forEach(id => document.getElementById(id).addEventListener('click', () => window.print()));
-  function exportToExcel(tipe) { const data = tipe === 'Awal' ? STATE.currentAjuanDataAwal : STATE.currentAjuanDataPerubahan; if (data.length === 0) { showToast('Tidak ada data untuk diekspor.', 'warning'); return; } const groupedData = data.reduce((acc, row) => { const grubKey = row.Grub_Belanja_Utama || 'Lain-lain'; const kelompokId = row.ID_Kelompok || 'Lain-lain'; const namaKelompok = (STATE.allKelompok.find(k => k.ID_Kelompok === kelompokId) || {}).Nama_Kelompok || 'Lain-lain'; const kelompokKey = `${kelompokId} - ${namaKelompok}`; const kegiatanKey = row.Judul_Kegiatan || 'Tanpa Judul'; if (!acc[grubKey]) acc[grubKey] = {}; if (!acc[grubKey][kelompokKey]) acc[grubKey][kelompokKey] = {}; if (!acc[grubKey][kelompokKey][kegiatanKey]) acc[grubKey][kelompokKey][kegiatanKey] = []; acc[grubKey][kelompokKey][kegiatanKey].push(row); return acc; }, {}); const sortedGrubKeys = Object.keys(groupedData).sort(); const exportData = []; const headers = ['ID Ajuan', 'Prodi', 'Rincian Ajuan', 'Jumlah', 'Satuan', 'Harga Satuan', 'Total', 'Status', 'Status Revisi', 'Keterangan', 'Catatan Reviewer', 'Timestamp']; exportData.push(headers); const merges = []; let rowIndex = 1; sortedGrubKeys.forEach(grubKey => { exportData.push([`Grub: ${grubKey}`]); merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: headers.length - 1 } }); rowIndex++; Object.keys(groupedData[grubKey]).sort().forEach(kelompokKey => { exportData.push([`  Kelompok: ${kelompokKey}`]); merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: headers.length - 1 } }); rowIndex++; Object.keys(groupedData[grubKey][kelompokKey]).sort().forEach(kegiatanKey => { exportData.push([`    Kegiatan: ${kegiatanKey}`]); merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: headers.length - 1 } }); rowIndex++; groupedData[grubKey][kelompokKey][kegiatanKey].forEach(r => { exportData.push([r.ID_Ajuan, r.ID_Prodi, r.Nama_Ajuan, r.Jumlah, r.Satuan, r.Harga_Satuan, r.Total, r.Status, r.Status_Revisi, r.Keterangan, r.Catatan_Reviewer, r.Timestamp]); rowIndex++; }); }); exportData.push([]); rowIndex++; }); }); const worksheet = XLSX.utils.aoa_to_sheet(exportData); worksheet['!merges'] = merges; const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, `Data Ajuan ${tipe}`); XLSX.writeFile(workbook, `rekap_ajuan_${tipe.toLowerCase()}.xlsx`); }
-  document.getElementById('btn-export-excel-awal').addEventListener('click', () => exportToExcel('Awal'));
-  document.getElementById('btn-export-excel-perubahan').addEventListener('click', () => exportToExcel('Perubahan'));
-
-  // The rest of user/kelompok management functions are unchanged and can be copied from the original script.
-  // ... (copy user and kelompok management functions like btn-add-user listener, etc. here)
   async function loadAnnouncement() { try { const doc = await db.collection('appConfig').doc('announcement').get(); if (doc.exists) { const data = doc.data(); document.getElementById('ma_announcement_text').value = data.text || ''; const statusEl = document.getElementById('current-announcement-status'); statusEl.textContent = data.isActive ? 'Aktif' : 'Tidak Aktif'; statusEl.className = `text-center fw-bold ${data.isActive ? 'text-success' : 'text-danger'}`; } } catch (e) { console.error("Gagal memuat pengumuman:", e); } }
   async function displayGlobalAnnouncement() { const area = document.getElementById('global-announcement-area'); try { const doc = await db.collection('appConfig').doc('announcement').get(); if (doc.exists && doc.data().isActive) { document.getElementById('global-announcement-text').innerText = doc.data().text; area.style.display = 'block'; } else { area.style.display = 'none'; } } catch (e) { area.style.display = 'none'; console.error("Gagal menampilkan pengumuman:", e); } }
   document.getElementById('btn-save-announcement').addEventListener('click', async () => { const text = document.getElementById('ma_announcement_text').value.trim(); if (!text) { showToast("Teks pengumuman tidak boleh kosong.", "warning"); return; } showLoader(true); try { await db.collection('appConfig').doc('announcement').set({ text: text, isActive: true, updatedBy: STATE.id, updatedAt: serverTimestamp() }, { merge: true }); showToast("Pengumuman berhasil dipublikasikan.", "success"); loadAnnouncement(); } catch (e) { showToast("Gagal menyimpan pengumuman.", "danger"); } finally { showLoader(false); } });
   document.getElementById('btn-deactivate-announcement').addEventListener('click', async () => { showLoader(true); try { await db.collection('appConfig').doc('announcement').update({ isActive: false }); showToast("Pengumuman berhasil dinonaktifkan.", "info"); loadAnnouncement(); } catch (e) { showToast("Gagal menonaktifkan pengumuman.", "danger"); } finally { showLoader(false); } });
-  function clearUserForm() { ['mp_UID', 'mp_ID', 'mp_Nama', 'mp_Email', 'mp_Role'].forEach(id => document.getElementById(id).value = ''); }
+  function clearUserForm() { ['mp_UID', 'mp_ID', 'mp_Nama', 'mp_Email', 'mp_Role', 'mp_BA_Jabatan', 'mp_BA_Nama'].forEach(id => document.getElementById(id).value = ''); document.getElementById('mp_ba_fields_wrapper').style.display = 'none'; }
   function clearKelompokForm() { ['mk_ID', 'mk_Nama'].forEach(id => document.getElementById(id).value = ''); document.getElementById('mk_ID').readOnly = false; }
-  window.fillEditProdi = (uid, id, nama, email, role) => { document.getElementById('mp_UID').value = uid; document.getElementById('mp_ID').value = id; document.getElementById('mp_Nama').value = nama; document.getElementById('mp_Email').value = email; document.getElementById('mp_Role').value = role; };
-  window.fillEditKelompok = (id, nama) => { document.getElementById('mk_ID').value = id; document.getElementById('mk_Nama').value = nama; document.getElementById('mk_ID').readOnly = true; };
   window.deleteUser = async (uid, prodiId) => { if (confirm(`Yakin ingin menghapus profil pengguna "${prodiId}"? \n\nPENTING: Aksi ini hanya menghapus profil dari database Si-Pandai. Anda HARUS menghapus pengguna dengan UID ${uid} secara manual dari Firebase Authentication Console untuk menghapus akun login sepenuhnya.`)) { showLoader(true); try { await db.collection('users').doc(uid).delete(); showToast(`Profil pengguna "${prodiId}" berhasil dihapus.`); clearUserForm(); await refreshProdiData(); } catch (error) { showToast(`Gagal menghapus profil: ${error.message}`, 'danger'); console.error(error); } finally { showLoader(false); } } };
   window.deleteKelompok = async (id) => { if (confirm(`Yakin ingin menghapus kelompok "${id}"?`)) { showLoader(true); try { await db.collection('kelompok').doc(id).delete(); showToast(`Kelompok "${id}" berhasil dihapus.`); clearKelompokForm(); await refreshKelompokData(); } catch (error) { showToast(`Gagal menghapus kelompok: ${error.message}`, 'danger'); console.error(error); } finally { showLoader(false); } } };
   document.getElementById('btn-add-user').addEventListener('click', async () => { const email = document.getElementById('mp_new_email').value.trim(); const password = document.getElementById('mp_new_password').value; const idProdi = document.getElementById('mp_new_id').value.trim(); const namaProdi = document.getElementById('mp_new_nama').value.trim(); const role = document.getElementById('mp_new_role').value; if (!email || !password || !idProdi || !namaProdi) { showToast('Semua field untuk pengguna baru wajib diisi.', 'warning'); return; } if (password.length < 6) { showToast('Password harus minimal 6 karakter.', 'warning'); return; } showLoader(true); let secondaryApp; try { secondaryApp = firebase.initializeApp(firebaseConfig, "secondaryAuthApp" + Date.now()); const secondaryAuth = secondaryApp.auth(); const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, password); const newUser = userCredential.user; await db.collection('users').doc(newUser.uid).set({ Email: email, ID_Prodi: idProdi, Nama_Prodi: namaProdi, Role: role, Pagu_Anggaran: 0 }); showToast(`Pengguna baru "${namaProdi}" berhasil dibuat.`, 'success'); ['mp_new_email', 'mp_new_password', 'mp_new_id', 'mp_new_nama'].forEach(id => document.getElementById(id).value = ''); await refreshProdiData(); } catch (error) { showToast(`Gagal membuat pengguna: ${error.message}`, 'danger'); console.error(error); } finally { if (secondaryApp) { await secondaryApp.delete(); } showLoader(false); } });
-  document.getElementById('btn-save-prodi').addEventListener('click', async () => { const uid = document.getElementById('mp_UID').value; if (!uid) { showToast('Silakan pilih pengguna dari daftar untuk diedit.', 'warning'); return; } const dataToUpdate = { Nama_Prodi: document.getElementById('mp_Nama').value.trim(), Role: document.getElementById('mp_Role').value }; if (!dataToUpdate.Nama_Prodi) { showToast('Nama Prodi / Direktorat tidak boleh kosong.', 'warning'); return; } showLoader(true); try { await db.collection('users').doc(uid).update(dataToUpdate); showToast('Data pengguna berhasil diperbarui.'); clearUserForm(); refreshProdiData(); } catch (error) { showToast(`Gagal memperbarui pengguna: ${error.message}`, 'danger'); } finally { showLoader(false); } });
   document.getElementById('btn-save-kelompok').addEventListener('click', async () => { const id = document.getElementById('mk_ID').value.trim(); const nama = document.getElementById('mk_Nama').value.trim(); if (!id || !nama) { showToast('ID dan Nama Kelompok wajib diisi.', 'warning'); return; } showLoader(true); try { await db.collection('kelompok').doc(id).set({ ID_Kelompok: id, Nama_Kelompok: nama }, { merge: true }); showToast('Kelompok berhasil disimpan.'); clearKelompokForm(); await refreshKelompokData(); } catch (error) { showToast(`Gagal menyimpan kelompok: ${error.message}`, 'danger'); } finally { showLoader(false); } });
   document.getElementById('btn-download-template-user').addEventListener('click', () => { const data = [['ID_Prodi', 'Nama_Prodi', 'Email', 'Role'], ['D3-KEP', 'D3 Keperawatan', 'd3kep@poltekkeskupang.ac.id', 'prodi']]; const worksheet = XLSX.utils.aoa_to_sheet(data); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Template Pengguna"); XLSX.writeFile(workbook, "template_pengguna.xlsx"); showToast('Template pengguna berhasil diunduh.', 'info'); });
   document.getElementById('input-upload-excel-user').addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; showLoader(true); const reader = new FileReader(); reader.onload = async (event) => { try { const data = new Uint8Array(event.target.result); const workbook = XLSX.read(data, { type: 'array' }); const firstSheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }); if (jsonData.length < 2 || jsonData[0][0] !== 'ID_Prodi' || jsonData[0][1] !== 'Nama_Prodi' || jsonData[0][2] !== 'Email' || jsonData[0][3] !== 'Role') { throw new Error('Format file tidak sesuai. Pastikan header adalah ID_Prodi, Nama_Prodi, Email, Role.'); } const batch = db.batch(); let count = 0; for (let i = 1; i < jsonData.length; i++) { const row = jsonData[i]; const idProdi = String(row[0] || '').trim(); const namaProdi = String(row[1] || '').trim(); const email = String(row[2] || '').trim(); const role = String(row[3] || 'prodi').trim(); if (idProdi && namaProdi && email && role) { const userRef = db.collection("users").doc(); batch.set(userRef, { ID_Prodi: idProdi, Nama_Prodi: namaProdi, Email: email, Role: role, Pagu_Anggaran: 0 }); count++; } } if (count === 0) { throw new Error("Tidak ada data pengguna yang valid untuk diunggah."); } await batch.commit(); showToast(`${count} profil pengguna berhasil diunggah dari Excel.`, 'success'); await refreshProdiData(); } catch (error) { showToast(`Gagal memproses file: ${error.message}`, 'danger'); } finally { showLoader(false); e.target.value = ''; } }; reader.readAsArrayBuffer(file); });
@@ -1919,12 +2383,10 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // -- BACKUP AND RESTORE FUNCTIONS --
   const COLLECTIONS_TO_BACKUP = ['ajuan', 'users', 'kelompok', 'appConfig', 'notifications'];
-
   async function backupAllData() {
       if (STATE.role !== 'direktorat') { showToast("Hanya direktorat yang dapat melakukan backup.", "warning"); return; }
       showLoader(true);
       showToast("Memulai proses backup, ini mungkin memakan waktu beberapa saat...", "info");
-
       const backupData = {};
       try {
           for (const collectionName of COLLECTIONS_TO_BACKUP) {
@@ -1932,7 +2394,6 @@ document.addEventListener('DOMContentLoaded', function() {
               const docs = [];
               for (const doc of snapshot.docs) {
                   let data = doc.data();
-                  // Special handling for 'ajuan' to include 'history' subcollection
                   if (collectionName === 'ajuan') {
                       const historySnapshot = await doc.ref.collection('history').get();
                       data.history = historySnapshot.docs.map(historyDoc => ({ id: historyDoc.id, ...historyDoc.data() }));
@@ -1941,7 +2402,6 @@ document.addEventListener('DOMContentLoaded', function() {
               }
               backupData[collectionName] = docs;
           }
-
           const jsonString = JSON.stringify(backupData, null, 2);
           const blob = new Blob([jsonString], { type: 'application/json' });
           const url = URL.createObjectURL(blob);
@@ -1953,7 +2413,6 @@ document.addEventListener('DOMContentLoaded', function() {
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
-
           showToast("Backup data berhasil diunduh.", "success");
       } catch (error) {
           console.error("Backup failed:", error);
@@ -1962,19 +2421,15 @@ document.addEventListener('DOMContentLoaded', function() {
           showLoader(false);
       }
   }
-
   async function handleRestoreFile(event) {
       const file = event.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = async (e) => {
           try {
               const data = JSON.parse(e.target.result);
-              
               const promptMessage = `PERINGATAN: Aksi ini akan MENGHAPUS SEMUA DATA saat ini di koleksi: ${COLLECTIONS_TO_BACKUP.join(', ')} dan menggantinya dengan data dari file backup. \n\nAksi ini tidak dapat dibatalkan. Ketik 'RESTORE' untuk melanjutkan.`;
               const confirmation = prompt(promptMessage);
-
               if (confirmation === 'RESTORE') {
                   await executeRestore(data);
               } else {
@@ -1984,18 +2439,15 @@ document.addEventListener('DOMContentLoaded', function() {
               showToast(`Gagal membaca file restore: ${error.message}`, "danger");
               console.error("Restore file read error:", error);
           } finally {
-              event.target.value = ''; // Reset file input
+              event.target.value = '';
           }
       };
       reader.readAsText(file);
   }
-  
   async function executeRestore(data) {
       showLoader(true);
       showToast("Memulai proses restore. JANGAN tutup atau refresh halaman ini.", "info");
-
       try {
-          // Delete existing data
           for (const collectionName of COLLECTIONS_TO_BACKUP) {
               showToast(`Menghapus data lama di '${collectionName}'...`, 'warning');
               const collectionRef = db.collection(collectionName);
@@ -2014,8 +2466,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 await Promise.all(batchPromises);
               }
           }
-
-          // Write new data
           for (const collectionName of COLLECTIONS_TO_BACKUP) {
               if (data[collectionName]) {
                   showToast(`Menulis data baru ke '${collectionName}'...`, 'info');
@@ -2025,12 +2475,10 @@ document.addEventListener('DOMContentLoaded', function() {
                   for (let i = 0; i < docs.length; i++) {
                       const docData = docs[i];
                       const { id, history, ...restData } = docData;
-
-                      // Convert timestamp objects back to Firestore Timestamps
                       for (const key in restData) {
                           if (restData[key] && restData[key].seconds !== undefined && restData[key].nanoseconds !== undefined) {
                               restData[key] = new firebase.firestore.Timestamp(restData[key].seconds, restData[key].nanoseconds);
-                          } else if (Array.isArray(restData[key])) { // Handle timestamps in arrays (e.g., Komentar)
+                          } else if (Array.isArray(restData[key])) { 
                               restData[key] = restData[key].map(item => {
                                   if (item && item.timestamp && item.timestamp.seconds !== undefined) {
                                       item.timestamp = new firebase.firestore.Timestamp(item.timestamp.seconds, item.timestamp.nanoseconds);
@@ -2039,11 +2487,8 @@ document.addEventListener('DOMContentLoaded', function() {
                               });
                           }
                       }
-
                       const docRef = db.collection(collectionName).doc(id);
                       batch.set(docRef, restData);
-
-                      // Handle history subcollection for 'ajuan'
                       if (collectionName === 'ajuan' && history && Array.isArray(history)) {
                           for (const historyDoc of history) {
                               const { id: historyId, ...historyData } = historyDoc;
@@ -2055,7 +2500,7 @@ document.addEventListener('DOMContentLoaded', function() {
                           }
                       }
                       
-                      if ((i + 1) % 250 === 0) { // Using smaller batch size for writes with subcollections
+                      if ((i + 1) % 250 === 0) { 
                           batchPromises.push(batch.commit());
                           batch = db.batch();
                       }
@@ -2064,7 +2509,6 @@ document.addEventListener('DOMContentLoaded', function() {
                   await Promise.all(batchPromises);
               }
           }
-
           showToast("Restore data berhasil diselesaikan! Silakan refresh halaman.", "success");
       } catch (error) {
           showToast(`Restore gagal: ${error.message}`, "danger");
@@ -2076,15 +2520,168 @@ document.addEventListener('DOMContentLoaded', function() {
 
   document.getElementById('btn-backup-data').addEventListener('click', backupAllData);
   document.getElementById('input-restore-data').addEventListener('change', handleRestoreFile);
+  
+  // --- NEW FUNCTIONS FOR PRINTING AND EXCEL EXPORT ---
+  function printContent(elementId, title) {
+    const contentElement = document.getElementById(elementId);
+    if (!contentElement || !contentElement.innerHTML.includes('<table')) {
+      showToast('Tidak ada data untuk dicetak.', 'warning');
+      return;
+    }
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${title}</title>
+          <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+            th, td { border: 1px solid #dee2e6; padding: 6px; text-align: left; vertical-align: top; }
+            th { background-color: #f8f9fa; }
+            h3 { text-align: center; margin-bottom: 20px; }
+            .action-buttons { display: none; } /* Hide action columns */
+            input[type=number] { border: none; background: transparent; width: 100%; text-align: right; -moz-appearance: textfield; }
+            input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+            tr[class^="group-header-"] td { font-weight: bold; background-color: #e9ecef; }
+            .prodi-indicator { border-left: none !important; }
+          </style>
+        </head>
+        <body>
+          <h3>${title}</h3>
+          ${contentElement.innerHTML}
+        </body>
+      </html>
+    `);
+    const actionHeaders = printWindow.document.querySelectorAll('th.action-buttons');
+    actionHeaders.forEach(th => th.remove());
+    const actionCells = printWindow.document.querySelectorAll('td.action-buttons');
+    actionCells.forEach(td => td.remove());
+    const checkboxes = printWindow.document.querySelectorAll('input[type=checkbox]');
+    checkboxes.forEach(cb => {
+        if (cb.parentElement.tagName === 'TH' || cb.parentElement.tagName === 'TD') {
+            cb.parentElement.remove();
+        }
+    });
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }, 500);
+  }
+
+  function exportToExcel(tableContainerId, fileName, title) {
+    const tableContainer = document.getElementById(tableContainerId);
+    const table = tableContainer ? tableContainer.querySelector('table') : null;
+    if (!table) {
+      showToast('Tidak ada data untuk diekspor.', 'warning');
+      return;
+    }
+    showToast('Mempersiapkan file Excel...', 'info');
+
+    const data = [];
+    const merges = [];
+    let rowIndex = 0;
+
+    let maxCols = 0;
+    Array.from(table.rows).forEach(row => {
+        let currentCols = 0;
+        Array.from(row.cells).forEach(cell => {
+            if (!cell.classList.contains('action-buttons') && !(cell.querySelector('input[type=checkbox]'))) {
+                currentCols += cell.colSpan || 1;
+            }
+        });
+        if (currentCols > maxCols) maxCols = currentCols;
+    });
+
+    if (maxCols > 0) {
+        const titleRow = [title];
+        for (let i = 1; i < maxCols; i++) titleRow.push('');
+        data.push(titleRow);
+        merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: maxCols - 1 } });
+        rowIndex++;
+        data.push([]);
+        rowIndex++;
+    }
+
+    for (const row of table.rows) {
+      const rowData = [];
+      let colIndex = 0;
+      for (let i = 0; i < row.cells.length; i++) {
+        const cell = row.cells[i];
+        if (i === 0 && cell.querySelector('input[type=checkbox]')) continue;
+        if (cell.classList.contains('action-buttons')) continue;
+        
+        let cellValue = cell.innerText.trim();
+        const input = cell.querySelector('input[type=number]');
+        if (input) {
+          cellValue = Number(input.value) || 0;
+        } else if (cell.classList.contains('text-end')) {
+            const numericValue = parseFloat(cellValue.replace(/[^0-9,-]/g, '').replace(',', '.'));
+            if(!isNaN(numericValue)) cellValue = numericValue;
+        }
+
+        rowData.push(cellValue);
+        const colSpan = cell.colSpan || 1;
+        if (colSpan > 1) {
+          merges.push({ s: { r: rowIndex, c: colIndex }, e: { r: rowIndex, c: colIndex + colSpan - 1 } });
+          for (let k = 1; k < colSpan; k++) rowData.push('');
+          colIndex += colSpan;
+        } else {
+          colIndex++;
+        }
+      }
+      if (rowData.length > 0) {
+        data.push(rowData);
+        rowIndex++;
+      }
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!merges'] = merges;
+    
+    const colWidths = [];
+    if(data.length > 2) {
+      for(let i = 0; i < data[2].length; i++){
+        let maxLen = 0;
+        for(let j=2; j<data.length; j++) {
+            const cellContent = data[j] ? data[j][i] : '';
+            if(cellContent && cellContent.toString().length > maxLen) {
+                maxLen = cellContent.toString().length;
+            }
+        }
+        colWidths.push({ wch: Math.min(Math.max(maxLen, 12), 45) });
+      }
+      ws['!cols'] = colWidths;
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, title.substring(0, 30));
+    XLSX.writeFile(wb, fileName);
+  }
+
+  // Add Event Listeners for Print and Excel Buttons
+  document.getElementById('btn-print-daftar-awal').addEventListener('click', () => printContent('tableAjuanAwal', 'Daftar Ajuan Awal'));
+  document.getElementById('btn-export-excel-awal').addEventListener('click', () => exportToExcel('tableAjuanAwal', 'Daftar_Ajuan_Awal.xlsx', 'Daftar Ajuan Awal'));
+  
+  document.getElementById('btn-print-daftar-perubahan').addEventListener('click', () => printContent('tableAjuanPerubahan', 'Daftar Ajuan Perubahan'));
+  document.getElementById('btn-export-excel-perubahan').addEventListener('click', () => exportToExcel('tableAjuanPerubahan', 'Daftar_Ajuan_Perubahan.xlsx', 'Daftar Ajuan Perubahan'));
+
+  document.getElementById('btn-print-rpd-awal').addEventListener('click', () => printContent('tableRPDAwal', 'RPD Awal'));
+  document.getElementById('btn-export-excel-rpd-awal').addEventListener('click', () => exportToExcel('tableRPDAwal', 'RPD_Awal.xlsx', 'RPD Awal'));
+
+  document.getElementById('btn-print-rpd-perubahan').addEventListener('click', () => printContent('tableRPDPerubahan', 'RPD Perubahan'));
+  document.getElementById('btn-export-excel-rpd-perubahan').addEventListener('click', () => exportToExcel('tableRPDPerubahan', 'RPD_Perubahan.xlsx', 'RPD Perubahan'));
+
+  document.getElementById('btn-print-realisasi-awal').addEventListener('click', () => printContent('tableRealisasiAwal', 'Realisasi Awal'));
+  document.getElementById('btn-export-excel-realisasi-awal').addEventListener('click', () => exportToExcel('tableRealisasiAwal', 'Realisasi_Awal.xlsx', 'Realisasi Awal'));
+  
+  document.getElementById('btn-print-realisasi-perubahan').addEventListener('click', () => printContent('tableRealisasiPerubahan', 'Realisasi Perubahan'));
+  document.getElementById('btn-export-excel-realisasi-perubahan').addEventListener('click', () => exportToExcel('tableRealisasiPerubahan', 'Realisasi_Perubahan.xlsx', 'Realisasi Perubahan'));
+
 });
 </script>
 
 </body>
 </html>
-
-
-
-
-
-
-
