@@ -76,7 +76,7 @@
   }
   
   #login-image-col {
-    background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('polkesku.jpeg');
+    background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://firebasestorage.googleapis.com/v0/b/si-pandai-62d59.appspot.com/o/polkesku.jpeg?alt=media&token=8557a2c8-8924-4235-9831-e945e43a60a7');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -320,6 +320,8 @@
           
           <li class="nav-item" role="presentation" id="tab-pengaturan-akun-link" style="display:none;"><button class="nav-link" data-bs-target="#tab-pengaturan-akun" data-bs-toggle="tab"><i class="bi bi-person-gear"></i> Pengaturan Akun</button></li>
 
+          <li class="nav-item" role="presentation" id="tab-log-link" style="display:none;"><button class="nav-link" data-bs-target="#tab-log" data-bs-toggle="tab"><i class="bi bi-person-lines-fill"></i> Log Aktivitas</button></li>
+
           <li class="nav-item" role="presentation" id="tab-manage-link" style="display:none;"><button class="nav-link" data-bs-target="#tab-manage" data-bs-toggle="tab"><i class="bi bi-gear"></i> Manajemen</button></li>
         </ul>
       </nav>
@@ -332,8 +334,13 @@
               <p id="global-announcement-text" class="mb-0"></p>
               <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
+            <!-- START: Perbaikan Layout Dashboard -->
             <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3 d-print-none">
-              <h5 class="m-0"><i class="bi bi-graph-up"></i> Dashboard Monitoring</h5>
+              <div class="d-flex flex-column">
+                <h5 class="m-0"><i class="bi bi-graph-up"></i> Dashboard Monitoring</h5>
+                <!-- FIX: Menambahkan indikator filter aktif -->
+                <div id="dashboard-filter-info" class="small text-muted fst-italic mt-1" style="display: none;"></div>
+              </div>
               <div class="d-flex gap-2 align-items-center">
                 <select id="filterTahunDashboard" class="form-select form-select-sm" style="width: auto;"><option value="">Semua Tahun</option></select>
                 <select id="filterTipeDashboard" class="form-select form-select-sm" style="width: auto;">
@@ -344,10 +351,11 @@
                 <button id="btn-refresh-dashboard" class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
               </div>
             </div>
+            <!-- END: Perbaikan Layout Dashboard -->
             <div id="dashboard-deadline-info" class="alert alert-warning text-center small p-2 d-print-none" style="display:none;"></div>
             <div class="row g-3 mb-4 d-print-none">
-              <div class="col"><div class="card p-3 h-100"><div class="d-flex justify-content-between align-items-center"><div class="text-muted small">TOTAL DIAJUKAN</div><i class="bi bi-journal-text fs-2 text-primary opacity-50"></i></div><h4 id="dashboard-total-diajukan" class="fw-bold mt-2">Rp 0</h4></div></div>
-              <div class="col"><div class="card p-3 h-100"><div class="d-flex justify-content-between align-items-center"><div class="text-muted small">TOTAL DITERIMA</div><i class="bi bi-check2-circle fs-2 text-success opacity-50"></i></div><h4 id="dashboard-total-diterima" class="fw-bold mt-2">Rp 0</h4></div></div>
+              <div class="col"><div class="card p-3 h-100"><div class="d-flex justify-content-between align-items-center"><div class="text-muted small">TOTAL DIAJUKAN KESELURUHAN</div><i class="bi bi-journal-text fs-2 text-primary opacity-50"></i></div><h4 id="dashboard-total-diajukan" class="fw-bold mt-2">Rp 0</h4></div></div>
+              <div class="col"><div class="card p-3 h-100"><div class="d-flex justify-content-between align-items-center"><div class="text-muted small">TOTAL DITERIMA DIREKTORAT</div><i class="bi bi-check2-circle fs-2 text-success opacity-50"></i></div><h4 id="dashboard-total-diterima" class="fw-bold mt-2">Rp 0</h4></div></div>
               <div id="dashboard-total-pagu-card" class="col" style="display:none;"><div class="card p-3 h-100"><div class="d-flex justify-content-between align-items-center"><div class="text-muted small" id="dashboard-pagu-label">PAGU ANGGARAN</div><i class="bi bi-wallet2 fs-2 text-secondary opacity-50"></i></div><h4 id="dashboard-total-pagu" class="fw-bold mt-2">Rp 0</h4></div></div>
               <div class="col"><div class="card p-3 h-100"><div class="d-flex justify-content-between align-items-center"><div class="text-muted small">TOTAL RPD</div><i class="bi bi-calendar2-check fs-2 text-info opacity-50"></i></div><h4 id="dashboard-total-rpd" class="fw-bold mt-2">Rp 0</h4></div></div>
               <div class="col"><div class="card p-3 h-100"><div class="d-flex justify-content-between align-items-center"><div class="text-muted small">TOTAL REALISASI</div><i class="bi bi-cash-coin fs-2 text-warning opacity-50"></i></div><h4 id="dashboard-total-realisasi" class="fw-bold mt-2">Rp 0</h4></div></div>
@@ -376,8 +384,18 @@
                             <div class="small text-muted mt-1">(Total Realisasi / Total RPD)</div>
                         </div>
                         <hr>
-                        <h6 class="card-title text-center mt-2">Rekapan per Triwulan</h6>
-                        <div id="dashboard-triwulan-summaries"></div>
+                        <!-- START: Perbaikan Layout Rekapan -->
+                        <div class="row mt-2 gy-3">
+                            <div class="col-md-6 border-end">
+                                <h6 class="card-title text-center small">REKAPAN PER TRIWULAN</h6>
+                                <div id="dashboard-triwulan-summaries"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="card-title text-center small">REKAPAN PER SEMESTER</h6>
+                                <div id="dashboard-semester-summaries"></div>
+                            </div>
+                        </div>
+                        <!-- END: Perbaikan Layout Rekapan -->
                     </div>
                 </div>
                 <div id="direktorat-charts" class="row g-4 col-12 mt-1">
@@ -601,6 +619,25 @@
                   </div>
               </div>
           </div>
+          <!-- LOG AKTIVITAS TAB -->
+          <div class="tab-pane fade" id="tab-log" role="tabpanel">
+            <h5 class="mb-3"><i class="bi bi-person-lines-fill"></i> Log Aktivitas Pengguna</h5>
+            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center d-print-none">
+                <div class="flex-grow-1 d-flex flex-wrap gap-2">
+                    <select id="filterLogUser" class="form-select" style="width: auto; flex-basis: 250px;" title="Filter berdasarkan Pengguna"><option value="">Semua Pengguna</option></select>
+                    <input type="date" id="filterLogDateStart" class="form-control" style="width: auto;">
+                    <span class="align-self-center">s/d</span>
+                    <input type="date" id="filterLogDateEnd" class="form-control" style="width: auto;">
+                    <button id="btn-filter-log" class="btn btn-primary"><i class="bi bi-funnel"></i> Filter</button>
+                </div>
+                <div class="d-flex gap-2">
+                    <button id="btn-refresh-log" class="btn btn-outline-primary" title="Refresh Log"><i class="bi bi-arrow-clockwise"></i></button>
+                    <button id="btn-export-excel-log" class="btn btn-outline-success" title="Export ke Excel"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+                    <button id="btn-print-log" class="btn btn-outline-secondary d-print-none" title="Cetak Log"><i class="bi bi-printer"></i> Cetak</button>
+                </div>
+            </div>
+            <div class="table-responsive"><div id="tableLogAktivitas"><div class="text-center text-muted p-5">Memuat log aktivitas...</div></div></div>
+          </div>
           <!-- MANAJEMEN TAB (UNTUK DIREKTORAT) -->
           <div class="tab-pane fade" id="tab-manage" role="tabpanel">
             <!-- FIX: Layout diperbaiki dengan row dan col yang benar -->
@@ -772,6 +809,9 @@
         </div>
       </main>
     </div>
+    <footer class="text-center text-muted small mt-4 py-3 border-top d-print-none">
+        © 2025 Si-Pandai — Dikembangkan oleh Direktorat Poltekkes Kemenkes Kupang. All rights reserved.
+    </footer>
   </div>
 </div>
 
@@ -860,6 +900,21 @@ document.addEventListener('DOMContentLoaded', function() {
     return PRODI_COLORS[Math.abs(hash % PRODI_COLORS.length)];
   }
 
+  async function logActivity(action, details = '') {
+    if (!STATE.uid || !STATE.id) return;
+    try {
+        await db.collection('activityLog').add({
+            action: action,
+            details: details,
+            userId: STATE.id,
+            userUid: STATE.uid,
+            timestamp: serverTimestamp()
+        });
+    } catch (e) {
+        console.error("Gagal mencatat aktivitas:", e);
+    }
+  }
+  
   function saveSession(userData) { try { localStorage.setItem('siPandaiSession', JSON.stringify(userData)); } catch (e) { console.error("Gagal menyimpan sesi:", e); } }
   function getSession() { try { return JSON.parse(localStorage.getItem('siPandaiSession')); } catch (e) { return null; } }
   function clearSession() { localStorage.removeItem('siPandaiSession'); }
@@ -952,6 +1007,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updatePerubahanUI(STATE.globalSettings);
     document.getElementById('nav-item-ajuan-awal').style.display = (STATE.globalSettings.Status_Ajuan_Perubahan === 'Dibuka') ? 'none' : 'block';
     document.getElementById('tab-manage-link').style.display = STATE.role === 'direktorat' ? 'block' : 'none';
+    document.getElementById('tab-log-link').style.display = STATE.role === 'direktorat' ? 'block' : 'none';
     document.getElementById('tab-pengaturan-akun-link').style.display = STATE.role === 'prodi' ? 'block' : 'none';
 
     if (STATE.role === 'prodi') {
@@ -995,6 +1051,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const sessionData = { ...userData, uid: user.uid };
         saveSession(sessionData);
         await initializeApp(sessionData);
+        await logActivity('User Login', `Login berhasil.`);
 
     } catch (error) {
         const message = error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' ? 'Email atau Password salah.' : error.message;
@@ -1006,6 +1063,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   document.getElementById('btn-logout').addEventListener('click', async () => {
     try {
+        await logActivity('User Logout');
         if(STATE.notificationListener) STATE.notificationListener();
         await auth.signOut();
         clearSession();
@@ -1249,6 +1307,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         await batch.commit();
+
+        await logActivity('Create Ajuan', `Mengirim ${STATE.stagingList.length} ajuan baru (${STATE.currentAjuanType}).`);
 
         STATE.allDirektoratUids.forEach(uid => {
             createNotification(uid, `${STATE.id} telah mengirim ${STATE.stagingList.length} ajuan baru untuk direview.`);
@@ -1669,7 +1729,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         if (changes.length > 0) {
-            await logHistory(idAjuan, "Ajuan Diedit", `Detail perubahan: ${changes.join(', ')}.`);
+            const historyDetails = `Detail perubahan: ${changes.join(', ')}.`;
+            await logHistory(idAjuan, "Ajuan Diedit", historyDetails);
+            await logActivity('Update Ajuan', `Mengedit ajuan ID: ${idAjuan}. Perubahan: ${historyDetails}`);
         }
         
         await ajuanRef.update(dataAfter);
@@ -1690,6 +1752,7 @@ document.addEventListener('DOMContentLoaded', function() {
           showLoader(true);
           try {
               await db.collection('ajuan').doc(id).delete();
+              await logActivity('Delete Ajuan', `Menghapus ajuan ID: ${id} (${tipe}).`);
               showToast('Ajuan berhasil dihapus.');
               if(tipe === 'Awal') refreshAjuanTableAwal(); else refreshAjuanTablePerubahan();
               if(STATE.role === 'prodi') updateProdiPaguInfo(STATE.currentUserData);
@@ -1741,6 +1804,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         await batch.commit();
 
+        await logActivity('Review Ajuan', `Status ${ids.length} ajuan diubah menjadi ${newStatus}. Catatan: ${catatan || 'Tidak ada'}.`);
+
         if (STATE.role === 'direktorat') {
             for (const [prodiId, ajuanNames] of ajuanProdiMap.entries()) {
                 const prodiUser = STATE.allProdi.find(p => p.ID_Prodi === prodiId);
@@ -1754,6 +1819,8 @@ document.addEventListener('DOMContentLoaded', function() {
         showToast(`${ids.length} review berhasil dikirim.`);
         REVIEW_MODAL.hide();
         if(tipe === 'Awal') refreshAjuanTableAwal(); else refreshAjuanTablePerubahan();
+        loadDashboardData();
+
     } catch (error) { showToast(`Gagal mengirim review: ${error.message}`, 'danger'); } finally { showLoader(false); }
   });
   
@@ -1773,8 +1840,10 @@ document.addEventListener('DOMContentLoaded', function() {
             ids.forEach(id => batch.delete(db.collection('ajuan').doc(id)));
             try {
                 await batch.commit();
+                await logActivity('Bulk Delete Ajuan', `Menghapus ${ids.length} ajuan (${tipe}).`);
                 showToast(`${ids.length} ajuan berhasil dihapus.`);
                 if (tipe === 'Awal') refreshAjuanTableAwal(); else refreshAjuanTablePerubahan();
+                loadDashboardData();
             } catch (error) { showToast(`Gagal menghapus: ${error.message}`, 'danger'); } finally { showLoader(false); }
         }
     });
@@ -1836,6 +1905,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (copyCount > 0) {
             await batch.commit();
+            await logActivity('Pindahkan Ajuan', `Menyalin ${copyCount} ajuan dari ${sourceType} ke ${destinationType}.`);
             showToast(`${copyCount} ajuan baru berhasil disalin ke daftar ${destinationType}.`, 'success');
             refreshAjuanTablePerubahan();
         } else {
@@ -1891,12 +1961,12 @@ document.addEventListener('DOMContentLoaded', function() {
   
   function renderRPDTable(data, tipe) { const container = document.getElementById(`tableRPD${tipe}`); if (data.length === 0) { container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada ajuan diterima.</div>'; return; } const isDirektorat = STATE.role === 'direktorat'; const readOnlyAttr = isDirektorat ? 'readonly' : ''; const disabledBtnClass = isDirektorat ? 'disabled' : ''; let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Prodi</th><th rowspan="2" class="align-middle">Rincian</th><th rowspan="2" class="align-middle text-end">Total Diterima</th><th colspan="12" class="text-center">Rencana Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end">Total RPD</th><th rowspan="2" class="align-middle text-end">Sisa</th><th rowspan="2" class="align-middle text-center">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}</tr>`; const tableRows = data.map(r => { const ajuanId = r.ID_Ajuan; let totalAllocated = 0; const rpdInputs = RPD_MONTHS.map(month => { const value = Number(r[`RPD_${month}`] || 0); totalAllocated += value; return `<td><input type="number" class="form-control form-control-sm rpd-input" data-ajuan-id="${ajuanId}" value="${value}" oninput="window.updateRpdRowSummary('${ajuanId}', '${tipe}')" min="0" ${readOnlyAttr}></td>`; }).join(''); const totalAjuan = Number(r.Total) || 0; const sisa = totalAjuan - totalAllocated; const sisaClass = sisa < 0 ? 'text-danger fw-bold' : ''; return `<tr id="rpd-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td><td>${escapeHtml(r.ID_Prodi)}</td><td><strong>${escapeHtml(r.Nama_Ajuan)}</strong><div class="small text-muted">${escapeHtml(r.Judul_Kegiatan)}</div></td><td class="text-end fw-bold" data-total="${totalAjuan}">${totalAjuan.toLocaleString('id-ID')}</td>${rpdInputs}<td class="text-end fw-bold rpd-total-allocated">${totalAllocated.toLocaleString('id-ID')}</td><td class="text-end fw-bold rpd-sisa ${sisaClass}">${sisa.toLocaleString('id-ID')}</td><td class="text-center"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRPD('${ajuanId}', '${tipe}')" title="Simpan RPD"><i class="bi bi-save"></i></button></td></tr>`; }).join(''); container.innerHTML = `<table class="table table-bordered table-sm small"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`; }
   window.updateRpdRowSummary = (ajuanId, tipe) => { const row = document.getElementById(`rpd-row-${tipe}-${ajuanId}`); if (!row) return false; const totalValue = parseFloat(row.querySelector('[data-total]').dataset.total); let currentSum = 0; row.querySelectorAll('.rpd-input').forEach(input => { currentSum += Number(input.value) || 0; }); const sisa = totalValue - currentSum; row.querySelector('.rpd-total-allocated').textContent = currentSum.toLocaleString('id-ID'); row.querySelector('.rpd-sisa').textContent = sisa.toLocaleString('id-ID'); if (sisa < 0) { row.querySelector('.rpd-sisa').classList.add('text-danger'); return false; } else { row.querySelector('.rpd-sisa').classList.remove('text-danger'); return true; } }
-  window.saveRPD = async (ajuanId, tipe) => { if (!window.updateRpdRowSummary(ajuanId, tipe)) { showToast('Gagal. Total alokasi RPD melebihi total diterima.', 'danger'); return; } showLoader(true); const row = document.getElementById(`rpd-row-${tipe}-${ajuanId}`); const rpdData = {}; let totalRpd = 0; row.querySelectorAll('.rpd-input').forEach((input, index) => { const value = Number(input.value) || 0; rpdData[`RPD_${RPD_MONTHS[index]}`] = value; totalRpd += value; }); try { await db.collection('ajuan').doc(ajuanId).update(rpdData); logHistory(ajuanId, "RPD Disimpan", `Total RPD yang disimpan: Rp ${totalRpd.toLocaleString('id-ID')}.`); showToast(`RPD untuk ${ajuanId.substring(0,6)}.. disimpan.`); if (tipe === 'Awal') refreshTable('RPD', 'Awal'); else refreshTable('RPD', `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}`); } catch (error) { showToast(`Gagal menyimpan RPD: ${error.message}`, 'danger'); } finally { showLoader(false); } };
+  window.saveRPD = async (ajuanId, tipe) => { if (!window.updateRpdRowSummary(ajuanId, tipe)) { showToast('Gagal. Total alokasi RPD melebihi total diterima.', 'danger'); return; } showLoader(true); const row = document.getElementById(`rpd-row-${tipe}-${ajuanId}`); const rpdData = {}; let totalRpd = 0; row.querySelectorAll('.rpd-input').forEach((input, index) => { const value = Number(input.value) || 0; rpdData[`RPD_${RPD_MONTHS[index]}`] = value; totalRpd += value; }); try { await db.collection('ajuan').doc(ajuanId).update(rpdData); await logHistory(ajuanId, "RPD Disimpan", `Total RPD yang disimpan: Rp ${totalRpd.toLocaleString('id-ID')}.`); await logActivity('Save RPD', `Menyimpan RPD untuk ajuan ID ${ajuanId} (${tipe}). Total: Rp ${totalRpd.toLocaleString('id-ID')}.`); showToast(`RPD untuk ${ajuanId.substring(0,6)}.. disimpan.`); if (tipe === 'Awal') refreshTable('RPD', 'Awal'); else refreshTable('RPD', `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}`); } catch (error) { showToast(`Gagal menyimpan RPD: ${error.message}`, 'danger'); } finally { showLoader(false); } };
 
   function renderRealisasiTable(data, tipe) { const container = document.getElementById(`tableRealisasi${tipe}`); if (data.length === 0) { container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada ajuan diterima.</div>'; return; } const isDirektorat = STATE.role === 'direktorat'; const readOnlyAttr = isDirektorat ? 'readonly' : ''; const disabledBtnClass = isDirektorat ? 'disabled' : ''; let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Rincian</th><th rowspan="2" class="align-middle text-end">Total RPD</th><th colspan="12" class="text-center">Realisasi Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end">Total Realisasi</th><th rowspan="2" class="align-middle text-center">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}</tr>`; const tableRows = data.map(r => { const ajuanId = r.ID_Ajuan; let totalRealisasi = 0; let totalRPD = 0; const realisasiInputs = RPD_MONTHS.map(month => { const value = Number(r[`Realisasi_${month}`] || 0); totalRealisasi += value; totalRPD += Number(r[`RPD_${month}`] || 0); return `<td><input type="number" class="form-control form-control-sm realisasi-input" value="${value}" oninput="window.updateRealisasiRowSummary('${ajuanId}', '${tipe}')" min="0" ${readOnlyAttr}></td>`; }).join(''); return `<tr id="realisasi-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td><td><strong>${escapeHtml(r.Nama_Ajuan)}</strong></td><td class="text-end fw-bold">${totalRPD.toLocaleString('id-ID')}</td>${realisasiInputs}<td class="text-end fw-bold realisasi-total">${totalRealisasi.toLocaleString('id-ID')}</td><td class="text-center"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRealisasi('${ajuanId}', '${tipe}')" title="Simpan Realisasi"><i class="bi bi-save"></i></button></td></tr>`; }).join(''); container.innerHTML = `<table class="table table-bordered table-sm small"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`; }
   function renderRealisasiSummary(data, tipe) { const container = document.getElementById(`realisasi-summary-area-${tipe.toLowerCase()}`); const rpdPerBulan = Array(12).fill(0); const realisasiPerBulan = Array(12).fill(0); data.forEach(ajuan => { RPD_MONTHS.forEach((month, index) => { rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0; realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0; }); }); const totalRPD = rpdPerBulan.reduce((a, b) => a + b, 0); const totalRealisasi = realisasiPerBulan.reduce((a, b) => a + b, 0); const rpdTriwulan = calculateQuarterlySummary(rpdPerBulan, totalRPD); const realisasiTriwulan = calculateQuarterlySummary(realisasiPerBulan, totalRealisasi); let summaryHtml = `<div class="card d-print-none"><div class="card-header fw-bold">Ringkasan Realisasi Anggaran ${tipe}</div><div class="card-body"><div class="row g-4"><div class="col-lg-6"><h6 class="text-center small text-muted">Realisasi per Bulan</h6><table class="table table-sm table-striped small"><thead class="table-light"><tr><th>Bulan</th><th class="text-end">RPD</th><th class="text-end">Realisasi</th><th class="text-center">%</th></tr></thead><tbody>${rpdPerBulan.map((rpd, i) => { const real = realisasiPerBulan[i]; const percent = rpd > 0 ? ((real / rpd) * 100).toFixed(1) : '0.0'; return `<tr><td>${RPD_MONTHS[i]}</td><td class="text-end">${rpd.toLocaleString('id-ID')}</td><td class="text-end">${real.toLocaleString('id-ID')}</td><td class="text-center"><span class="badge ${percent >= 100 ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'}">${percent}%</span></td></tr>`; }).join('')}<tr class="table-dark"><td><strong>Total</strong></td><td class="text-end"><strong>${totalRPD.toLocaleString('id-ID')}</strong></td><td class="text-end"><strong>${totalRealisasi.toLocaleString('id-ID')}</strong></td><td class="text-center"><strong>${totalRPD > 0 ? ((totalRealisasi/totalRPD)*100).toFixed(1) : '0.0'}%</strong></td></tr></tbody></table></div><div class="col-lg-6"><h6 class="text-center small text-muted">Realisasi per Triwulan</h6><table class="table table-sm table-striped small"><thead class="table-light"><tr><th>Triwulan</th><th class="text-end">RPD</th><th class="text-end">Realisasi</th><th class="text-center">%</th></tr></thead><tbody>${rpdTriwulan.values.map((rpd, i) => { const real = realisasiTriwulan.values[i]; const percent = rpd > 0 ? ((real / rpd) * 100).toFixed(1) : '0.0'; return `<tr><td><strong>Q${i+1}</strong></td><td class="text-end">${rpd.toLocaleString('id-ID')}</td><td class="text-end">${real.toLocaleString('id-ID')}</td><td class="text-center"><span class="badge ${percent >= 100 ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'}">${percent}%</span></td></tr>`; }).join('')}</tbody></table></div></div></div></div>`; container.innerHTML = summaryHtml; }
   window.updateRealisasiRowSummary = (ajuanId, tipe) => { const row = document.getElementById(`realisasi-row-${tipe}-${ajuanId}`); if (!row) return; let currentSum = 0; row.querySelectorAll('.realisasi-input').forEach(input => currentSum += Number(input.value) || 0); row.querySelector('.realisasi-total').textContent = currentSum.toLocaleString('id-ID'); }
-  window.saveRealisasi = async (ajuanId, tipe) => { showLoader(true); const row = document.getElementById(`realisasi-row-${tipe}-${ajuanId}`); const realisasiData = {}; let totalRealisasi = 0; row.querySelectorAll('.realisasi-input').forEach((input, index) => { const value = Number(input.value) || 0; realisasiData[`Realisasi_${RPD_MONTHS[index]}`] = value; totalRealisasi += value; }); try { await db.collection('ajuan').doc(ajuanId).update(realisasiData); logHistory(ajuanId, "Realisasi Disimpan", `Total Realisasi yang disimpan: Rp ${totalRealisasi.toLocaleString('id-ID')}.`); showToast(`Realisasi untuk ${ajuanId.substring(0,6)}.. disimpan.`); if (tipe === 'Awal') refreshTable('Realisasi', 'Awal'); else refreshTable('Realisasi', `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}`); } catch (error) { showToast(`Gagal menyimpan Realisasi: ${error.message}`, 'danger'); } finally { showLoader(false); } };
+  window.saveRealisasi = async (ajuanId, tipe) => { showLoader(true); const row = document.getElementById(`realisasi-row-${tipe}-${ajuanId}`); const realisasiData = {}; let totalRealisasi = 0; row.querySelectorAll('.realisasi-input').forEach((input, index) => { const value = Number(input.value) || 0; realisasiData[`Realisasi_${RPD_MONTHS[index]}`] = value; totalRealisasi += value; }); try { await db.collection('ajuan').doc(ajuanId).update(realisasiData); await logHistory(ajuanId, "Realisasi Disimpan", `Total Realisasi yang disimpan: Rp ${totalRealisasi.toLocaleString('id-ID')}.`); await logActivity('Save Realisasi', `Menyimpan realisasi untuk ajuan ID ${ajuanId} (${tipe}). Total: Rp ${totalRealisasi.toLocaleString('id-ID')}.`); showToast(`Realisasi untuk ${ajuanId.substring(0,6)}.. disimpan.`); if (tipe === 'Awal') refreshTable('Realisasi', 'Awal'); else refreshTable('Realisasi', `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}`); } catch (error) { showToast(`Gagal menyimpan Realisasi: ${error.message}`, 'danger'); } finally { showLoader(false); } };
 
   ['Awal', 'Perubahan'].forEach(tipe => {
       const isPerubahan = tipe === 'Perubahan';
@@ -1950,76 +2020,146 @@ document.addEventListener('DOMContentLoaded', function() {
         const tipeAjuan = document.getElementById('filterTipeBA').value;
         const prodiFilter = document.getElementById('filterProdiBA').value;
 
-        let prodiId = STATE.role === 'prodi' ? STATE.id : prodiFilter;
-        if (STATE.role === 'direktorat' && !prodiId) {
-            throw new Error('Silakan pilih Prodi untuk mencetak Berita Acara.');
-        }
+        // --- START OF MODIFICATION ---
+        // Menambahkan logika untuk menangani filter "Semua Prodi" bagi Direktorat
+        if (STATE.role === 'direktorat' && !prodiFilter) {
+            let allProdisHtml = '';
+            let baGeneratedCount = 0;
+            const prodiList = STATE.allProdi.filter(p => p.Role === 'prodi').sort((a,b) => a.ID_Prodi.localeCompare(b.ID_Prodi));
 
-        const prodiData = (STATE.role === 'direktorat') 
-            ? STATE.allProdi.find(p => p.ID_Prodi === prodiId) || { Nama_Prodi: prodiId }
-            : STATE.currentUserData;
-        
-        let query = db.collection('ajuan')
-          .where('Tipe_Ajuan', '==', tipeAjuan)
-          .where('ID_Prodi', '==', prodiId)
-          .where('Status', '==', 'Diterima');
+            for (const prodiData of prodiList) {
+                const query = db.collection('ajuan')
+                  .where('Tipe_Ajuan', '==', tipeAjuan)
+                  .where('ID_Prodi', '==', prodiData.ID_Prodi)
+                  .where('Status', '==', 'Diterima');
 
-        const snapshot = await query.get();
-        const data = snapshot.docs.map(doc => doc.data());
-        if (data.length === 0) {
-            throw new Error(`Tidak ada ajuan berstatus "Diterima" untuk ${prodiId} pada tahap ${tipeAjuan}.`);
-        }
+                const snapshot = await query.get();
+                const data = snapshot.docs.map(doc => doc.data());
 
-        const prodiBaSettings = prodiData.beritaAcaraSettings || {};
-        const ttdKiriJabatan = prodiBaSettings.TTD_Jabatan || STATE.beritaAcaraSettings.TTD_Kiri_Jabatan || 'Ketua Jurusan/Program Studi';
-        const ttdKiriNama = prodiBaSettings.TTD_Nama || STATE.beritaAcaraSettings.TTD_Kiri_Nama || '(..................................................)';
+                if (data.length > 0) {
+                    baGeneratedCount++;
+                    if (allProdisHtml !== '') {
+                        // Menambahkan pemisah halaman untuk PDF dan cetak
+                        allProdisHtml += '<div style="page-break-after: always;"></div>';
+                    }
 
-        const ttdKananJabatan = STATE.beritaAcaraSettings.TTD_Kanan_Jabatan || 'Wakil Direktur II';
-        const ttdKananNama = STATE.beritaAcaraSettings.TTD_Kanan_Nama || '(..................................................)';
-        
-        const today = new Date();
-        const tglCetak = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-        const tahunAnggaran = today.getFullYear();
+                    const prodiBaSettings = prodiData.beritaAcaraSettings || {};
+                    const ttdKiriJabatan = prodiBaSettings.TTD_Jabatan || STATE.beritaAcaraSettings.TTD_Kiri_Jabatan || 'Ketua Jurusan/Program Studi';
+                    const ttdKiriNama = prodiBaSettings.TTD_Nama || STATE.beritaAcaraSettings.TTD_Kiri_Nama || '(..................................................)';
+                    const ttdKananJabatan = STATE.beritaAcaraSettings.TTD_Kanan_Jabatan || 'Wakil Direktur II';
+                    const ttdKananNama = STATE.beritaAcaraSettings.TTD_Kanan_Nama || '(..................................................)';
+                    const today = new Date();
+                    const tglCetak = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                    const tahunAnggaran = today.getFullYear();
+                    
+                    let grandTotal = 0;
+                    const tableRowsHtml = data
+                      .sort((a,b) => (a.Grub_Belanja_Utama || '').localeCompare(b.Grub_Belanja_Utama || ''))
+                      .map((r, index) => {
+                          grandTotal += Number(r.Total) || 0;
+                          return `<tr><td style="text-align: center;">${index + 1}</td><td>${escapeHtml(r.Nama_Ajuan)}</td><td style="text-align: center;">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)}</td><td style="text-align: right;">${Number(r.Harga_Satuan).toLocaleString('id-ID')}</td><td style="text-align: right;">${Number(r.Total).toLocaleString('id-ID')}</td></tr>`;
+                      }).join('');
 
-        const groupedData = data.reduce((acc, row) => {
-            const grubKey = row.Grub_Belanja_Utama || 'Lain-lain';
-            if (!acc[grubKey]) acc[grubKey] = [];
-            acc[grubKey].push(row);
-            return acc;
-        }, {});
-        const sortedGrubKeys = Object.keys(groupedData).sort();
-        let grandTotal = 0;
-        
-        let tableRowsHtml = '';
-        let no = 1;
-        sortedGrubKeys.forEach(grubKey => {
-            tableRowsHtml += `<tr><td colspan="5" style="background-color: #f2f2f2;"><strong>${escapeHtml(grubKey)}</strong></td></tr>`;
-            groupedData[grubKey].forEach(r => {
-                grandTotal += Number(r.Total) || 0;
-                tableRowsHtml += `<tr><td style="text-align: center;">${no++}</td><td>${escapeHtml(r.Nama_Ajuan)}</td><td style="text-align: center;">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)}</td><td style="text-align: right;">${Number(r.Harga_Satuan).toLocaleString('id-ID')}</td><td style="text-align: right;">${Number(r.Total).toLocaleString('id-ID')}</td></tr>`;
+                    allProdisHtml += `
+                        <div class="ba-kop">
+                            <table><tr><td style="width: 100px; text-align: right; border:none; padding-right: 15px;"><img src="https://si-pandai.netlify.app/LOGO%20POLTEKKES%20KEMENKES%20KUPANG.png" alt="Logo"></td><td style="text-align: left; border:none;"><div class="ba-kop-text"><h5>KEMENTERIAN KESEHATAN REPUBLIK INDONESIA</h5><h5>BADAN PENGEMBANGAN DAN PEMBERDAYAAN SUMBER DAYA MANUSIA KESEHATAN</h5><h5 style="font-size: 1.3em;">POLITEKNIK KESEHATAN KEMENKES KUPANG</h5><p style="font-weight: normal; font-size: 0.9em;">Jalan Piet A. Tallo, Liliba - Kupang, Nusa Tenggara Timur</p></div></td></tr></table>
+                        </div>
+                        <div class="ba-judul">
+                            <h5>BERITA ACARA</h5><h5>PENETAPAN USULAN KEGIATAN DAN ANGGARAN</h5><p>Nomor: .......................................</p>
+                        </div>
+                        <div class="ba-paragraf">
+                            Pada hari ini, tanggal ${tglCetak}, telah dilaksanakan pembahasan dan penetapan usulan kegiatan dan anggaran untuk <strong>${escapeHtml(prodiData.Nama_Prodi)}</strong> Tahun Anggaran ${tahunAnggaran} (${tipeAjuan}). Berdasarkan hasil pembahasan, dengan ini ditetapkan rincian kegiatan dan anggaran yang diterima adalah sebagai berikut:
+                        </div>
+                        <table class="ba-table">
+                            <thead><tr><th style="width: 5%;">No</th><th style="width: 45%;">Uraian/Rincian Kegiatan</th><th style="width: 15%;">Volume</th><th style="width: 15%;">Harga Satuan (Rp)</th><th style="width: 20%;">Jumlah Biaya (Rp)</th></tr></thead>
+                            <tbody>${tableRowsHtml}<tr><td colspan="4" style="text-align: right; font-weight: bold;">TOTAL ANGGARAN DITERIMA</td><td style="text-align: right; font-weight: bold;">${grandTotal.toLocaleString('id-ID')}</td></tr></tbody>
+                        </table>
+                        <div class="ba-paragraf">Demikian Berita Acara ini dibuat untuk dapat dipergunakan sebagaimana mestinya.</div>
+                        <div class="ba-signatures">
+                            <table><tr><td><p>Kupang, ${tglCetak}</p><p><strong>${escapeHtml(ttdKiriJabatan)}</strong></p><br><br><br><br><p><strong><u>${escapeHtml(ttdKiriNama)}</u></strong></p></td><td><p><br></p><p><strong>${escapeHtml(ttdKananJabatan)}</strong></p><br><br><br><br><p><strong><u>${escapeHtml(ttdKananNama)}</u></strong></p></td></tr></table>
+                        </div>
+                    `;
+                }
+            }
+            if (baGeneratedCount === 0) {
+                 throw new Error(`Tidak ada data ajuan "Diterima" yang ditemukan untuk prodi manapun pada tahap ${tipeAjuan}.`);
+            }
+            container.innerHTML = allProdisHtml;
+
+        } else {
+        // --- END OF MODIFICATION ---
+
+            // LOGIKA LAMA (UNTUK SATU PRODI) TETAP DI SINI
+            let prodiId = STATE.role === 'prodi' ? STATE.id : prodiFilter;
+            if (STATE.role === 'direktorat' && !prodiId) {
+                throw new Error('Silakan pilih Prodi untuk mencetak Berita Acara.');
+            }
+
+            const prodiData = (STATE.role === 'direktorat') 
+                ? STATE.allProdi.find(p => p.ID_Prodi === prodiId) || { Nama_Prodi: prodiId }
+                : STATE.currentUserData;
+            
+            let query = db.collection('ajuan')
+              .where('Tipe_Ajuan', '==', tipeAjuan)
+              .where('ID_Prodi', '==', prodiId)
+              .where('Status', '==', 'Diterima');
+
+            const snapshot = await query.get();
+            const data = snapshot.docs.map(doc => doc.data());
+            if (data.length === 0) {
+                throw new Error(`Tidak ada ajuan berstatus "Diterima" untuk ${prodiId} pada tahap ${tipeAjuan}.`);
+            }
+
+            const prodiBaSettings = prodiData.beritaAcaraSettings || {};
+            const ttdKiriJabatan = prodiBaSettings.TTD_Jabatan || STATE.beritaAcaraSettings.TTD_Kiri_Jabatan || 'Ketua Jurusan/Program Studi';
+            const ttdKiriNama = prodiBaSettings.TTD_Nama || STATE.beritaAcaraSettings.TTD_Kiri_Nama || '(..................................................)';
+            const ttdKananJabatan = STATE.beritaAcaraSettings.TTD_Kanan_Jabatan || 'Wakil Direktur II';
+            const ttdKananNama = STATE.beritaAcaraSettings.TTD_Kanan_Nama || '(..................................................)';
+            
+            const today = new Date();
+            const tglCetak = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            const tahunAnggaran = today.getFullYear();
+
+            const groupedData = data.reduce((acc, row) => {
+                const grubKey = row.Grub_Belanja_Utama || 'Lain-lain';
+                if (!acc[grubKey]) acc[grubKey] = [];
+                acc[grubKey].push(row);
+                return acc;
+            }, {});
+            const sortedGrubKeys = Object.keys(groupedData).sort();
+            let grandTotal = 0;
+            
+            let tableRowsHtml = '';
+            let no = 1;
+            sortedGrubKeys.forEach(grubKey => {
+                tableRowsHtml += `<tr><td colspan="5" style="background-color: #f2f2f2;"><strong>${escapeHtml(grubKey)}</strong></td></tr>`;
+                groupedData[grubKey].forEach(r => {
+                    grandTotal += Number(r.Total) || 0;
+                    tableRowsHtml += `<tr><td style="text-align: center;">${no++}</td><td>${escapeHtml(r.Nama_Ajuan)}</td><td style="text-align: center;">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)}</td><td style="text-align: right;">${Number(r.Harga_Satuan).toLocaleString('id-ID')}</td><td style="text-align: right;">${Number(r.Total).toLocaleString('id-ID')}</td></tr>`;
+                });
             });
-        });
 
-        const contentHtml = `
-            <div class="ba-kop">
-                <table><tr><td style="width: 100px; text-align: right; border:none; padding-right: 15px;"><img src="https://si-pandai.netlify.app/LOGO%20POLTEKKES%20KEMENKES%20KUPANG.png" alt="Logo"></td><td style="text-align: left; border:none;"><div class="ba-kop-text"><h5>KEMENTERIAN KESEHATAN REPUBLIK INDONESIA</h5><h5>BADAN PENGEMBANGAN DAN PEMBERDAYAAN SUMBER DAYA MANUSIA KESEHATAN</h5><h5 style="font-size: 1.3em;">POLITEKNIK KESEHATAN KEMENKES KUPANG</h5><p style="font-weight: normal; font-size: 0.9em;">Jalan Piet A. Tallo, Liliba - Kupang, Nusa Tenggara Timur</p></div></td></tr></table>
-            </div>
-            <div class="ba-judul">
-                <h5>BERITA ACARA</h5><h5>PENETAPAN USULAN KEGIATAN DAN ANGGARAN</h5><p>Nomor: .......................................</p>
-            </div>
-            <div class="ba-paragraf">
-                Pada hari ini, tanggal ${tglCetak}, telah dilaksanakan pembahasan dan penetapan usulan kegiatan dan anggaran untuk <strong>${escapeHtml(prodiData.Nama_Prodi)}</strong> Tahun Anggaran ${tahunAnggaran} (${tipeAjuan}). Berdasarkan hasil pembahasan, dengan ini ditetapkan rincian kegiatan dan anggaran yang diterima adalah sebagai berikut:
-            </div>
-            <table class="ba-table">
-                <thead><tr><th style="width: 5%;">No</th><th style="width: 45%;">Uraian/Rincian Kegiatan</th><th style="width: 15%;">Volume</th><th style="width: 15%;">Harga Satuan (Rp)</th><th style="width: 20%;">Jumlah Biaya (Rp)</th></tr></thead>
-                <tbody>${tableRowsHtml}<tr><td colspan="4" style="text-align: right; font-weight: bold;">TOTAL ANGGARAN DITERIMA</td><td style="text-align: right; font-weight: bold;">${grandTotal.toLocaleString('id-ID')}</td></tr></tbody>
-            </table>
-            <div class="ba-paragraf">Demikian Berita Acara ini dibuat untuk dapat dipergunakan sebagaimana mestinya.</div>
-            <div class="ba-signatures">
-                <table><tr><td><p>Kupang, ${tglCetak}</p><p><strong>${escapeHtml(ttdKiriJabatan)}</strong></p><br><br><br><br><p><strong><u>${escapeHtml(ttdKiriNama)}</u></strong></p></td><td><p><br></p><p><strong>${escapeHtml(ttdKananJabatan)}</strong></p><br><br><br><br><p><strong><u>${escapeHtml(ttdKananNama)}</u></strong></p></td></tr></table>
-            </div>
-        `;
-        container.innerHTML = contentHtml;
+            const contentHtml = `
+                <div class="ba-kop">
+                    <table><tr><td style="width: 100px; text-align: right; border:none; padding-right: 15px;"><img src="https://si-pandai.netlify.app/LOGO%20POLTEKKES%20KEMENKES%20KUPANG.png" alt="Logo"></td><td style="text-align: left; border:none;"><div class="ba-kop-text"><h5>KEMENTERIAN KESEHATAN REPUBLIK INDONESIA</h5><h5>BADAN PENGEMBANGAN DAN PEMBERDAYAAN SUMBER DAYA MANUSIA KESEHATAN</h5><h5 style="font-size: 1.3em;">POLITEKNIK KESEHATAN KEMENKES KUPANG</h5><p style="font-weight: normal; font-size: 0.9em;">Jalan Piet A. Tallo, Liliba - Kupang, Nusa Tenggara Timur</p></div></td></tr></table>
+                </div>
+                <div class="ba-judul">
+                    <h5>BERITA ACARA</h5><h5>PENETAPAN USULAN KEGIATAN DAN ANGGARAN</h5><p>Nomor: .......................................</p>
+                </div>
+                <div class="ba-paragraf">
+                    Pada hari ini, tanggal ${tglCetak}, telah dilaksanakan pembahasan dan penetapan usulan kegiatan dan anggaran untuk <strong>${escapeHtml(prodiData.Nama_Prodi)}</strong> Tahun Anggaran ${tahunAnggaran} (${tipeAjuan}). Berdasarkan hasil pembahasan, dengan ini ditetapkan rincian kegiatan dan anggaran yang diterima adalah sebagai berikut:
+                </div>
+                <table class="ba-table">
+                    <thead><tr><th style="width: 5%;">No</th><th style="width: 45%;">Uraian/Rincian Kegiatan</th><th style="width: 15%;">Volume</th><th style="width: 15%;">Harga Satuan (Rp)</th><th style="width: 20%;">Jumlah Biaya (Rp)</th></tr></thead>
+                    <tbody>${tableRowsHtml}<tr><td colspan="4" style="text-align: right; font-weight: bold;">TOTAL ANGGARAN DITERIMA</td><td style="text-align: right; font-weight: bold;">${grandTotal.toLocaleString('id-ID')}</td></tr></tbody>
+                </table>
+                <div class="ba-paragraf">Demikian Berita Acara ini dibuat untuk dapat dipergunakan sebagaimana mestinya.</div>
+                <div class="ba-signatures">
+                    <table><tr><td><p>Kupang, ${tglCetak}</p><p><strong>${escapeHtml(ttdKiriJabatan)}</strong></p><br><br><br><br><p><strong><u>${escapeHtml(ttdKiriNama)}</u></strong></p></td><td><p><br></p><p><strong>${escapeHtml(ttdKananJabatan)}</strong></p><br><br><br><br><p><strong><u>${escapeHtml(ttdKananNama)}</u></strong></p></td></tr></table>
+                </div>
+            `;
+            container.innerHTML = contentHtml;
+        } // Penutup dari `else`
     } catch (error) {
         container.innerHTML = `<div class="text-center text-danger p-5"><strong>Gagal membuat pratinjau:</strong> ${error.message}</div>`;
         showToast(error.message, 'danger');
@@ -2185,11 +2325,37 @@ document.addEventListener('DOMContentLoaded', function() {
   function populateDashboardFilters(data) { const yearSelect = document.getElementById('filterTahunDashboard'); const years = [...new Set(data.map(d => { if(d.Timestamp) return new Date(d.Timestamp).getFullYear(); return null; }))].filter(Boolean).sort((a, b) => b - a); yearSelect.innerHTML = '<option value="">Semua Tahun</option>'; years.forEach(year => { if (!isNaN(year)) yearSelect.innerHTML += `<option value="${year}">${year}</option>`; }); }
   function setupChart(canvasId, type, data, options) { const canvas = document.getElementById(canvasId); if (!canvas) return; if (CHARTS[canvasId]) CHARTS[canvasId].destroy(); CHARTS[canvasId] = new Chart(canvas.getContext('2d'), { type, data, options }); }
   function calculateQuarterlySummary(monthlyData, total) { const quarters = [0, 0, 0, 0]; for (let i = 0; i < 12; i++) { if (i < 3) quarters[0] += monthlyData[i]; else if (i < 6) quarters[1] += monthlyData[i]; else if (i < 9) quarters[2] += monthlyData[i]; else quarters[3] += monthlyData[i]; } return { values: quarters, percentages: quarters.map(q => total > 0 ? ((q / total) * 100).toFixed(1) + '%' : '0.0%') }; }
+  
+  // START: Fungsi baru untuk rekap semester
+  function calculateSemesterSummary(monthlyData, total) {
+    const semesters = [0, 0];
+    for (let i = 0; i < 12; i++) {
+        if (i < 6) semesters[0] += monthlyData[i]; // Semester 1: Jan - Jun
+        else semesters[1] += monthlyData[i];      // Semester 2: Jul - Dec
+    }
+    return {
+        values: semesters,
+        percentages: semesters.map(s => total > 0 ? ((s / total) * 100).toFixed(1) + '%' : '0.0%')
+    };
+  }
+  // END: Fungsi baru untuk rekap semester
+  
   function updateDashboardDeadlineInfo() { const deadlineInfoEl = document.getElementById('dashboard-deadline-info'); const deadline = STATE.globalSettings.Batas_Tanggal_Pengajuan; if (deadline && deadline.toDate) { const deadlineDate = deadline.toDate(); const today = new Date(); today.setHours(23, 59, 59, 999); let alertClass = 'alert-info'; let message = `Batas waktu pengajuan adalah <strong>${deadlineDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong>.`; if (today > deadlineDate) { alertClass = 'alert-danger'; message = `Periode pengajuan telah berakhir pada <strong>${deadlineDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}</strong>.`; } deadlineInfoEl.innerHTML = `<i class="bi bi-info-circle-fill me-2"></i> ${message}`; deadlineInfoEl.className = `alert ${alertClass} text-center small p-2`; deadlineInfoEl.style.display = 'block'; } else { deadlineInfoEl.innerHTML = `<i class="bi bi-info-circle-fill me-2"></i> Batas waktu pengajuan belum ditentukan oleh direktorat.`; deadlineInfoEl.className = 'alert alert-warning text-center small p-2'; deadlineInfoEl.style.display = 'block'; } }
   function processDataForDashboard() { 
       updateDashboardDeadlineInfo(); 
-      const selectedYear = document.getElementById('filterTahunDashboard').value; 
-      const selectedTipe = document.getElementById('filterTipeDashboard').value; 
+      const yearSelect = document.getElementById('filterTahunDashboard');
+      const tipeSelect = document.getElementById('filterTipeDashboard');
+      const selectedYear = yearSelect.value; 
+      const selectedTipe = tipeSelect.value; 
+
+      // --- FIX: TAMBAHKAN BLOK INI ---
+      const filterInfoEl = document.getElementById('dashboard-filter-info');
+      const yearText = selectedYear ? yearSelect.options[yearSelect.selectedIndex].text : "Semua Tahun";
+      const tipeText = selectedTipe ? tipeSelect.options[tipeSelect.selectedIndex].text : "Semua Tipe Ajuan";
+      filterInfoEl.innerHTML = `Menampilkan data untuk: <strong>${yearText}</strong> & <strong>${tipeText}</strong>`;
+      filterInfoEl.style.display = 'block';
+      // --- AKHIR FIX ---
+
       let filteredData = STATE.allDashboardData.filter(d => { 
           const date = d.Timestamp ? new Date(d.Timestamp) : null; 
           if (!date) return false; 
@@ -2202,7 +2368,30 @@ document.addEventListener('DOMContentLoaded', function() {
           renderDirektoratDashboard(filteredData); 
       } 
   }
-  function renderDashboardSummary(data, containerPrefix = 'dashboard-', chartPrefix = 'chart') { let totalDiajukan = 0, totalDiterima = 0; let statusCounts = { 'Menunggu Review': 0, 'Diterima': 0, 'Ditolak': 0, 'Revisi': 0 }; const rpdPerBulan = Array(12).fill(0); const realisasiPerBulan = Array(12).fill(0); data.forEach(ajuan => { totalDiajukan += Number(ajuan.Total) || 0; if (ajuan.Status) { statusCounts[ajuan.Status] = (statusCounts[ajuan.Status] || 0) + 1; } if (ajuan.Status === 'Diterima') { totalDiterima += Number(ajuan.Total) || 0; RPD_MONTHS.forEach((month, index) => { rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0; realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0; }); } }); const totalRPD = rpdPerBulan.reduce((a, b) => a + b, 0); const totalRealisasi = realisasiPerBulan.reduce((a, b) => a + b, 0); document.getElementById(`${containerPrefix}total-diajukan`).textContent = 'Rp ' + totalDiajukan.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}total-diterima`).textContent = 'Rp ' + totalDiterima.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}total-rpd`).textContent = 'Rp ' + totalRPD.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}total-realisasi`).textContent = 'Rp ' + totalRealisasi.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}count-menunggu`).textContent = statusCounts['Menunggu Review']; document.getElementById(`${containerPrefix}count-diterima`).textContent = statusCounts['Diterima']; document.getElementById(`${containerPrefix}count-ditolak`).textContent = statusCounts['Ditolak']; document.getElementById(`${containerPrefix}count-revisi`).textContent = statusCounts['Revisi']; const paguCard = document.getElementById('dashboard-total-pagu-card'); const paguValueEl = document.getElementById('dashboard-total-pagu'); const paguLabelEl = document.getElementById('dashboard-pagu-label'); paguCard.style.display = 'none'; if (STATE.role === 'direktorat') { const totalPagu = (STATE.allProdi || []).filter(p => p.Role === 'prodi').reduce((sum, p) => sum + (Number(p.Pagu_Anggaran) || 0), 0); paguValueEl.textContent = 'Rp ' + totalPagu.toLocaleString('id-ID'); paguLabelEl.textContent = 'TOTAL PAGU PRODI'; paguCard.style.display = 'block'; } else if (STATE.role === 'prodi' && STATE.currentUserData) { const pagu = STATE.currentUserData.Pagu_Anggaran || 0; paguValueEl.textContent = 'Rp ' + pagu.toLocaleString('id-ID'); paguLabelEl.textContent = 'PAGU ANGGARAN SAYA'; paguCard.style.display = 'block'; } setupChart(`${chartPrefix}RPDvsRealisasi`, 'bar', { labels: RPD_MONTHS, datasets: [{ label: 'Realisasi (Rp)', data: realisasiPerBulan, backgroundColor: 'rgba(255, 193, 7, 0.7)' }, { label: 'RPD (Rp)', data: rpdPerBulan, backgroundColor: 'rgba(13, 110, 253, 0.6)' }] }, { responsive: true, scales: { x: { stacked: false }, y: { stacked: false, beginAtZero: true } } }); if (containerPrefix === 'dashboard-') { const persentaseRealisasi = totalRPD > 0 ? (totalRealisasi / totalRPD) * 100 : 0; document.getElementById('dashboard-persen-realisasi').textContent = persentaseRealisasi.toFixed(1) + '%'; const progressBar = document.getElementById('dashboard-persen-realisasi-bar'); if (progressBar) progressBar.style.width = `${Math.min(persentaseRealisasi, 100)}%`; const rpdTriwulan = calculateQuarterlySummary(rpdPerBulan, totalRPD); const realisasiTriwulan = calculateQuarterlySummary(realisasiPerBulan, totalRealisasi); const summariesContainer = document.getElementById('dashboard-triwulan-summaries'); if (summariesContainer) { summariesContainer.innerHTML = `<h6 class="small text-muted mt-2">Rencana Penarikan Dana (RPD)</h6><table class="table table-sm table-borderless text-center small"><thead class="table-light"><tr><th>Triwulan</th><th>Total RPD</th><th>%</th></tr></thead><tbody>${rpdTriwulan.values.map((val, i) => `<tr><td><strong>Q${i+1}</strong></td><td>Rp ${val.toLocaleString('id-ID')}</td><td><span class="badge bg-primary-subtle text-primary-emphasis">${rpdTriwulan.percentages[i]}</span></td></tr>`).join('')}</tbody></table><h6 class="small text-muted mt-3">Realisasi</h6><table class="table table-sm table-borderless text-center small"><thead class="table-light"><tr><th>Triwulan</th><th>Total Realisasi</th><th>%</th></tr></thead><tbody>${realisasiTriwulan.values.map((val, i) => `<tr><td><strong>Q${i+1}</strong></td><td>Rp ${val.toLocaleString('id-ID')}</td><td><span class="badge bg-success-subtle text-success-emphasis">${realisasiTriwulan.percentages[i]}</span></td></tr>`).join('')}</tbody></table>`; } } }
+  function renderDashboardSummary(data, containerPrefix = 'dashboard-', chartPrefix = 'chart') { let totalDiajukan = 0, totalDiterima = 0; let statusCounts = { 'Menunggu Review': 0, 'Diterima': 0, 'Ditolak': 0, 'Revisi': 0 }; const rpdPerBulan = Array(12).fill(0); const realisasiPerBulan = Array(12).fill(0); data.forEach(ajuan => { totalDiajukan += Number(ajuan.Total) || 0; if (ajuan.Status) { statusCounts[ajuan.Status] = (statusCounts[ajuan.Status] || 0) + 1; } if (ajuan.Status === 'Diterima') { totalDiterima += Number(ajuan.Total) || 0; RPD_MONTHS.forEach((month, index) => { rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0; realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0; }); } }); const totalRPD = rpdPerBulan.reduce((a, b) => a + b, 0); const totalRealisasi = realisasiPerBulan.reduce((a, b) => a + b, 0); document.getElementById(`${containerPrefix}total-diajukan`).textContent = 'Rp ' + totalDiajukan.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}total-diterima`).textContent = 'Rp ' + totalDiterima.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}total-rpd`).textContent = 'Rp ' + totalRPD.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}total-realisasi`).textContent = 'Rp ' + totalRealisasi.toLocaleString('id-ID'); document.getElementById(`${containerPrefix}count-menunggu`).textContent = statusCounts['Menunggu Review']; document.getElementById(`${containerPrefix}count-diterima`).textContent = statusCounts['Diterima']; document.getElementById(`${containerPrefix}count-ditolak`).textContent = statusCounts['Ditolak']; document.getElementById(`${containerPrefix}count-revisi`).textContent = statusCounts['Revisi']; const paguCard = document.getElementById('dashboard-total-pagu-card'); const paguValueEl = document.getElementById('dashboard-total-pagu'); const paguLabelEl = document.getElementById('dashboard-pagu-label'); paguCard.style.display = 'none'; if (STATE.role === 'direktorat') { const totalPagu = (STATE.allProdi || []).filter(p => p.Role === 'prodi').reduce((sum, p) => sum + (Number(p.Pagu_Anggaran) || 0), 0); paguValueEl.textContent = 'Rp ' + totalPagu.toLocaleString('id-ID'); paguLabelEl.textContent = 'TOTAL PAGU PRODI/UNIT'; paguCard.style.display = 'block'; } else if (STATE.role === 'prodi' && STATE.currentUserData) { const pagu = STATE.currentUserData.Pagu_Anggaran || 0; paguValueEl.textContent = 'Rp ' + pagu.toLocaleString('id-ID'); paguLabelEl.textContent = 'PAGU ANGGARAN SAYA'; paguCard.style.display = 'block'; } setupChart(`${chartPrefix}RPDvsRealisasi`, 'bar', { labels: RPD_MONTHS, datasets: [{ label: 'Realisasi (Rp)', data: realisasiPerBulan, backgroundColor: 'rgba(255, 193, 7, 0.7)' }, { label: 'RPD (Rp)', data: rpdPerBulan, backgroundColor: 'rgba(13, 110, 253, 0.6)' }] }, { responsive: true, scales: { x: { stacked: false }, y: { stacked: false, beginAtZero: true } } }); 
+    // START: Perbaikan rekap triwulan dan semester
+    if (containerPrefix === 'dashboard-') { 
+      const persentaseRealisasi = totalRPD > 0 ? (totalRealisasi / totalRPD) * 100 : 0; 
+      document.getElementById('dashboard-persen-realisasi').textContent = persentaseRealisasi.toFixed(1) + '%'; 
+      const progressBar = document.getElementById('dashboard-persen-realisasi-bar'); 
+      if (progressBar) progressBar.style.width = `${Math.min(persentaseRealisasi, 100)}%`; 
+      
+      const rpdTriwulan = calculateQuarterlySummary(rpdPerBulan, totalRPD); 
+      const realisasiTriwulan = calculateQuarterlySummary(realisasiPerBulan, totalRealisasi); 
+      const triwulanContainer = document.getElementById('dashboard-triwulan-summaries'); 
+      if (triwulanContainer) { 
+        triwulanContainer.innerHTML = `<h6 class="small text-muted">Rencana Penarikan (RPD)</h6><table class="table table-sm table-borderless text-center small"><thead class="table-light"><tr><th>Q</th><th>Total</th><th>%</th></tr></thead><tbody>${rpdTriwulan.values.map((val, i) => `<tr><td><strong>Q${i+1}</strong></td><td>${val.toLocaleString('id-ID')}</td><td><span class="badge bg-primary-subtle text-primary-emphasis">${rpdTriwulan.percentages[i]}</span></td></tr>`).join('')}</tbody></table><h6 class="small text-muted mt-2">Realisasi</h6><table class="table table-sm table-borderless text-center small"><thead class="table-light"><tr><th>Q</th><th>Total</th><th>%</th></tr></thead><tbody>${realisasiTriwulan.values.map((val, i) => `<tr><td><strong>Q${i+1}</strong></td><td>${val.toLocaleString('id-ID')}</td><td><span class="badge bg-success-subtle text-success-emphasis">${realisasiTriwulan.percentages[i]}</span></td></tr>`).join('')}</tbody></table>`; 
+      }
+      
+      const rpdSemester = calculateSemesterSummary(rpdPerBulan, totalRPD);
+      const realisasiSemester = calculateSemesterSummary(realisasiPerBulan, totalRealisasi);
+      const semesterContainer = document.getElementById('dashboard-semester-summaries');
+      if (semesterContainer) {
+          semesterContainer.innerHTML = `<h6 class="small text-muted">Rencana Penarikan (RPD)</h6><table class="table table-sm table-borderless text-center small"><thead class="table-light"><tr><th>S</th><th>Total</th><th>%</th></tr></thead><tbody>${rpdSemester.values.map((val, i) => `<tr><td><strong>S${i+1}</strong></td><td>${val.toLocaleString('id-ID')}</td><td><span class="badge bg-primary-subtle text-primary-emphasis">${rpdSemester.percentages[i]}</span></td></tr>`).join('')}</tbody></table><h6 class="small text-muted mt-2">Realisasi</h6><table class="table table-sm table-borderless text-center small"><thead class="table-light"><tr><th>S</th><th>Total</th><th>%</th></tr></thead><tbody>${realisasiSemester.values.map((val, i) => `<tr><td><strong>S${i+1}</strong></td><td>${val.toLocaleString('id-ID')}</td><td><span class="badge bg-success-subtle text-success-emphasis">${realisasiSemester.percentages[i]}</span></td></tr>`).join('')}</tbody></table>`;
+      }
+    } 
+    // END: Perbaikan rekap triwulan dan semester
+  }
   function renderDirektoratDashboard(data) { const ajuanPerBulan = Array(12).fill(0); data.forEach(ajuan => { if(ajuan.Timestamp) { const month = new Date(ajuan.Timestamp).getMonth(); if (month >= 0 && month < 12) ajuanPerBulan[month]++; } }); setupChart('chartAjuanPerBulan', 'bar', { labels: RPD_MONTHS, datasets: [{ label: 'Jumlah Ajuan', data: ajuanPerBulan, backgroundColor: 'rgba(54, 162, 235, 0.6)' }] }, { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }); const ajuanPerStatus = data.reduce((acc, ajuan) => { acc[ajuan.Status] = (acc[ajuan.Status] || 0) + 1; return acc; }, {}); setupChart('chartAjuanPerStatus', 'doughnut', { labels: Object.keys(ajuanPerStatus), datasets: [{ data: Object.values(ajuanPerStatus), backgroundColor: ['#ffc107', '#198754', '#dc3545', '#fd7e14', '#6c757d'] }] }, { responsive: true, plugins: { legend: { position: 'top' } } }); const perProdiStats = data.reduce((acc, ajuan) => { const prodiId = ajuan.ID_Prodi || 'N/A'; if (!acc[prodiId]) acc[prodiId] = { count: 0, total: 0 }; acc[prodiId].count++; acc[prodiId].total += Number(ajuan.Total) || 0; return acc; }, {}); const prodiLabels = Object.keys(perProdiStats).sort(); const anggaranPerProdiData = prodiLabels.map(id => perProdiStats[id].total); const ajuanPerProdiData = prodiLabels.map(id => perProdiStats[id].count); setupChart('chartAnggaranPerProdi', 'bar', { labels: prodiLabels, datasets: [{ label: 'Total Anggaran (Rp)', data: anggaranPerProdiData, backgroundColor: 'rgba(25, 135, 84, 0.6)' }] }, { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } }); setupChart('chartAjuanPerProdi', 'pie', { labels: prodiLabels, datasets: [{ data: ajuanPerProdiData, backgroundColor: ['#0dcaf0', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#212529', '#ffc107'] }] }, { responsive: true, plugins: { legend: { position: 'top' } } }); const reportsContainer = document.getElementById('direktorat-prodi-reports'); reportsContainer.innerHTML = ''; const dataByProdi = data.reduce((acc, curr) => { (acc[curr.ID_Prodi] = acc[curr.ID_Prodi] || []).push(curr); return acc; }, {}); Object.keys(dataByProdi).sort().forEach(prodiId => renderProdiDetailReport(prodiId, dataByProdi[prodiId], reportsContainer)); }
   function renderProdiDetailReport(prodiId, prodiData, container) { const prodiSafeId = prodiId.replace(/[^a-zA-Z0-9]/g, ''); const prodiHtml = `<div class="col-12 col-lg-6"><div class="card p-3 h-100"><h6 class="card-title mb-3 border-bottom pb-2"><strong><i class="bi bi-building"></i> Laporan: ${escapeHtml(prodiId)}</strong></h6><div class="row g-3"><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">PAGU ANGGARAN</div><strong id="prodi-${prodiSafeId}-pagu" class="fs-6 text-primary"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">SISA PAGU</div><strong id="prodi-${prodiSafeId}-sisa-pagu" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">DIAJUKAN</div><strong id="prodi-${prodiSafeId}-diajukan" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">DITERIMA</div><strong id="prodi-${prodiSafeId}-diterima" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">RPD</div><strong id="prodi-${prodiSafeId}-rpd" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">REALISASI</div><strong id="prodi-${prodiSafeId}-realisasi" class="fs-6"></strong></div></div><div class="col-12"><div class="card p-2 text-center bg-light"><div class="small text-muted">% REALISASI (DARI RPD)</div><strong id="prodi-${prodiSafeId}-persen" class="fs-4 text-primary">0.0%</strong><div class="progress mt-1" role="progressbar" style="height: 5px;"><div id="prodi-${prodiSafeId}-persen-bar" class="progress-bar" style="width: 0%;"></div></div></div></div></div><div class="mt-3"><h6 class="text-center small text-muted">Progress Bulanan</h6><canvas id="chart-prodi-${prodiSafeId}-progress"></canvas></div></div></div>`; container.insertAdjacentHTML('beforeend', prodiHtml); const prodiInfo = (STATE.allProdi || []).find(p => p.ID_Prodi === prodiId); const pagu = prodiInfo ? (Number(prodiInfo.Pagu_Anggaran) || 0) : 0; let totalDiajukan = 0, totalDiterima = 0, totalRPD = 0, totalRealisasi = 0; const rpdPerBulan = Array(12).fill(0); const realisasiPerBulan = Array(12).fill(0); prodiData.forEach(ajuan => { totalDiajukan += Number(ajuan.Total) || 0; if (ajuan.Status === 'Diterima') { totalDiterima += Number(ajuan.Total) || 0; RPD_MONTHS.forEach((month, index) => { const rpdVal = Number(ajuan[`RPD_${month}`]) || 0; const realVal = Number(ajuan[`Realisasi_${month}`]) || 0; totalRPD += rpdVal; totalRealisasi += realVal; rpdPerBulan[index] += rpdVal; realisasiPerBulan[index] += realVal; }); } }); const sisaPagu = pagu - totalDiterima; const sisaPaguClass = sisaPagu < 0 ? 'text-danger' : 'text-success'; document.getElementById(`prodi-${prodiSafeId}-pagu`).textContent = 'Rp ' + pagu.toLocaleString('id-ID'); const sisaPaguEl = document.getElementById(`prodi-${prodiSafeId}-sisa-pagu`); sisaPaguEl.textContent = 'Rp ' + sisaPagu.toLocaleString('id-ID'); sisaPaguEl.className = `fs-6 fw-bold ${sisaPaguClass}`; const persentaseRealisasi = totalRPD > 0 ? (totalRealisasi / totalRPD) * 100 : 0; document.getElementById(`prodi-${prodiSafeId}-diajukan`).textContent = 'Rp ' + totalDiajukan.toLocaleString('id-ID'); document.getElementById(`prodi-${prodiSafeId}-diterima`).textContent = 'Rp ' + totalDiterima.toLocaleString('id-ID'); document.getElementById(`prodi-${prodiSafeId}-rpd`).textContent = 'Rp ' + totalRPD.toLocaleString('id-ID'); document.getElementById(`prodi-${prodiSafeId}-realisasi`).textContent = 'Rp ' + totalRealisasi.toLocaleString('id-ID'); const persenEl = document.getElementById(`prodi-${prodiSafeId}-persen`); if (persenEl) persenEl.textContent = persentaseRealisasi.toFixed(1) + '%'; const persenBarEl = document.getElementById(`prodi-${prodiSafeId}-persen-bar`); if (persenBarEl) persenBarEl.style.width = `${Math.min(persentaseRealisasi, 100)}%`; setupChart(`chart-prodi-${prodiSafeId}-progress`, 'bar', { labels: RPD_MONTHS, datasets: [{ label: 'Realisasi (Rp)', data: realisasiPerBulan, backgroundColor: 'rgba(255, 193, 7, 0.7)' }, { label: 'RPD (Rp)', data: rpdPerBulan, backgroundColor: 'rgba(13, 110, 253, 0.6)' }] }, { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }); }
   
@@ -2394,8 +2583,7 @@ document.addEventListener('DOMContentLoaded', function() {
                       if (collectionName === 'ajuan' && history && Array.isArray(history)) {
                           for (const historyDoc of history) {
                               const { id: historyId, ...historyData } = historyDoc;
-                              if (historyData.timestamp && historyData.timestamp.seconds !== undefined) {
-                                  historyData.timestamp = new firebase.firestore.Timestamp(historyData.timestamp.seconds, historyData.timestamp.nanoseconds);
+                              if (historyData.timestamp && historyData.timestamp.seconds !== undefined) {historyData.timestamp = new firebase.firestore.Timestamp(historyData.timestamp.seconds, historyData.timestamp.nanoseconds);
                               }
                               const historyRef = docRef.collection('history').doc(historyId);
                               batch.set(historyRef, historyData);
@@ -2575,9 +2763,211 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-print-realisasi-perubahan').addEventListener('click', () => printContent('tableRealisasiPerubahan', 'Realisasi Perubahan'));
   document.getElementById('btn-export-excel-realisasi-perubahan').addEventListener('click', () => exportToExcel('tableRealisasiPerubahan', 'Realisasi_Perubahan.xlsx', 'Realisasi Perubahan'));
 
+  // --- START: Log Aktivitas ---
+  document.querySelector('[data-bs-target="#tab-log"]').addEventListener('shown.bs.tab', async () => {
+    if (STATE.role === 'direktorat') {
+        const userSelect = document.getElementById('filterLogUser');
+        userSelect.innerHTML = '<option value="">Semua Pengguna</option>';
+        STATE.allProdi.forEach(user => {
+            userSelect.add(new Option(`${user.ID_Prodi} (${user.Role})`, user.ID_Prodi));
+        });
+        await refreshLogTable();
+    }
+  });
+
+  async function refreshLogTable() {
+    if (STATE.role !== 'direktorat') return;
+    const tableContainer = document.getElementById('tableLogAktivitas');
+    tableContainer.innerHTML = `<div class="text-center text-muted p-5">Memuat log...</div>`;
+    showLoader(true);
+    try {
+        let query = db.collection('activityLog').orderBy('timestamp', 'desc');
+
+        const userFilter = document.getElementById('filterLogUser').value;
+        if (userFilter) {
+            query = query.where('userId', '==', userFilter);
+        }
+        
+        const dateStartFilter = document.getElementById('filterLogDateStart').value;
+        if (dateStartFilter) {
+            query = query.where('timestamp', '>=', new Date(dateStartFilter));
+        }
+
+        const dateEndFilter = document.getElementById('filterLogDateEnd').value;
+        if (dateEndFilter) {
+            const endDate = new Date(dateEndFilter);
+            endDate.setHours(23, 59, 59, 999);
+            query = query.where('timestamp', '<=', endDate);
+        }
+
+        const snapshot = await query.limit(500).get();
+        const logs = snapshot.docs.map(doc => doc.data());
+        renderLogTable(logs);
+
+    } catch (error) {
+        tableContainer.innerHTML = `<div class="text-center text-danger p-5">Gagal memuat log aktivitas.</div>`;
+        console.error("Error fetching activity log:", error);
+    } finally {
+        showLoader(false);
+    }
+  }
+
+  function renderLogTable(logs) {
+    const container = document.getElementById('tableLogAktivitas');
+    if (logs.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada aktivitas yang tercatat untuk filter ini.</div>';
+        return;
+    }
+    const tableHeader = `
+        <thead class="table-light">
+            <tr>
+                <th>
+Model
+ThinkingThoughts
+(experimental)
+Auto
+Expand to view model thoughts
+
+chevron_right
+Tentu, saya akan melanjutkan kode yang terpotong.
+Berikut adalah sisa dari file log.html yang sudah diperbaiki, termasuk fungsionalitas komentar yang ditambahkan.
+code
+Html
+<!-- Lanjutan dari kode sebelumnya -->
+                <th>Waktu</th>
+                <th>Pengguna</th>
+                <th>Aksi</th>
+                <th>Detail</th>
+            </tr>
+        </thead>`;
+    const tableRows = logs.map(log => {
+        const time = log.timestamp && log.timestamp.toDate ? log.timestamp.toDate().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'long' }) : 'N/A';
+        return `
+            <tr>
+                <td class="text-nowrap">${time}</td>
+                <td class="text-nowrap">${escapeHtml(log.userId)}</td>
+                <td><span class="badge bg-info-subtle text-info-emphasis">${escapeHtml(log.action)}</span></td>
+                <td><small>${escapeHtml(log.details)}</small></td>
+            </tr>`;
+    }).join('');
+    container.innerHTML = `<table class="table table-sm table-striped table-hover">${tableHeader}<tbody>${tableRows}</tbody></table>`;
+  }
+
+  document.getElementById('btn-filter-log').addEventListener('click', refreshLogTable);
+  document.getElementById('btn-refresh-log').addEventListener('click', refreshLogTable);
+  document.getElementById('btn-print-log').addEventListener('click', () => printContent('tableLogAktivitas', 'Log Aktivitas Pengguna'));
+  document.getElementById('btn-export-excel-log').addEventListener('click', () => exportToExcel('tableLogAktivitas', 'Log_Aktivitas.xlsx', 'Log Aktivitas Pengguna'));
+  // --- END: Log Aktivitas ---
+
+
+  // --- START: Fitur Komentar ---
+  window.openKomentarModal = async (id, nama) => {
+    document.getElementById('komentarModalAjuanId').innerText = id.substring(0, 6) + '...';
+    document.getElementById('komentarModalAjuanNama').innerText = nama;
+    document.getElementById('komentar-id-ajuan').value = id;
+    document.getElementById('komentar-input').value = '';
+    
+    const komentarListEl = document.getElementById('komentar-list');
+    komentarListEl.innerHTML = `<div class="text-center text-muted">Memuat komentar...</div>`;
+    KOMENTAR_MODAL.show();
+
+    try {
+        const doc = await db.collection('ajuan').doc(id).get();
+        if (doc.exists) {
+            const comments = doc.data().Komentar || [];
+            renderKomentarList(comments);
+        } else {
+            komentarListEl.innerHTML = `<div class="text-center text-danger">Ajuan tidak ditemukan.</div>`;
+        }
+    } catch (error) {
+        console.error("Gagal memuat komentar:", error);
+        komentarListEl.innerHTML = `<div class="text-center text-danger">Gagal memuat komentar.</div>`;
+    }
+  };
+
+  function renderKomentarList(comments) {
+    const listEl = document.getElementById('komentar-list');
+    if (!comments || comments.length === 0) {
+      listEl.innerHTML = '<p class="text-center text-muted small m-0">Belum ada diskusi untuk ajuan ini.</p>';
+      return;
+    }
+    
+    listEl.innerHTML = comments.map(c => {
+      const isCurrentUser = c.author === STATE.id;
+      const bubbleClass = isCurrentUser ? 'comment-bubble-user' : 'comment-bubble-other';
+      const time = c.timestamp && c.timestamp.toDate ? c.timestamp.toDate().toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+
+      return `<div class="comment-bubble ${bubbleClass}">
+                <div class="author">${escapeHtml(c.author)}</div>
+                <div class="text">${escapeHtml(c.text)}</div>
+                <div class="timestamp">${time}</div>
+              </div>`;
+    }).join('');
+    listEl.scrollTop = listEl.scrollHeight; // Auto-scroll to the bottom
+  }
+
+  document.getElementById('btn-submit-komentar').addEventListener('click', async () => {
+    const ajuanId = document.getElementById('komentar-id-ajuan').value;
+    const inputEl = document.getElementById('komentar-input');
+    const text = inputEl.value.trim();
+
+    if (!text) {
+      showToast("Komentar tidak boleh kosong.", "warning");
+      return;
+    }
+
+    const newComment = {
+      author: STATE.id,
+      text: text,
+      timestamp: new Date() // Client-side timestamp for immediate display
+    };
+    
+    showLoader(true);
+    try {
+      const ajuanRef = db.collection('ajuan').doc(ajuanId);
+      
+      // Update Firestore
+      await ajuanRef.update({
+        Komentar: arrayUnion({
+            author: STATE.id,
+            text: text,
+            timestamp: serverTimestamp()
+        })
+      });
+      
+      // Immediately update local UI
+      const doc = await ajuanRef.get();
+      const comments = doc.data().Komentar || [];
+      renderKomentarList(comments);
+      inputEl.value = '';
+
+      // Send notifications to other parties
+      const ajuanData = doc.data();
+      if (STATE.role === 'prodi') { // Prodi sends notification to all directorate
+          STATE.allDirektoratUids.forEach(uid => {
+              createNotification(uid, `${STATE.id} mengirim komentar baru pada ajuan "${ajuanData.Nama_Ajuan}".`);
+          });
+      } else { // Directorate sends notification to the prodi owner
+          const prodiUser = STATE.allProdi.find(p => p.ID_Prodi === ajuanData.ID_Prodi);
+          if (prodiUser && prodiUser.uid) {
+              createNotification(prodiUser.uid, `Direktorat mengirim komentar baru pada ajuan Anda "${ajuanData.Nama_Ajuan}".`);
+          }
+      }
+      
+      await logActivity('Komentar Dikirim', `Mengirim komentar pada ajuan ID ${ajuanId}: "${text}"`);
+      showToast("Komentar berhasil dikirim.", "success");
+
+    } catch (error) {
+      console.error("Gagal mengirim komentar:", error);
+      showToast(`Gagal mengirim komentar: ${error.message}`, "danger");
+    } finally {
+      showLoader(false);
+    }
+  });
+  // --- END: Fitur Komentar ---
+
 });
 </script>
 
 </body>
 </html>
-
