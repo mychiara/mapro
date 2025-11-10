@@ -44,6 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const KOMENTAR_MODAL = new bootstrap.Modal(document.getElementById('komentarModal'));
   const HISTORY_MODAL = new bootstrap.Modal(document.getElementById('historyModal'));
   const PRODI_COLORS = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac'];
+  const RPD_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
 
   function showLoader(show) { LOADER.style.display = show ? 'flex' : 'none'; }
   function showToast(message, type = 'success') {
@@ -103,10 +104,10 @@ document.addEventListener('DOMContentLoaded', function() {
     copyBtn.style.display = (isTahapPerubahanOpen && STATE.role === 'prodi') ? 'block' : 'none';
     if (tahapAktif == 1) {
       copyBtn.innerHTML = `<i class="bi bi-files"></i> Pindahkan Ajuan Awal Diterima`;
-      copyBtn.title = "Salin semua ajuan awal yang diterima ke daftar ini untuk diedit ulang";
+      copyBtn.title = "Salin semua ajuan awal yang diterima dan tidak diblokir ke daftar ini untuk diedit ulang";
     } else {
       copyBtn.innerHTML = `<i class="bi bi-files"></i> Pindahkan dari Perubahan ${tahapAktif - 1}`;
-      copyBtn.title = `Salin semua ajuan dari Tahap Perubahan ${tahapAktif - 1} yang diterima ke daftar ini`;
+      copyBtn.title = `Salin semua ajuan dari Tahap Perubahan ${tahapAktif - 1} yang diterima dan tidak diblokir ke daftar ini`;
     }
   }
 
@@ -125,7 +126,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let totalDiajukanAwal = 0;
         activeAjuanAwalQuery.forEach(doc => {
-            totalDiajukanAwal += Number(doc.data().Total) || 0;
+            const data = doc.data();
+            // All active ajuan in Awal stage count against the ceiling
+            totalDiajukanAwal += Number(data.Total) || 0;
         });
         
         // 2. Calculate Total Ajuan Overall (Active Statuses) for context
@@ -461,7 +464,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Only consider existing active Awal ajuan for the initial Pagu check
             const activeAjuanQuery = await db.collection('ajuan')
                 .where('ID_Prodi', '==', STATE.id)
-                .where('Tipe_Ajuan', '==', 'Awal')
+                .where('Tipe_Ajuan', '==', 'Awal') // Only Awal ajuan counts against Pagu_Anggaran
                 .where('Status', 'in', ['Menunggu Review', 'Diterima', 'Revisi'])
                 .get();
 
@@ -488,6 +491,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 Tipe_Ajuan: STATE.currentAjuanType, 
                 Status: "Menunggu Review", 
                 Komentar: [], 
+                Is_Blocked: false, // Default status: not blocked
                 Timestamp: serverTimestamp() 
             });
             const historyRef = ajuanRef.collection('history').doc();
@@ -663,6 +667,8 @@ document.addEventListener('DOMContentLoaded', function() {
         let ajuanData = snapshot.docs.map(doc => {
             const data = doc.data();
             if (data.Timestamp && data.Timestamp.toDate) data.Timestamp = data.Timestamp.toDate();
+            // Ensure Is_Blocked property exists for safety, default to false
+            if (data.Is_Blocked === undefined) data.Is_Blocked = false; 
             return { ID_Ajuan: doc.id, ...data };
         });
         
@@ -715,11 +721,27 @@ document.addEventListener('DOMContentLoaded', function() {
     if (rows.length === 0) { container.innerHTML = '<div class="text-center text-muted p-5">Belum ada ajuan.</div>'; document.getElementById(summaryContainerId).style.display = 'none'; return; }
     
     let grandTotal = 0, acceptedTotal = 0, rejectedTotal = 0;
-    rows.forEach(r => { const totalValue = Number(r.Total) || 0; grandTotal += totalValue; if (r.Status === 'Diterima') acceptedTotal += totalValue; else if (r.Status === 'Ditolak') rejectedTotal += totalValue; });
+    rows.forEach(r => { 
+        const totalValue = Number(r.Total) || 0; 
+        grandTotal += totalValue; 
+        
+        // Accepted total excludes blocked items
+        if (r.Status === 'Diterima' && !r.Is_Blocked) acceptedTotal += totalValue; 
+        else if (r.Status === 'Ditolak') rejectedTotal += totalValue; 
+    });
     const summaryContainer = document.getElementById(summaryContainerId);
-    summaryContainer.innerHTML = `<div><strong>Total Diajukan:</strong> Rp ${grandTotal.toLocaleString('id-ID')}</div><div><strong class="text-success">Total Diterima:</strong> Rp ${acceptedTotal.toLocaleString('id-ID')}</div><div><strong class="text-danger">Total Ditolak:</strong> Rp ${rejectedTotal.toLocaleString('id-ID')}</div>`;
+    summaryContainer.innerHTML = `<div><strong>Total Diajukan:</strong> Rp ${grandTotal.toLocaleString('id-ID')}</div><div><strong class="text-success">Total Diterima (Bersih):</strong> Rp ${acceptedTotal.toLocaleString('id-ID')}</div><div><strong class="text-danger">Total Ditolak:</strong> Rp ${rejectedTotal.toLocaleString('id-ID')}</div>`;
     summaryContainer.style.display = 'flex';
     
+    // Status classes definition
+    const statusClassMap = { 
+        "Menunggu Review": "status-menunggu-review", 
+        "Diterima": "status-diterima", 
+        "Ditolak": "status-ditolak", 
+        "Revisi": "status-revisi",
+        "Blocked": "status-diblokir" // Custom status for blocked item styling
+    };
+
     if (isPerubahan) {
         let html = `<table class="table table-hover align-middle" style="min-width: 2200px;"><thead class="table-light"><tr>
                         <th style="width: 30px;" rowspan="2" class="align-middle"><input type="checkbox" id="select-all-ajuan-${tipe}" title="Pilih Semua"></th>
@@ -729,7 +751,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <th rowspan="2" class="align-middle text-center">Dakung</th>
                         <th rowspan="2" class="align-middle" style="min-width: 140px;">Status</th>
                         <th rowspan="2" class="align-middle" style="min-width: 200px;">Catatan Reviewer</th>
-                        <th rowspan="2" class="align-middle text-end action-buttons" style="min-width: 200px;">Aksi</th>
+                        <th rowspan="2" class="align-middle text-end action-buttons" style="min-width: 280px;">Aksi</th>
                       </tr>
                       <tr class="table-light">
                         <th style="min-width: 250px;">Rincian Ajuan (Lama)</th>
@@ -751,7 +773,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const sortedGrubKeys = Object.keys(groupedData).sort();
         const prodiNameMap = STATE.allProdi.reduce((acc, prodi) => { acc[prodi.ID_Prodi] = prodi.Nama_Prodi; return acc; }, {});
-        const statusClass = { "Menunggu Review": "status-menunggu-review", "Diterima": "status-diterima", "Ditolak": "status-ditolak", "Revisi": "status-revisi" };
         
         sortedGrubKeys.forEach(grubKey => {
           html += `<tr class="group-header-grub"><td colspan="12" class="fw-bold"><i class="bi bi-folder-fill"></i> ${escapeHtml(grubKey)}</td></tr>`;
@@ -773,8 +794,13 @@ document.addEventListener('DOMContentLoaded', function() {
                       const prodiNama = prodiNameMap[r.ID_Prodi] || r.ID_Prodi;
                       const prodiInfoHtml = STATE.role === 'direktorat' ? `<div class="small text-muted">Oleh: <strong>${escapeHtml(prodiNama)}</strong></div>` : '';
                       const idAjuanAsal = r.ID_Ajuan_Asal ? `<span class="badge bg-light text-dark fw-normal fst-italic">Asal: ${r.ID_Ajuan_Asal.substring(0,6)}..</span>` : '';
-
-                      html += `<tr class="prodi-indicator" style="border-left-color: ${prodiColor};">
+                      
+                      const isBlocked = !!r.Is_Blocked;
+                      const statusKey = isBlocked ? "Blocked" : r.Status;
+                      const rowClass = isBlocked ? 'blocked-row' : ''; 
+                      const statusBadgeText = isBlocked && r.Status === 'Diterima' ? `Diterima (BLOKIR)` : (isBlocked ? `${r.Status} (BLOKIR)` : r.Status);
+                      
+                      html += `<tr class="prodi-indicator ${rowClass}" style="border-left-color: ${prodiColor};">
                                   <td><input type="checkbox" class="ajuan-checkbox-${tipe}" data-id="${r.ID_Ajuan}"></td>
                                   <td class="bg-secondary-subtle"><small>${escapeHtml(original.Nama_Ajuan || 'N/A')}</small></td>
                                   <td class="bg-secondary-subtle"><small class="text-nowrap">${Number(original.Jumlah || 0).toLocaleString('id-ID')} ${escapeHtml(original.Satuan || '')} X Rp ${Number(original.Harga_Satuan || 0).toLocaleString('id-ID')}</small></td>
@@ -784,7 +810,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                   <td class="text-end text-nowrap"><strong>Rp ${totalBaru.toLocaleString('id-ID')}</strong></td>
                                   <td class="text-end text-nowrap fw-bold ${selisihClass}">${selisihText}</td>
                                   <td class="text-center">${dataDukungLink}</td>
-                                  <td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span></td>
+                                  <td><span class="badge rounded-pill status-badge ${statusClassMap[statusKey] || statusClassMap[r.Status] || 'bg-secondary'}">${statusBadgeText}</span></td>
                                   <td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td>
                                   <td class="text-end action-buttons">${renderActionsForRow(r, tipe)}</td>
                               </tr>`;
@@ -801,9 +827,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!acc[grubKey]) acc[grubKey] = {}; if (!acc[grubKey][kelompokKey]) acc[grubKey][kelompokKey] = {}; if (!acc[grubKey][kelompokKey][kegiatanKey]) acc[grubKey][kelompokKey][kegiatanKey] = [];
             acc[grubKey][kelompokKey][kegiatanKey].push(row); return acc;
         }, {});
-        const sortedGrubKeys = Object.keys(groupedData).sort(); const statusClass = { "Menunggu Review": "status-menunggu-review", "Diterima": "status-diterima", "Ditolak": "status-ditolak", "Revisi": "status-revisi" };
+        const sortedGrubKeys = Object.keys(groupedData).sort(); 
         const prodiNameMap = STATE.allProdi.reduce((acc, prodi) => { acc[prodi.ID_Prodi] = prodi.Nama_Prodi; return acc; }, {});
-        let html = `<table class="table table-hover align-middle" style="min-width: 1350px;"><thead class="table-light"><tr><th style="width: 30px;"><input type="checkbox" id="select-all-ajuan-${tipe}" title="Pilih Semua"></th><th style="min-width: 250px;">Rincian Ajuan</th><th style="min-width: 200px;">Detail Kuantitas</th><th class="text-end" style="min-width: 130px;">Total Biaya</th><th class="text-center">Dakung</th><th style="min-width: 140px;">Status</th><th style="min-width: 200px;">Catatan Reviewer</th><th class="text-end action-buttons" style="min-width: 200px;">Aksi</th></tr></thead><tbody>`;
+        let html = `<table class="table table-hover align-middle" style="min-width: 1350px;"><thead class="table-light"><tr><th style="width: 30px;"><input type="checkbox" id="select-all-ajuan-${tipe}" title="Pilih Semua"></th><th style="min-width: 250px;">Rincian Ajuan</th><th style="min-width: 200px;">Detail Kuantitas</th><th class="text-end" style="min-width: 130px;">Total Biaya</th><th class="text-center">Dakung</th><th style="min-width: 140px;">Status</th><th style="min-width: 200px;">Catatan Reviewer</th><th class="text-end action-buttons" style="min-width: 280px;">Aksi</th></tr></thead><tbody>`;
         sortedGrubKeys.forEach(grubKey => {
           html += `<tr class="group-header-grub"><td colspan="8" class="fw-bold"><i class="bi bi-folder-fill"></i> ${escapeHtml(grubKey)}</td></tr>`;
           const sortedKelompokKeys = Object.keys(groupedData[grubKey]).sort();
@@ -818,7 +844,13 @@ document.addEventListener('DOMContentLoaded', function() {
                       const prodiNama = prodiNameMap[r.ID_Prodi] || r.ID_Prodi;
                       const prodiInfoHtml = STATE.role === 'direktorat' ? `<div class="small text-muted">Oleh: <strong>${escapeHtml(prodiNama)}</strong></div>` : '';
                       const idAjuanAsal = r.ID_Ajuan_Asal ? `<span class="badge bg-light text-dark fw-normal fst-italic">Asal: ${r.ID_Ajuan_Asal.substring(0,6)}..</span>` : '';
-                      html += `<tr class="prodi-indicator" style="border-left-color: ${prodiColor};"><td><input type="checkbox" class="ajuan-checkbox-${tipe}" data-id="${r.ID_Ajuan}"></td><td><div class="d-flex justify-content-between align-items-start"><strong class="me-2">${escapeHtml(r.Nama_Ajuan)}</strong><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal text-nowrap">${r.ID_Ajuan.substring(0, 6)}..</span></div>${prodiInfoHtml}<div class="mt-1"><span class="badge bg-info-subtle text-info-emphasis fw-normal">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</span> ${idAjuanAsal}</div></td><td><div class="small text-nowrap">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)} X Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div></td><td class="text-end text-nowrap"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td><td class="text-center">${dataDukungLink}</td><td><span class="badge rounded-pill status-badge ${statusClass[r.Status] || 'bg-secondary'}">${r.Status}</span></td><td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td><td class="text-end action-buttons">${renderActionsForRow(r, tipe)}</td></tr>`;
+                      
+                      const isBlocked = !!r.Is_Blocked;
+                      const statusKey = isBlocked ? "Blocked" : r.Status;
+                      const rowClass = isBlocked ? 'blocked-row' : ''; 
+                      const statusBadgeText = isBlocked && r.Status === 'Diterima' ? `Diterima (BLOKIR)` : (isBlocked ? `${r.Status} (BLOKIR)` : r.Status);
+
+                      html += `<tr class="prodi-indicator ${rowClass}" style="border-left-color: ${prodiColor};"><td><input type="checkbox" class="ajuan-checkbox-${tipe}" data-id="${r.ID_Ajuan}"></td><td><div class="d-flex justify-content-between align-items-start"><strong class="me-2">${escapeHtml(r.Nama_Ajuan)}</strong><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal text-nowrap">${r.ID_Ajuan.substring(0, 6)}..</span></div>${prodiInfoHtml}<div class="mt-1"><span class="badge bg-info-subtle text-info-emphasis fw-normal">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</span> ${idAjuanAsal}</div></td><td><div class="small text-nowrap">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)} X Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div></td><td class="text-end text-nowrap"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td><td class="text-center">${dataDukungLink}</td><td><span class="badge rounded-pill status-badge ${statusClassMap[statusKey] || statusClassMap[r.Status] || 'bg-secondary'}">${statusBadgeText}</span></td><td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td><td class="text-end action-buttons">${renderActionsForRow(r, tipe)}</td></tr>`;
                   });
               });
           });
@@ -827,6 +859,35 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     addCheckboxListeners(tipe);
   }
+  
+  window.toggleBlockAjuan = async (id, blockStatus, tipe) => {
+      const actionText = blockStatus ? 'Blokir' : 'Buka Blokir';
+      if (!confirm(`Yakin ingin ${actionText.toLowerCase()} ajuan ID: ${id}? Ajuan yang diblokir tidak akan dimasukkan dalam perhitungan RPD dan Realisasi, meskipun statusnya Diterima.`)) {
+          return;
+      }
+
+      showLoader(true);
+      try {
+          await db.collection('ajuan').doc(id).update({
+              Is_Blocked: blockStatus
+          });
+          
+          await logActivity('Toggle Block Ajuan', `${actionText} ajuan ID: ${id} (${tipe}).`);
+          logHistory(id, `Ajuan ${blockStatus ? 'Diblokir' : 'Dibuka Blokir'}`, `Status blokir diubah menjadi ${blockStatus}.`);
+
+          showToast(`Ajuan ${id.substring(0,6)}.. berhasil di${blockStatus ? 'blokir' : 'buka blokir'}.`);
+          
+          if(tipe === 'Awal') refreshAjuanTableAwal(); else refreshAjuanTablePerubahan();
+          loadDashboardData(); 
+
+      } catch(error) { 
+          showToast(`Gagal ${actionText.toLowerCase()}: ${error.message}`, 'danger'); 
+      } finally { 
+          showLoader(false); 
+      }
+  };
+
+
   function renderActionsForRow(r, tipe) {
     let actions = '';
     const comments = r.Komentar || [];
@@ -845,15 +906,21 @@ document.addEventListener('DOMContentLoaded', function() {
         isEditableForProdi = true;
     }
 
-    if (STATE.role === 'prodi' && String(r.ID_Prodi) === String(STATE.id) && ['Revisi', 'Menunggu Review', 'Ditolak'].includes(r.Status) && isEditableForProdi) { 
-        actions += `<button class="btn btn-sm btn-outline-primary" onclick="window.openEditModal('${r.ID_Ajuan}')" title="Edit"><i class="bi bi-pencil-fill"></i></button>`; 
-    }
-    
     if (STATE.role === 'direktorat') {
+      const isBlocked = !!r.Is_Blocked;
+      const blockBtnClass = isBlocked ? 'btn-warning text-dark' : 'btn-outline-secondary';
+      const blockIcon = isBlocked ? 'bi-unlock-fill' : 'bi-lock-fill';
+      const blockTitle = isBlocked ? 'Buka Blokir' : 'Blokir Ajuan (Tidak Masuk RPD/Realisasi)';
+      actions += `<button class="btn btn-sm ${blockBtnClass}" onclick="window.toggleBlockAjuan('${r.ID_Ajuan}', ${!isBlocked}, '${tipe}')" title="${blockTitle}"><i class="bi ${blockIcon}"></i></button>`;
+      
       if (["Menunggu Review", "Revisi"].includes(r.Status)) { actions += `<button class="btn btn-sm btn-success" onclick="window.openReviewModal('${r.ID_Ajuan}','Diterima', '${tipe}', '${r.Status}')" title="Terima"><i class="bi bi-check-lg"></i></button><button class="btn btn-sm btn-danger" onclick="window.openReviewModal('${r.ID_Ajuan}','Ditolak', '${tipe}', '${r.Status}')" title="Tolak"><i class="bi bi-x-lg"></i></button><button class="btn btn-sm btn-warning text-dark" onclick="window.openReviewModal('${r.ID_Ajuan}','Revisi', '${tipe}', '${r.Status}')" title="Revisi"><i class="bi bi-arrow-return-left"></i></button>`; }
       actions += `<button class="btn btn-sm btn-outline-danger" onclick="window.deleteAjuan('${r.ID_Ajuan}', '${tipe}')" title="Hapus"><i class="bi bi-trash-fill"></i></button>`;
     }
 
+    if (STATE.role === 'prodi' && String(r.ID_Prodi) === String(STATE.id) && ['Revisi', 'Menunggu Review', 'Ditolak'].includes(r.Status) && isEditableForProdi) { 
+        actions += `<button class="btn btn-sm btn-outline-primary" onclick="window.openEditModal('${r.ID_Ajuan}')" title="Edit"><i class="bi bi-pencil-fill"></i></button>`; 
+    }
+    
     if (STATE.role === 'prodi' && String(r.ID_Prodi) === String(STATE.id) && ['Revisi', 'Menunggu Review'].includes(r.Status) && isEditableForProdi) { 
         actions += ` <button class="btn btn-sm btn-outline-danger" onclick="window.deleteAjuan('${r.ID_Ajuan}', '${tipe}')" title="Hapus"><i class="bi bi-trash-fill"></i></button>`; 
     }
@@ -992,8 +1059,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         for (const id of ids) {
             const ajuanRef = db.collection('ajuan').doc(id);
-            batch.update(ajuanRef, data);
             
+            // If status changes to accepted, ensure it's unblocked by default (Is_Blocked: false)
+            if (newStatus === 'Diterima') {
+                 batch.update(ajuanRef, { ...data, Is_Blocked: false });
+            } else {
+                 batch.update(ajuanRef, data);
+            }
+
             const detailLog = `Status diubah dari '${oldStatus || "N/A"}' menjadi '${newStatus}'. Catatan: ${catatan || 'Tidak ada.'}`;
             logHistory(id, "Status Direview", detailLog);
             
@@ -1063,7 +1136,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const sourceType = tahapAktif === 1 ? 'Awal' : `Perubahan ${tahapAktif - 1}`;
     const destinationType = `Perubahan ${tahapAktif}`;
 
-    if (!confirm(`Anda akan menyalin ajuan dari tahap "${sourceType}" yang berstatus "Diterima" ke daftar "${destinationType}". Ajuan yang sudah pernah disalin tidak akan diduplikasi. Lanjutkan?`)) return;
+    if (!confirm(`Anda akan menyalin ajuan dari tahap "${sourceType}" yang berstatus "Diterima" dan tidak diblokir ke daftar "${destinationType}". Ajuan yang sudah pernah disalin tidak akan diduplikasi. Lanjutkan?`)) return;
     
     showLoader(true);
     try {
@@ -1081,7 +1154,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const sourceDocs = allProdiAjuanSnapshot.docs.filter(doc => {
             const data = doc.data();
-            return data.Tipe_Ajuan === sourceType && data.Status === 'Diterima';
+            // Only copy ACCEPTED and UNBLOCKED items from source
+            return data.Tipe_Ajuan === sourceType && data.Status === 'Diterima' && !data.Is_Blocked;
         });
 
         const batch = db.batch();
@@ -1094,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const newData = {
                     Grub_Belanja_Utama: data.Grub_Belanja_Utama || '', Judul_Kegiatan: data.Judul_Kegiatan || '', ID_Prodi: data.ID_Prodi, ID_Kelompok: data.ID_Kelompok || '', Nama_Ajuan: data.Nama_Ajuan || 'Salinan', Jumlah: data.Jumlah || 0, Satuan: data.Satuan || '', Harga_Satuan: data.Harga_Satuan || 0, Total: data.Total || 0, Keterangan: data.Keterangan || '', Status_Revisi: data.Status_Revisi || 'Ajuan Baru', Data_Dukung: data.Data_Dukung || '',
-                    Tipe_Ajuan: destinationType, Status: 'Menunggu Review', Komentar: [], ID_Ajuan_Asal: doc.id, Timestamp: serverTimestamp()
+                    Tipe_Ajuan: destinationType, Status: 'Menunggu Review', Komentar: [], ID_Ajuan_Asal: doc.id, Is_Blocked: false, Timestamp: serverTimestamp() // New ajuan is definitely NOT blocked
                 };
                 
                 batch.set(newDocRef, newData);
@@ -1147,8 +1221,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         const snapshot = await query.get();
-        const data = snapshot.docs.map(doc => ({ ID_Ajuan: doc.id, ...doc.data() }));
+        let data = snapshot.docs.map(doc => ({ ID_Ajuan: doc.id, ...doc.data() }));
         
+        // Filter out blocked items locally
+        data = data.filter(d => !d.Is_Blocked);
+
         const tipeSuffix = isPerubahan ? 'Perubahan' : 'Awal';
         if (baseName === 'RPD') {
             renderRPDTable(data, tipeSuffix);
@@ -1164,13 +1241,41 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  const RPD_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
   
-  function renderRPDTable(data, tipe) { const container = document.getElementById(`tableRPD${tipe}`); if (data.length === 0) { container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada ajuan diterima.</div>'; return; } const isDirektorat = STATE.role === 'direktorat'; const readOnlyAttr = isDirektorat ? 'readonly' : ''; const disabledBtnClass = isDirektorat ? 'disabled' : ''; let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Prodi</th><th rowspan="2" class="align-middle">Rincian</th><th rowspan="2" class="align-middle text-end">Total Diterima</th><th colspan="12" class="text-center">Rencana Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end">Total RPD</th><th rowspan="2" class="align-middle text-end">Sisa</th><th rowspan="2" class="align-middle text-center">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}</tr>`; const tableRows = data.map(r => { const ajuanId = r.ID_Ajuan; let totalAllocated = 0; const rpdInputs = RPD_MONTHS.map(month => { const value = Number(r[`RPD_${month}`] || 0); totalAllocated += value; return `<td><input type="number" class="form-control form-control-sm rpd-input" data-ajuan-id="${ajuanId}" value="${value}" oninput="window.updateRpdRowSummary('${ajuanId}', '${tipe}')" min="0" ${readOnlyAttr}></td>`; }).join(''); const totalAjuan = Number(r.Total) || 0; const sisa = totalAjuan - totalAllocated; const sisaClass = sisa < 0 ? 'text-danger fw-bold' : ''; return `<tr id="rpd-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td><td>${escapeHtml(r.ID_Prodi)}</td><td><strong>${escapeHtml(r.Nama_Ajuan)}</strong><div class="small text-muted">${escapeHtml(r.Judul_Kegiatan)}</div></td><td class="text-end fw-bold" data-total="${totalAjuan}">${totalAjuan.toLocaleString('id-ID')}</td>${rpdInputs}<td class="text-end fw-bold rpd-total-allocated">${totalAllocated.toLocaleString('id-ID')}</td><td class="text-end fw-bold rpd-sisa ${sisaClass}">${sisa.toLocaleString('id-ID')}</td><td class="text-center"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRPD('${ajuanId}', '${tipe}')" title="Simpan RPD"><i class="bi bi-save"></i></button></td></tr>`; }).join(''); container.innerHTML = `<table class="table table-bordered table-sm small"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`; }
+  function renderRPDTable(data, tipe) { 
+    const container = document.getElementById(`tableRPD${tipe}`); 
+    if (data.length === 0) { container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada ajuan diterima dan tidak diblokir.</div>'; return; } 
+    
+    const isDirektorat = STATE.role === 'direktorat'; 
+    const readOnlyAttr = isDirektorat ? 'readonly' : ''; 
+    const disabledBtnClass = isDirektorat ? 'disabled' : ''; 
+    
+    let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Prodi</th><th rowspan="2" class="align-middle">Rincian</th><th rowspan="2" class="align-middle text-end">Total Diterima</th><th colspan="12" class="text-center">Rencana Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end">Total RPD</th><th rowspan="2" class="align-middle text-end">Sisa</th><th rowspan="2" class="align-middle text-center">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}</tr>`; 
+    
+    const tableRows = data.map(r => { 
+        const ajuanId = r.ID_Ajuan; 
+        let totalAllocated = 0; 
+        
+        const rpdInputs = RPD_MONTHS.map(month => { 
+            const value = Number(r[`RPD_${month}`] || 0); 
+            totalAllocated += value; 
+            return `<td><input type="number" class="form-control form-control-sm rpd-input" data-ajuan-id="${ajuanId}" value="${value}" oninput="window.updateRpdRowSummary('${ajuanId}', '${tipe}')" min="0" ${readOnlyAttr}></td>`; 
+        }).join(''); 
+        
+        const totalAjuan = Number(r.Total) || 0; 
+        const sisa = totalAjuan - totalAllocated; 
+        const sisaClass = sisa < 0 ? 'text-danger fw-bold' : ''; 
+        
+        return `<tr id="rpd-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td><td>${escapeHtml(r.ID_Prodi)}</td><td><strong>${escapeHtml(r.Nama_Ajuan)}</strong><div class="small text-muted">${escapeHtml(r.Judul_Kegiatan)}</div></td><td class="text-end fw-bold" data-total="${totalAjuan}">${totalAjuan.toLocaleString('id-ID')}</td>${rpdInputs}<td class="text-end fw-bold rpd-total-allocated">${totalAllocated.toLocaleString('id-ID')}</td><td class="text-end fw-bold rpd-sisa ${sisaClass}">${sisa.toLocaleString('id-ID')}</td><td class="text-center"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRPD('${ajuanId}', '${tipe}')" title="Simpan RPD"><i class="bi bi-save"></i></button></td></tr>`; 
+    }).join(''); 
+    
+    container.innerHTML = `<table class="table table-bordered table-sm small"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`; 
+  }
+  
   window.updateRpdRowSummary = (ajuanId, tipe) => { const row = document.getElementById(`rpd-row-${tipe}-${ajuanId}`); if (!row) return false; const totalValue = parseFloat(row.querySelector('[data-total]').dataset.total); let currentSum = 0; row.querySelectorAll('.rpd-input').forEach(input => { currentSum += Number(input.value) || 0; }); const sisa = totalValue - currentSum; row.querySelector('.rpd-total-allocated').textContent = currentSum.toLocaleString('id-ID'); row.querySelector('.rpd-sisa').textContent = sisa.toLocaleString('id-ID'); if (sisa < 0) { row.querySelector('.rpd-sisa').classList.add('text-danger'); return false; } else { row.querySelector('.rpd-sisa').classList.remove('text-danger'); return true; } }
   window.saveRPD = async (ajuanId, tipe) => { if (!window.updateRpdRowSummary(ajuanId, tipe)) { showToast('Gagal. Total alokasi RPD melebihi total diterima.', 'danger'); return; } showLoader(true); const row = document.getElementById(`rpd-row-${tipe}-${ajuanId}`); const rpdData = {}; let totalRpd = 0; row.querySelectorAll('.rpd-input').forEach((input, index) => { const value = Number(input.value) || 0; rpdData[`RPD_${RPD_MONTHS[index]}`] = value; totalRpd += value; }); try { await db.collection('ajuan').doc(ajuanId).update(rpdData); await logHistory(ajuanId, "RPD Disimpan", `Total RPD yang disimpan: Rp ${totalRpd.toLocaleString('id-ID')}.`); await logActivity('Save RPD', `Menyimpan RPD untuk ajuan ID ${ajuanId} (${tipe}). Total: Rp ${totalRpd.toLocaleString('id-ID')}.`); showToast(`RPD untuk ${ajuanId.substring(0,6)}.. disimpan.`); if (tipe === 'Awal') refreshTable('RPD', 'Awal'); else refreshTable('RPD', `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}`); } catch (error) { showToast(`Gagal menyimpan RPD: ${error.message}`, 'danger'); } finally { showLoader(false); } };
 
-  function renderRealisasiTable(data, tipe) { const container = document.getElementById(`tableRealisasi${tipe}`); if (data.length === 0) { container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada ajuan diterima.</div>'; return; } const isDirektorat = STATE.role === 'direktorat'; const readOnlyAttr = isDirektorat ? 'readonly' : ''; const disabledBtnClass = isDirektorat ? 'disabled' : ''; let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Rincian</th><th rowspan="2" class="align-middle text-end">Total RPD</th><th colspan="12" class="text-center">Realisasi Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end">Total Realisasi</th><th rowspan="2" class="align-middle text-center">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}</tr>`; const tableRows = data.map(r => { const ajuanId = r.ID_Ajuan; let totalRealisasi = 0; let totalRPD = 0; const realisasiInputs = RPD_MONTHS.map(month => { const value = Number(r[`Realisasi_${month}`] || 0); totalRealisasi += value; totalRPD += Number(r[`RPD_${month}`] || 0); return `<td><input type="number" class="form-control form-control-sm realisasi-input" value="${value}" oninput="window.updateRealisasiRowSummary('${ajuanId}', '${tipe}')" min="0" ${readOnlyAttr}></td>`; }).join(''); return `<tr id="realisasi-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td><td><strong>${escapeHtml(r.Nama_Ajuan)}</strong></td><td class="text-end fw-bold">${totalRPD.toLocaleString('id-ID')}</td>${realisasiInputs}<td class="text-end fw-bold realisasi-total">${totalRealisasi.toLocaleString('id-ID')}</td><td class="text-center"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRealisasi('${ajuanId}', '${tipe}')" title="Simpan Realisasi"><i class="bi bi-save"></i></button></td></tr>`; }).join(''); container.innerHTML = `<table class="table table-bordered table-sm small"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`; }
+  function renderRealisasiTable(data, tipe) { const container = document.getElementById(`tableRealisasi${tipe}`); if (data.length === 0) { container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada ajuan diterima dan tidak diblokir.</div>'; return; } const isDirektorat = STATE.role === 'direktorat'; const readOnlyAttr = isDirektorat ? 'readonly' : ''; const disabledBtnClass = isDirektorat ? 'disabled' : ''; let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Rincian</th><th rowspan="2" class="align-middle text-end">Total RPD</th><th colspan="12" class="text-center">Realisasi Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end">Total Realisasi</th><th rowspan="2" class="align-middle text-center">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}</tr>`; const tableRows = data.map(r => { const ajuanId = r.ID_Ajuan; let totalRealisasi = 0; let totalRPD = 0; const realisasiInputs = RPD_MONTHS.map(month => { const value = Number(r[`Realisasi_${month}`] || 0); totalRealisasi += value; totalRPD += Number(r[`RPD_${month}`] || 0); return `<td><input type="number" class="form-control form-control-sm realisasi-input" value="${value}" oninput="window.updateRealisasiRowSummary('${ajuanId}', '${tipe}')" min="0" ${readOnlyAttr}></td>`; }).join(''); return `<tr id="realisasi-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td><td><strong>${escapeHtml(r.Nama_Ajuan)}</strong></td><td class="text-end fw-bold">${totalRPD.toLocaleString('id-ID')}</td>${realisasiInputs}<td class="text-end fw-bold realisasi-total">${totalRealisasi.toLocaleString('id-ID')}</td><td class="text-center"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRealisasi('${ajuanId}', '${tipe}')" title="Simpan Realisasi"><i class="bi bi-save"></i></button></td></tr>`; }).join(''); container.innerHTML = `<table class="table table-bordered table-sm small"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`; }
   function renderRealisasiSummary(data, tipe) { const container = document.getElementById(`realisasi-summary-area-${tipe.toLowerCase()}`); const rpdPerBulan = Array(12).fill(0); const realisasiPerBulan = Array(12).fill(0); data.forEach(ajuan => { RPD_MONTHS.forEach((month, index) => { rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0; realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0; }); }); const totalRPD = rpdPerBulan.reduce((a, b) => a + b, 0); const totalRealisasi = realisasiPerBulan.reduce((a, b) => a + b, 0); const rpdTriwulan = calculateQuarterlySummary(rpdPerBulan, totalRPD); const realisasiTriwulan = calculateQuarterlySummary(realisasiPerBulan, totalRealisasi); let summaryHtml = `<div class="card d-print-none"><div class="card-header fw-bold">Ringkasan Realisasi Anggaran ${tipe}</div><div class="card-body"><div class="row g-4"><div class="col-lg-6"><h6 class="text-center small text-muted">Realisasi per Bulan</h6><table class="table table-sm table-striped small"><thead class="table-light"><tr><th>Bulan</th><th class="text-end">RPD</th><th class="text-end">Realisasi</th><th class="text-center">%</th></tr></thead><tbody>${rpdPerBulan.map((rpd, i) => { const real = realisasiPerBulan[i]; const percent = rpd > 0 ? ((real / rpd) * 100).toFixed(1) : '0.0'; return `<tr><td>${RPD_MONTHS[i]}</td><td class="text-end">${rpd.toLocaleString('id-ID')}</td><td class="text-end">${real.toLocaleString('id-ID')}</td><td class="text-center"><span class="badge ${percent >= 100 ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'}">${percent}%</span></td></tr>`; }).join('')}<tr class="table-dark"><td><strong>Total</strong></td><td class="text-end"><strong>${totalRPD.toLocaleString('id-ID')}</strong></td><td class="text-end"><strong>${totalRealisasi.toLocaleString('id-ID')}</strong></td><td class="text-center"><strong>${totalRPD > 0 ? ((totalRealisasi/totalRPD)*100).toFixed(1) : '0.0'}%</strong></td></tr></tbody></table></div><div class="col-lg-6"><h6 class="text-center small text-muted">Realisasi per Triwulan</h6><table class="table table-sm table-striped small"><thead class="table-light"><tr><th>Triwulan</th><th class="text-end">RPD</th><th class="text-end">Realisasi</th><th class="text-center">%</th></tr></thead><tbody>${rpdTriwulan.values.map((rpd, i) => { const real = realisasiTriwulan.values[i]; const percent = rpd > 0 ? ((real / rpd) * 100).toFixed(1) : '0.0'; return `<tr><td><strong>Q${i+1}</strong></td><td class="text-end">${rpd.toLocaleString('id-ID')}</td><td class="text-end">${real.toLocaleString('id-ID')}</td><td class="text-center"><span class="badge ${percent >= 100 ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'}">${percent}%</span></td></tr>`; }).join('')}</tbody></table></div></div></div></div>`; container.innerHTML = summaryHtml; }
   window.updateRealisasiRowSummary = (ajuanId, tipe) => { const row = document.getElementById(`realisasi-row-${tipe}-${ajuanId}`); if (!row) return; let currentSum = 0; row.querySelectorAll('.realisasi-input').forEach(input => currentSum += Number(input.value) || 0); row.querySelector('.realisasi-total').textContent = currentSum.toLocaleString('id-ID'); }
   window.saveRealisasi = async (ajuanId, tipe) => { showLoader(true); const row = document.getElementById(`realisasi-row-${tipe}-${ajuanId}`); const realisasiData = {}; let totalRealisasi = 0; row.querySelectorAll('.realisasi-input').forEach((input, index) => { const value = Number(input.value) || 0; realisasiData[`Realisasi_${RPD_MONTHS[index]}`] = value; totalRealisasi += value; }); try { await db.collection('ajuan').doc(ajuanId).update(realisasiData); await logHistory(ajuanId, "Realisasi Disimpan", `Total Realisasi yang disimpan: Rp ${totalRealisasi.toLocaleString('id-ID')}.`); await logActivity('Save Realisasi', `Menyimpan realisasi untuk ajuan ID ${ajuanId} (${tipe}). Total: Rp ${totalRealisasi.toLocaleString('id-ID')}.`); showToast(`Realisasi untuk ${ajuanId.substring(0,6)}.. disimpan.`); if (tipe === 'Awal') refreshTable('Realisasi', 'Awal'); else refreshTable('Realisasi', `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}`); } catch (error) { showToast(`Gagal menyimpan Realisasi: ${error.message}`, 'danger'); } finally { showLoader(false); } };
@@ -1241,7 +1346,8 @@ document.addEventListener('DOMContentLoaded', function() {
                   .where('Status', '==', 'Diterima');
 
                 const snapshot = await query.get();
-                const data = snapshot.docs.map(doc => doc.data());
+                // Filter locally for Is_Blocked
+                const data = snapshot.docs.map(doc => doc.data()).filter(d => !d.Is_Blocked);
 
                 if (data.length > 0) {
                     baGeneratedCount++;
@@ -1289,7 +1395,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             if (baGeneratedCount === 0) {
-                 throw new Error(`Tidak ada data ajuan "Diterima" yang ditemukan untuk prodi manapun pada tahap ${tipeAjuan}.`);
+                 throw new Error(`Tidak ada data ajuan "Diterima" dan tidak diblokir yang ditemukan untuk prodi manapun pada tahap ${tipeAjuan}.`);
             }
             container.innerHTML = allProdisHtml;
 
@@ -1312,9 +1418,11 @@ document.addEventListener('DOMContentLoaded', function() {
               .where('Status', '==', 'Diterima');
 
             const snapshot = await query.get();
-            const data = snapshot.docs.map(doc => doc.data());
+            // Filter locally for Is_Blocked
+            const data = snapshot.docs.map(doc => doc.data()).filter(d => !d.Is_Blocked);
+            
             if (data.length === 0) {
-                throw new Error(`Tidak ada ajuan berstatus "Diterima" untuk ${prodiId} pada tahap ${tipeAjuan}.`);
+                throw new Error(`Tidak ada ajuan berstatus "Diterima" dan tidak diblokir untuk ${prodiId} pada tahap ${tipeAjuan}.`);
             }
 
             const prodiBaSettings = prodiData.beritaAcaraSettings || {};
@@ -1528,7 +1636,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-save-ba-settings').addEventListener('click', saveBeritaAcaraSettings);
   
   document.getElementById('btn-refresh-dashboard').addEventListener('click', loadDashboardData); document.querySelector('[data-bs-target="#tab-dashboard"]').addEventListener('shown.bs.tab', loadDashboardData); ['filterTahunDashboard', 'filterTipeDashboard'].forEach(id => document.getElementById(id).addEventListener('change', () => processDataForDashboard()));
-  async function loadDashboardData() { showLoader(true); try { let query = db.collection('ajuan'); if (STATE.role === 'prodi') { query = query.where('ID_Prodi', '==', STATE.id); } const snapshot = await query.get(); STATE.allDashboardData = snapshot.docs.map(doc => { const data = doc.data(); if (data.Timestamp && data.Timestamp.toDate) data.Timestamp = data.Timestamp.toDate(); return { ID_Ajuan: doc.id, ...data }; }); populateDashboardFilters(STATE.allDashboardData); processDataForDashboard(); await displayGlobalAnnouncement(); } catch(error) { showToast('Gagal memuat data dashboard.', 'danger'); console.error("Dashboard error:", error); } finally { showLoader(false); } }
+  async function loadDashboardData() { showLoader(true); try { let query = db.collection('ajuan'); if (STATE.role === 'prodi') { query = query.where('ID_Prodi', '==', STATE.id); } const snapshot = await query.get(); STATE.allDashboardData = snapshot.docs.map(doc => { const data = doc.data(); if (data.Timestamp && data.Timestamp.toDate) data.Timestamp = data.Timestamp.toDate(); if (data.Is_Blocked === undefined) data.Is_Blocked = false; return { ID_Ajuan: doc.id, ...data }; }); populateDashboardFilters(STATE.allDashboardData); processDataForDashboard(); await displayGlobalAnnouncement(); } catch(error) { showToast('Gagal memuat data dashboard.', 'danger'); console.error("Dashboard error:", error); } finally { showLoader(false); } }
   function populateDashboardFilters(data) { const yearSelect = document.getElementById('filterTahunDashboard'); const years = [...new Set(data.map(d => { if(d.Timestamp) return new Date(d.Timestamp).getFullYear(); return null; }))].filter(Boolean).sort((a, b) => b - a); yearSelect.innerHTML = '<option value="">Semua Tahun</option>'; years.forEach(year => { if (!isNaN(year)) yearSelect.innerHTML += `<option value="${year}">${year}</option>`; }); }
   function setupChart(canvasId, type, data, options) { const canvas = document.getElementById(canvasId); if (!canvas) return; if (CHARTS[canvasId]) CHARTS[canvasId].destroy(); CHARTS[canvasId] = new Chart(canvas.getContext('2d'), { type, data, options }); }
   function calculateQuarterlySummary(monthlyData, total) { const quarters = [0, 0, 0, 0]; for (let i = 0; i < 12; i++) { if (i < 3) quarters[0] += monthlyData[i]; else if (i < 6) quarters[1] += monthlyData[i]; else if (i < 9) quarters[2] += monthlyData[i]; else quarters[3] += monthlyData[i]; } return { values: quarters, percentages: quarters.map(q => total > 0 ? ((q / total) * 100).toFixed(1) + '%' : '0.0%') }; }
@@ -1583,7 +1691,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const allStages = new Set(['Awal']);
     
     data.forEach(ajuan => {
-        if (ajuan.Status === 'Diterima') {
+        // Filter: Must be accepted AND not blocked
+        if (ajuan.Status === 'Diterima' && !ajuan.Is_Blocked) {
             const stage = ajuan.Tipe_Ajuan || 'Awal';
             allStages.add(stage);
             acceptedTotalsByStage[stage] = (acceptedTotalsByStage[stage] || 0) + (Number(ajuan.Total) || 0);
@@ -1600,7 +1709,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     if (sortedStages.length <= 1) {
-        comparisonContainer.innerHTML = '<p class="text-center text-muted small">Hanya ada satu tahap ajuan yang diterima, tidak ada perbandingan anggaran antar tahap.</p>';
+        comparisonContainer.innerHTML = '<p class="text-center text-muted small">Hanya ada satu tahap ajuan yang diterima/tidak diblokir, tidak ada perbandingan anggaran antar tahap.</p>';
         return;
     }
 
@@ -1608,7 +1717,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <thead class="table-light">
             <tr>
                 <th>Tahap Anggaran</th>
-                <th class="text-end">Total Diterima (Rp)</th>
+                <th class="text-end">Total Diterima (Bersih) (Rp)</th>
                 <th class="text-end">Selisih dari Tahap Sebelumnya (Rp)</th>
             </tr>
         </thead>
@@ -1650,9 +1759,9 @@ document.addEventListener('DOMContentLoaded', function() {
     comparisonHtml += `</tbody></table>`;
     
     comparisonHtml += `<div class="alert alert-light border text-center mt-3 p-3">
-        <strong>Selisih Anggaran Keseluruhan (Final vs Awal):</strong> 
+        <strong>Selisih Anggaran Keseluruhan (Final Bersih vs Awal Bersih):</strong> 
         <span class="fs-5 ${overallSelisihClass}">Rp ${overallSelisih.toLocaleString('id-ID')}</span>
-        <span class="small text-muted d-block">(${finalStage} diterima - Awal diterima)</span>
+        <span class="small text-muted d-block">(${finalStage} diterima bersih - Awal diterima bersih)</span>
     </div>`;
     
     comparisonContainer.innerHTML = comparisonHtml;
@@ -1660,11 +1769,11 @@ document.addEventListener('DOMContentLoaded', function() {
   
   function renderDashboardSummary(data, containerPrefix = 'dashboard-', chartPrefix = 'chart') { 
     let totalDiajukanOverall = 0;
-    let totalDiterimaOverall = 0;
+    let totalDiterimaOverall = 0; // Bersih (Unblocked)
     let totalDiajukanAwal = 0;
-    let totalDiterimaAwal = 0;
+    let totalDiterimaAwal = 0; // Bersih (Unblocked)
     let totalDiajukanPerubahan = 0;
-    let totalDiterimaPerubahan = 0;
+    let totalDiterimaPerubahan = 0; // Bersih (Unblocked)
     
     let statusCounts = { 'Menunggu Review': 0, 'Diterima': 0, 'Ditolak': 0, 'Revisi': 0 }; 
     const rpdPerBulan = Array(12).fill(0); 
@@ -1673,6 +1782,7 @@ document.addEventListener('DOMContentLoaded', function() {
     data.forEach(ajuan => { 
         const total = Number(ajuan.Total) || 0;
         const isAwal = ajuan.Tipe_Ajuan === 'Awal' || !ajuan.Tipe_Ajuan;
+        const isBlocked = !!ajuan.Is_Blocked;
         
         totalDiajukanOverall += total;
         
@@ -1686,7 +1796,7 @@ document.addEventListener('DOMContentLoaded', function() {
             statusCounts[ajuan.Status] = (statusCounts[ajuan.Status] || 0) + 1; 
         } 
         
-        if (ajuan.Status === 'Diterima') { 
+        if (ajuan.Status === 'Diterima' && !isBlocked) { 
             totalDiterimaOverall += total;
             if (isAwal) {
                 totalDiterimaAwal += total;
@@ -1694,7 +1804,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 totalDiterimaPerubahan += total;
             }
             
-            // RPD and Realisasi calculations only apply to Diterima items
+            // RPD and Realisasi calculations only apply to Diterima and UNBLOCKED items
             RPD_MONTHS.forEach((month, index) => { 
                 rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0; 
                 realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0; 
@@ -1710,7 +1820,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById(`${containerPrefix}total-diajukan-awal`).textContent = 'Rp ' + totalDiajukanAwal.toLocaleString('id-ID');
     document.getElementById(`${containerPrefix}total-diajukan-perubahan`).textContent = 'Rp ' + totalDiajukanPerubahan.toLocaleString('id-ID');
     
-    // Update Diterima Breakdown Cards
+    // Update Diterima Breakdown Cards (now 'Bersih' - excluding blocked)
     document.getElementById(`${containerPrefix}total-diterima-total`).textContent = 'Rp ' + totalDiterimaOverall.toLocaleString('id-ID');
     document.getElementById(`${containerPrefix}total-diterima-awal`).textContent = 'Rp ' + totalDiterimaAwal.toLocaleString('id-ID');
     document.getElementById(`${containerPrefix}total-diterima-perubahan`).textContent = 'Rp ' + totalDiterimaPerubahan.toLocaleString('id-ID');
@@ -1730,7 +1840,7 @@ document.addEventListener('DOMContentLoaded', function() {
     paguCard.style.display = 'none'; 
     
     let totalPaguAwal = 0; // Pagu_Anggaran set by Direktorat (Ceiling Awal)
-    let totalDiterimaFinal = totalDiterimaOverall; // Total budget approved across all stages (Awal + Perubahan)
+    let totalDiterimaFinal = totalDiterimaOverall; // Total budget approved across all stages (Awal + Perubahan, Clean/Unblocked)
 
     if (STATE.role === 'direktorat') { 
         totalPaguAwal = (STATE.allProdi || []).filter(p => p.Role === 'prodi').reduce((sum, p) => sum + (Number(p.Pagu_Anggaran) || 0), 0); 
@@ -1750,9 +1860,9 @@ document.addEventListener('DOMContentLoaded', function() {
          paguHeaderValue = totalPaguAwal;
          paguLabelEl.textContent = STATE.role === 'direktorat' ? 'TOTAL PAGU PRODI/UNIT (AWAL)' : 'PAGU ANGGARAN SAYA (AWAL)';
     } else if (selectedTipe === 'Perubahan') {
-        // If filtering Perubahan, the header shows the accepted Perubahan total
+        // If filtering Perubahan, the header shows the accepted Perubahan total (Bersih)
         paguHeaderValue = totalDiterimaPerubahan;
-        paguLabelEl.textContent = 'TOTAL DITERIMA TAHAP PERUBAHAN';
+        paguLabelEl.textContent = 'TOTAL DITERIMA TAHAP PERUBAHAN (BERSIH)';
     } else { // Semua Tipe
         // If showing all, the most critical number is the initial Pagu constraint
         paguHeaderValue = totalPaguAwal;
@@ -1762,7 +1872,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // The main header shows the relevant Pagu figure
     document.getElementById('dashboard-total-pagu-total').textContent = 'Rp ' + paguHeaderValue.toLocaleString('id-ID');
 
-    // The breakdown still shows Pagu Awal (the ceiling) and Total Diterima Final (the current budget)
+    // The breakdown still shows Pagu Awal (the ceiling) and Total Diterima Final (the current budget, clean)
     document.getElementById('dashboard-total-pagu-awal').textContent = 'Rp ' + totalPaguAwal.toLocaleString('id-ID');
     document.getElementById('dashboard-total-pagu-perubahan').textContent = 'Rp ' + totalDiterimaFinal.toLocaleString('id-ID');
     
@@ -1790,8 +1900,244 @@ document.addEventListener('DOMContentLoaded', function() {
     } 
     // END: Perbaikan rekap triwulan dan semester
   }
-  function renderDirektoratDashboard(data) { const ajuanPerBulan = Array(12).fill(0); data.forEach(ajuan => { if(ajuan.Timestamp) { const month = new Date(ajuan.Timestamp).getMonth(); if (month >= 0 && month < 12) ajuanPerBulan[month]++; } }); setupChart('chartAjuanPerBulan', 'bar', { labels: RPD_MONTHS, datasets: [{ label: 'Jumlah Ajuan', data: ajuanPerBulan, backgroundColor: 'rgba(54, 162, 235, 0.6)' }] }, { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }); const ajuanPerStatus = data.reduce((acc, ajuan) => { acc[ajuan.Status] = (acc[ajuan.Status] || 0) + 1; return acc; }, {}); setupChart('chartAjuanPerStatus', 'doughnut', { labels: Object.keys(ajuanPerStatus), datasets: [{ data: Object.values(ajuanPerStatus), backgroundColor: ['#ffc107', '#198754', '#dc3545', '#fd7e14', '#6c757d'] }] }, { responsive: true, plugins: { legend: { position: 'top' } } }); const perProdiStats = data.reduce((acc, ajuan) => { const prodiId = ajuan.ID_Prodi || 'N/A'; if (!acc[prodiId]) acc[prodiId] = { count: 0, total: 0 }; acc[prodiId].count++; acc[prodiId].total += Number(ajuan.Total) || 0; return acc; }, {}); const prodiLabels = Object.keys(perProdiStats).sort(); const anggaranPerProdiData = prodiLabels.map(id => perProdiStats[id].total); const ajuanPerProdiData = prodiLabels.map(id => perProdiStats[id].count); setupChart('chartAnggaranPerProdi', 'bar', { labels: prodiLabels, datasets: [{ label: 'Total Anggaran (Rp)', data: anggaranPerProdiData, backgroundColor: 'rgba(25, 135, 84, 0.6)' }] }, { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } }); setupChart('chartAjuanPerProdi', 'pie', { labels: prodiLabels, datasets: [{ data: ajuanPerProdiData, backgroundColor: ['#0dcaf0', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#212529', '#ffc107'] }] }, { responsive: true, plugins: { legend: { position: 'top' } } }); const reportsContainer = document.getElementById('direktorat-prodi-reports'); reportsContainer.innerHTML = ''; const dataByProdi = data.reduce((acc, curr) => { (acc[curr.ID_Prodi] = acc[curr.ID_Prodi] || []).push(curr); return acc; }, {}); Object.keys(dataByProdi).sort().forEach(prodiId => renderProdiDetailReport(prodiId, dataByProdi[prodiId], reportsContainer)); }
-  function renderProdiDetailReport(prodiId, prodiData, container) { const prodiSafeId = prodiId.replace(/[^a-zA-Z0-9]/g, ''); const prodiHtml = `<div class="col-12 col-lg-6"><div class="card p-3 h-100"><h6 class="card-title mb-3 border-bottom pb-2"><strong><i class="bi bi-building"></i> Laporan: ${escapeHtml(prodiId)}</strong></h6><div class="row g-3"><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">PAGU ANGGARAN (AWAL)</div><strong id="prodi-${prodiSafeId}-pagu" class="fs-6 text-primary"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">TOTAL DITERIMA (FINAL)</div><strong id="prodi-${prodiSafeId}-diterima-final" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">DIAJUKAN (TOTAL)</div><strong id="prodi-${prodiSafeId}-diajukan" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">DITERIMA (AWAL)</div><strong id="prodi-${prodiSafeId}-diterima-awal" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">RPD</div><strong id="prodi-${prodiSafeId}-rpd" class="fs-6"></strong></div></div><div class="col-6"><div class="card p-2 h-100"><div class="small text-muted">REALISASI</div><strong id="prodi-${prodiSafeId}-realisasi" class="fs-6"></strong></div></div><div class="col-12"><div class="card p-2 text-center bg-light"><div class="small text-muted">% REALISASI (DARI RPD)</div><strong id="prodi-${prodiSafeId}-persen" class="fs-4 text-primary">0.0%</strong><div class="progress mt-1" role="progressbar" style="height: 5px;"><div id="prodi-${prodiSafeId}-persen-bar" class="progress-bar" style="width: 0%;"></div></div></div></div></div><div class="mt-3"><h6 class="text-center small text-muted">Progress Bulanan</h6><canvas id="chart-prodi-${prodiSafeId}-progress"></canvas></div></div></div>`; container.insertAdjacentHTML('beforeend', prodiHtml); const prodiInfo = (STATE.allProdi || []).find(p => p.ID_Prodi === prodiId); const pagu = prodiInfo ? (Number(prodiInfo.Pagu_Anggaran) || 0) : 0; let totalDiajukan = 0, totalDiterimaAwal = 0, totalDiterimaFinal = 0, totalRPD = 0, totalRealisasi = 0; const rpdPerBulan = Array(12).fill(0); const realisasiPerBulan = Array(12).fill(0); prodiData.forEach(ajuan => { totalDiajukan += Number(ajuan.Total) || 0; if (ajuan.Status === 'Diterima') { totalDiterimaFinal += Number(ajuan.Total) || 0; if (ajuan.Tipe_Ajuan === 'Awal' || !ajuan.Tipe_Ajuan) { totalDiterimaAwal += Number(ajuan.Total) || 0; } RPD_MONTHS.forEach((month, index) => { const rpdVal = Number(ajuan[`RPD_${month}`]) || 0; const realVal = Number(ajuan[`Realisasi_${month}`]) || 0; totalRPD += rpdVal; totalRealisasi += realVal; rpdPerBulan[index] += rpdVal; realisasiPerBulan[index] += realVal; }); } }); const persentaseRealisasi = totalRPD > 0 ? (totalRealisasi / totalRPD) * 100 : 0; document.getElementById(`prodi-${prodiSafeId}-pagu`).textContent = 'Rp ' + pagu.toLocaleString('id-ID'); document.getElementById(`prodi-${prodiSafeId}-diterima-final`).textContent = 'Rp ' + totalDiterimaFinal.toLocaleString('id-ID'); document.getElementById(`prodi-${prodiSafeId}-diajukan`).textContent = 'Rp ' + totalDiajukan.toLocaleString('id-ID'); document.getElementById(`prodi-${prodiSafeId}-diterima-awal`).textContent = 'Rp ' + totalDiterimaAwal.toLocaleString('id-ID'); document.getElementById(`prodi-${prodiSafeId}-rpd`).textContent = 'Rp ' + totalRPD.toLocaleString('id-ID'); document.getElementById(`prodi-${prodiSafeId}-realisasi`).textContent = 'Rp ' + totalRealisasi.toLocaleString('id-ID'); const persenEl = document.getElementById(`prodi-${prodiSafeId}-persen`); if (persenEl) persenEl.textContent = persentaseRealisasi.toFixed(1) + '%'; const persenBarEl = document.getElementById(`prodi-${prodiSafeId}-persen-bar`); if (persenBarEl) persenBarEl.style.width = `${Math.min(persentaseRealisasi, 100)}%`; setupChart(`chart-prodi-${prodiSafeId}-progress`, 'bar', { labels: RPD_MONTHS, datasets: [{ label: 'Realisasi (Rp)', data: realisasiPerBulan, backgroundColor: 'rgba(255, 193, 7, 0.7)' }, { label: 'RPD (Rp)', data: rpdPerBulan, backgroundColor: 'rgba(13, 110, 253, 0.6)' }] }, { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }); }
+  
+  // START: MODIFIED DIREKTORAT DASHBOARD LOGIC
+  function renderDirektoratDashboard(data) {
+    // Collect data per Prodi
+    const dataByProdi = data.reduce((acc, curr) => {
+        (acc[curr.ID_Prodi] = acc[curr.ID_Prodi] || []).push(curr);
+        return acc;
+    }, {});
+    
+    // Filter Prodis that actually have submitted data, but ensure all Prodis are included for Pagu info
+    const allProdiMap = (STATE.allProdi || [])
+        .filter(p => p.Role === 'prodi')
+        .reduce((acc, p) => { acc[p.ID_Prodi] = p; return acc; }, {});
+
+    const summaryData = Object.keys(allProdiMap).map(prodiId => {
+        const prodiInfo = allProdiMap[prodiId];
+        const ajuanData = dataByProdi[prodiId] || [];
+
+        let paguAwal = Number(prodiInfo.Pagu_Anggaran) || 0;
+        let totalDiterimaAwal = 0; // Total accepted from 'Awal' stage (unblocked)
+        let totalRealisasi = 0;
+
+        const realisasiPerBulan = Array(12).fill(0);
+        
+        // Find all accepted stages (only unblocked)
+        const acceptedStages = [...new Set(ajuanData.filter(d => d.Status === 'Diterima' && !d.Is_Blocked).map(d => d.Tipe_Ajuan || 'Awal'))];
+        
+        // Sort stages to find the 'Final' one (Awal, Perubahan 1, Perubahan 2, etc.)
+        acceptedStages.sort((a, b) => {
+            if (a === 'Awal') return -1;
+            if (b === 'Awal') return 1;
+            const numA = parseInt(a.replace('Perubahan ', ''));
+            const numB = parseInt(b.replace('Perubahan ', ''));
+            return numA - numB;
+        });
+        
+        // Determine the "Final Stage" Accepted Total (Pagu Sekarang)
+        let paguSekarang = 0;
+        if (acceptedStages.length > 0) {
+            const finalStage = acceptedStages[acceptedStages.length - 1];
+            ajuanData.forEach(ajuan => {
+                // Check status and block status
+                if (ajuan.Status === 'Diterima' && !ajuan.Is_Blocked) {
+                     const ajuanStage = ajuan.Tipe_Ajuan || 'Awal';
+                    if (ajuanStage === finalStage) {
+                        paguSekarang += Number(ajuan.Total) || 0;
+                    }
+                }
+            });
+        }
+        
+        // Calculate totals for Awal acceptance and Realisasi across ALL accepted stages
+        ajuanData.forEach(ajuan => {
+            const total = Number(ajuan.Total) || 0;
+            const ajuanStage = ajuan.Tipe_Ajuan || 'Awal';
+
+            // Check status and block status
+            if (ajuan.Status === 'Diterima' && !ajuan.Is_Blocked) {
+                if (ajuanStage === 'Awal') {
+                    totalDiterimaAwal += total;
+                }
+                
+                // Calculate Realisasi (Realization applies across all accepted stages)
+                RPD_MONTHS.forEach((month, index) => { 
+                    const realVal = Number(ajuan[`Realisasi_${month}`]) || 0;
+                    totalRealisasi += realVal;
+                    realisasiPerBulan[index] += realVal;
+                });
+            }
+        });
+        
+        // Ensure Pagu Sekarang reflects the reality if only Awal data exists or if only Awal data matches the filter
+        if (paguSekarang === 0 && totalDiterimaAwal > 0) {
+             paguSekarang = totalDiterimaAwal;
+        }
+        
+        // Calculate Quarterly and Semester Realizations
+        const tw = [
+            realisasiPerBulan[0] + realisasiPerBulan[1] + realisasiPerBulan[2], // TW 1 (Jan-Mar)
+            realisasiPerBulan[3] + realisasiPerBulan[4] + realisasiPerBulan[5], // TW 2 (Apr-Jun)
+            realisasiPerBulan[6] + realisasiPerBulan[7] + realisasiPerBulan[8], // TW 3 (Jul-Sep)
+            realisasiPerBulan[9] + realisasiPerBulan[10] + realisasiPerBulan[11] // TW 4 (Okt-Des)
+        ];
+        
+        const semester = [
+            tw[0] + tw[1], // Semester 1 (Jan-Jun)
+            tw[2] + tw[3]  // Semester 2 (Jul-Dec)
+        ];
+
+        return {
+            Nama_Prodi: prodiInfo.Nama_Prodi,
+            ID_Prodi: prodiId,
+            Pagu_Awal: paguAwal,
+            Pagu_Sekarang: paguSekarang,
+            Selisih_Pagu: paguSekarang - paguAwal,
+            Realisasi_TW1: tw[0],
+            Realisasi_TW2: tw[1],
+            Realisasi_TW3: tw[2],
+            Realisasi_TW4: tw[3],
+            Realisasi_S1: semester[0],
+            Realisasi_S2: semester[1],
+            Total_Realisasi: totalRealisasi,
+        };
+    });
+    
+    // Render the new table
+    renderDirektoratSummaryTable(summaryData);
+  }
+
+  // New function to render the summary table
+  function renderDirektoratSummaryTable(summaryData) {
+      const container = document.getElementById('direktorat-summary-table-container');
+      
+      if (!container) return; // Safety check
+      
+      if (summaryData.length === 0) {
+          container.innerHTML = '<p class="text-center text-muted small">Tidak ada data prodi yang tersedia atau tidak ada ajuan yang diterima/tidak diblokir.</p>';
+          return;
+      }
+      
+      // Helper for period percentage calculation
+      const getPeriodPercentage = (amount, total) => {
+          const percentage = total > 0 ? (amount / total) * 100 : 0;
+          return `<span class="badge bg-light text-dark fw-normal">${percentage.toFixed(1)}%</span>`;
+      };
+
+      let tableHTML = `
+          <div class="table-responsive">
+              <table class="table table-sm table-bordered table-striped small align-middle table-hover" style="min-width: 2200px;">
+                  <thead class="table-light">
+                      <tr>
+                          <th rowspan="2" class="align-middle text-center">No.</th>
+                          <th rowspan="2" class="align-middle" style="min-width: 150px;">Nama Prodi</th>
+                          <th colspan="3" class="text-center">Pagu Anggaran (Rp)</th>
+                          <th colspan="12" class="text-center">Realisasi (Rp)</th>
+                          <th rowspan="2" class="align-middle text-end" style="min-width: 130px;">Total Realisasi (Rp)</th>
+                          <th rowspan="2" class="align-middle text-center" style="min-width: 100px;">% Realisasi</th>
+                      </tr>
+                      <tr>
+                          <th class="text-end" style="min-width: 130px;">Pagu Awal</th>
+                          <th class="text-end" style="min-width: 130px;">Total Diterima (Final Bersih)</th>
+                          <th class="text-end" style="min-width: 100px;">Selisih</th>
+                          <th class="text-end">TW 1</th><th class="text-center">%</th>
+                          <th class="text-end">TW 2</th><th class="text-center">%</th>
+                          <th class="text-end">TW 3</th><th class="text-center">%</th>
+                          <th class="text-end">TW 4</th><th class="text-center">%</th>
+                          <th class="text-end" style="min-width: 110px;">Smt 1</th><th class="text-center">%</th>
+                          <th class="text-end" style="min-width: 110px;">Smt 2</th><th class="text-center">%</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+      `;
+      
+      let grandTotals = {
+          Pagu_Awal: 0, Pagu_Sekarang: 0, Selisih_Pagu: 0, Total_Realisasi: 0,
+          Realisasi_TW1: 0, Realisasi_TW2: 0, Realisasi_TW3: 0, Realisasi_TW4: 0,
+          Realisasi_S1: 0, Realisasi_S2: 0
+      };
+
+      summaryData.sort((a, b) => a.ID_Prodi.localeCompare(b.ID_Prodi)).forEach((item, index) => {
+          const selisihClass = item.Selisih_Pagu > 0 ? 'text-success' : (item.Selisih_Pagu < 0 ? 'text-danger' : '');
+          
+          Object.keys(grandTotals).forEach(key => {
+              if (item.hasOwnProperty(key)) {
+                  grandTotals[key] += item[key];
+              }
+          });
+
+          const percentage = item.Pagu_Sekarang > 0 ? ((item.Total_Realisasi / item.Pagu_Sekarang) * 100) : 0;
+          const percentageText = percentage.toFixed(1);
+          const progressColor = percentage >= 90 ? 'bg-success' : (percentage >= 70 ? 'bg-warning' : 'bg-danger');
+
+          tableHTML += `
+              <tr class="prodi-indicator" style="border-left-color: ${getColorForProdi(item.ID_Prodi)};">
+                  <td class="text-center">${index + 1}</td>
+                  <td>${escapeHtml(item.Nama_Prodi)} <span class="small text-muted d-block">${item.ID_Prodi}</span></td>
+                  <td class="text-end">${item.Pagu_Awal.toLocaleString('id-ID')}</td>
+                  <td class="text-end fw-bold">${item.Pagu_Sekarang.toLocaleString('id-ID')}</td>
+                  <td class="text-end ${selisihClass} fw-bold">${item.Selisih_Pagu.toLocaleString('id-ID')}</td>
+                  
+                  <td class="text-end">${item.Realisasi_TW1.toLocaleString('id-ID')}</td>
+                  <td class="text-center">${getPeriodPercentage(item.Realisasi_TW1, item.Pagu_Sekarang)}</td>
+                  <td class="text-end">${item.Realisasi_TW2.toLocaleString('id-ID')}</td>
+                  <td class="text-center">${getPeriodPercentage(item.Realisasi_TW2, item.Pagu_Sekarang)}</td>
+                  <td class="text-end">${item.Realisasi_TW3.toLocaleString('id-ID')}</td>
+                  <td class="text-center">${getPeriodPercentage(item.Realisasi_TW3, item.Pagu_Sekarang)}</td>
+                  <td class="text-end">${item.Realisasi_TW4.toLocaleString('id-ID')}</td>
+                  <td class="text-center">${getPeriodPercentage(item.Realisasi_TW4, item.Pagu_Sekarang)}</td>
+                  
+                  <td class="text-end fw-bold">${item.Realisasi_S1.toLocaleString('id-ID')}</td>
+                  <td class="text-center">${getPeriodPercentage(item.Realisasi_S1, item.Pagu_Sekarang)}</td>
+                  <td class="text-end fw-bold">${item.Realisasi_S2.toLocaleString('id-ID')}</td>
+                  <td class="text-center">${getPeriodPercentage(item.Realisasi_S2, item.Pagu_Sekarang)}</td>
+
+                  <td class="text-end text-primary fw-bold">${item.Total_Realisasi.toLocaleString('id-ID')}</td>
+                  <td class="text-center">
+                      <div class="progress" role="progressbar" title="${percentageText}%" style="height: 18px; font-size: 0.75rem;">
+                          <div class="progress-bar ${progressColor} text-dark" style="width: ${Math.min(percentage, 100)}%">${percentageText}%</div>
+                      </div>
+                  </td>
+              </tr>
+          `;
+      });
+      
+      const overallSelisihClass = grandTotals.Selisih_Pagu > 0 ? 'text-success' : (grandTotals.Selisih_Pagu < 0 ? 'text-danger' : '');
+      const grandTotalPercentage = grandTotals.Pagu_Sekarang > 0 ? ((grandTotals.Total_Realisasi / grandTotals.Pagu_Sekarang) * 100).toFixed(1) : '0.0';
+
+      // Add Grand Total row
+      tableHTML += `
+          <tr class="table-dark">
+              <td colspan="2" class="text-end fw-bold">TOTAL KESELURUHAN</td>
+              <td class="text-end fw-bold">${grandTotals.Pagu_Awal.toLocaleString('id-ID')}</td>
+              <td class="text-end fw-bold">${grandTotals.Pagu_Sekarang.toLocaleString('id-ID')}</td>
+              <td class="text-end fw-bold ${overallSelisihClass}">${grandTotals.Selisih_Pagu.toLocaleString('id-ID')}</td>
+              
+              <td class="text-end fw-bold">${grandTotals.Realisasi_TW1.toLocaleString('id-ID')}</td>
+              <td class="text-center fw-bold">${getPeriodPercentage(grandTotals.Realisasi_TW1, grandTotals.Pagu_Sekarang)}</td>
+              <td class="text-end fw-bold">${grandTotals.Realisasi_TW2.toLocaleString('id-ID')}</td>
+              <td class="text-center fw-bold">${getPeriodPercentage(grandTotals.Realisasi_TW2, grandTotals.Pagu_Sekarang)}</td>
+              <td class="text-end fw-bold">${grandTotals.Realisasi_TW3.toLocaleString('id-ID')}</td>
+              <td class="text-center fw-bold">${getPeriodPercentage(grandTotals.Realisasi_TW3, grandTotals.Pagu_Sekarang)}</td>
+              <td class="text-end fw-bold">${grandTotals.Realisasi_TW4.toLocaleString('id-ID')}</td>
+              <td class="text-center fw-bold">${getPeriodPercentage(grandTotals.Realisasi_TW4, grandTotals.Pagu_Sekarang)}</td>
+              
+              <td class="text-end fw-bold">${grandTotals.Realisasi_S1.toLocaleString('id-ID')}</td>
+              <td class="text-center fw-bold">${getPeriodPercentage(grandTotals.Realisasi_S1, grandTotals.Pagu_Sekarang)}</td>
+              <td class="text-end fw-bold">${grandTotals.Realisasi_S2.toLocaleString('id-ID')}</td>
+              <td class="text-center fw-bold">${getPeriodPercentage(grandTotals.Realisasi_S2, grandTotals.Pagu_Sekarang)}</td>
+
+              <td class="text-end fw-bold text-warning">${grandTotals.Total_Realisasi.toLocaleString('id-ID')}</td>
+              <td class="text-center fw-bold text-warning">${grandTotalPercentage}%</td>
+          </tr>
+      `;
+
+      tableHTML += `</tbody></table></div>`;
+      container.innerHTML = tableHTML;
+  }
+  // END: MODIFIED DIREKTORAT DASHBOARD LOGIC
   
   document.querySelector('[data-bs-target="#tab-manage"]').addEventListener('shown.bs.tab', async () => {
     if (STATE.role === 'direktorat') {
@@ -2032,6 +2378,7 @@ document.addEventListener('DOMContentLoaded', function() {
             input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
             tr[class^="group-header-"] td { font-weight: bold; background-color: #e9ecef; }
             .prodi-indicator { border-left: none !important; }
+            .blocked-row { opacity: 0.8 !important; }
           </style>
         </head>
         <body>
