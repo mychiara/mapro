@@ -201,13 +201,18 @@
                         <!-- END: Perbaikan Layout Rekapan -->
                     </div>
                 </div>
+                <!-- START: DIREKTORAT DASHBOARD MODIFICATION -->
                 <div id="direktorat-charts" class="row g-4 col-12 mt-1">
-                    <div class="col-lg-7"><div class="card p-3 h-100"><h6 class="card-title text-center">Total Anggaran Diajukan per Prodi</h6><canvas id="chartAnggaranPerProdi"></canvas></div></div>
-                    <div class="col-lg-5"><div class="card p-3 h-100"><h6 class="card-title text-center">Jumlah Ajuan per Status</h6><canvas id="chartAjuanPerStatus"></canvas></div></div>
-                    <div class="col-lg-7"><div class="card p-3 h-100"><h6 class="card-title text-center">Jumlah Ajuan per Bulan</h6><canvas id="chartAjuanPerBulan"></canvas></div></div>
-                    <div class="col-lg-5"><div class="card p-3 h-100"><h6 class="card-title text-center">Jumlah Ajuan per Prodi</h6><canvas id="chartAjuanPerProdi"></canvas></div></div>
-                    <div class="col-12 mt-4"><h5 class="text-center text-muted border-bottom pb-2 mb-3">Laporan Detail per Prodi</h5><div id="direktorat-prodi-reports" class="row g-4"></div></div>
+                    <div class="col-12">
+                        <div class="card p-3 h-100">
+                            <h6 class="card-title text-center"><i class="bi bi-table"></i> Ringkasan Realisasi Anggaran per Prodi</h6>
+                            <div id="direktorat-summary-table-container">
+                                <p class="text-center text-muted small">Memuat ringkasan data...</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+                <!-- END: DIREKTORAT DASHBOARD MODIFICATION -->
             </div>
           </div>
           <!-- FORM AJUAN TAB -->
@@ -232,7 +237,7 @@
               <div class="col-12 mt-3"><div class="d-flex flex-wrap gap-2 justify-content-end align-items-center"><button id="btn-add-to-staging" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> Tambah Rincian</button></div></div>
             </div>
             <div id="staging-area" class="mt-4 border-top pt-4" style="display:none;">
-              <h5 class="mb-3"><i class="bi bi-card-list"></i> Daftar Rincian Siap Kirim</h5>
+              <h5 class="mb-3"><i class="bi bi-card-list"></i> Daftar Rincian Siap Kirim</small></h5>
               <div id="staging-table-container" class="table-responsive mb-3"></div>
               <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
                   <div id="staging-summary" class="fw-bold"></div>
@@ -563,35 +568,35 @@
                   </div>
               </div>
               <div class="col-12">
-                <div class="card p-3">
-                  <h6 class="card-title"><i class="bi bi-pen-fill"></i> Pengaturan Default Penanda Tangan Berita Acara</h6>
-                  <p class="small text-muted">Pengaturan ini akan menjadi fallback. Pengaturan spesifik per-prodi akan lebih diprioritaskan.</p>
-                  <div class="row">
-                    <div class="col-md-6">
-                      <h6 class="small fw-bold border-bottom pb-2 mb-3">Tanda Tangan Pihak Kiri (Prodi - Default)</h6>
-                      <div class="mb-3">
-                        <label for="ba_ttd_kiri_jabatan" class="form-label">Jabatan</label>
-                        <input type="text" id="ba_ttd_kiri_jabatan" class="form-control" placeholder="Contoh: Ketua Jurusan Keperawatan">
+                  <div class="card p-3">
+                    <h6 class="card-title"><i class="bi bi-pen-fill"></i> Pengaturan Default Penanda Tangan Berita Acara</h6>
+                    <p class="small text-muted">Pengaturan ini akan menjadi fallback. Pengaturan spesifik per-prodi akan lebih diprioritaskan.</p>
+                    <div class="row">
+                      <div class="col-md-6">
+                        <h6 class="small fw-bold border-bottom pb-2 mb-3">Tanda Tangan Pihak Kiri (Prodi - Default)</h6>
+                        <div class="mb-3">
+                          <label for="ba_ttd_kiri_jabatan" class="form-label">Jabatan</label>
+                          <input type="text" id="ba_ttd_kiri_jabatan" class="form-control" placeholder="Contoh: Ketua Jurusan Keperawatan">
+                        </div>
+                        <div class="mb-3">
+                          <label for="ba_ttd_kiri_nama" class="form-label">Nama Lengkap & Gelar</label>
+                          <input type="text" id="ba_ttd_kiri_nama" class="form-control" placeholder="Contoh: Nama Lengkap, S.Kep., Ns., M.Kes">
+                        </div>
                       </div>
-                      <div class="mb-3">
-                        <label for="ba_ttd_kiri_nama" class="form-label">Nama Lengkap & Gelar</label>
-                        <input type="text" id="ba_ttd_kiri_nama" class="form-control" placeholder="Contoh: Nama Lengkap, S.Kep., Ns., M.Kes">
+                      <div class="col-md-6">
+                        <h6 class="small fw-bold border-bottom pb-2 mb-3">Tanda Tangan Pihak Kanan (Direktorat)</h6>
+                        <div class="mb-3">
+                          <label for="ba_ttd_kanan_jabatan" class="form-label">Jabatan</label>
+                          <input type="text" id="ba_ttd_kanan_jabatan" class="form-control" placeholder="Contoh: Wakil Direktur II">
+                        </div>
+                        <div class="mb-3">
+                          <label for="ba_ttd_kanan_nama" class="form-label">Nama Lengkap & Gelar</label>
+                          <input type="text" id="ba_ttd_kanan_nama" class="form-control" placeholder="Contoh: Nama Lengkap, S.E., M.M.">
+                        </div>
                       </div>
                     </div>
-                    <div class="col-md-6">
-                      <h6 class="small fw-bold border-bottom pb-2 mb-3">Tanda Tangan Pihak Kanan (Direktorat)</h6>
-                      <div class="mb-3">
-                        <label for="ba_ttd_kanan_jabatan" class="form-label">Jabatan</label>
-                        <input type="text" id="ba_ttd_kanan_jabatan" class="form-control" placeholder="Contoh: Wakil Direktur II">
-                      </div>
-                      <div class="mb-3">
-                        <label for="ba_ttd_kanan_nama" class="form-label">Nama Lengkap & Gelar</label>
-                        <input type="text" id="ba_ttd_kanan_nama" class="form-control" placeholder="Contoh: Nama Lengkap, S.E., M.M.">
-                      </div>
-                    </div>
+                    <button id="btn-save-ba-settings" class="btn btn-primary mt-2"><i class="bi bi-save"></i> Simpan Pengaturan Default</button>
                   </div>
-                  <button id="btn-save-ba-settings" class="btn btn-primary mt-2"><i class="bi bi-save"></i> Simpan Pengaturan Default</button>
-                </div>
               </div>
               <div class="col-12">
                   <div class="card p-3">
@@ -639,4 +644,3 @@
 <script src="script.js"></script>
 
 </body>
-</html>
