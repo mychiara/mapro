@@ -13,6 +13,74 @@ const db = firebase.firestore();
 const auth = firebase.auth();
 const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp;
 const arrayUnion = firebase.firestore.FieldValue.arrayUnion;
+const firestoreTimestamp = firebase.firestore.Timestamp; // OPTIMIZATION: Alias for consistent Timestamp handling
+
+// --- OPTIMIZATION START: Helper functions untuk Caching di LocalStorage ---
+/**
+ * Menyimpan data ke LocalStorage dengan waktu kedaluwarsa (TTL).
+ * @param {string} key Kunci untuk cache.
+ * @param {any} data Data yang akan disimpan.
+ * @param {number} ttlMinutes Waktu kedaluarsa dalam menit.
+ */
+function setCache(key, data, ttlMinutes = 1200) { // Default TTL: 2 jam
+    const now = new Date();
+    const item = {
+        value: data,
+        expiry: now.getTime() + ttlMinutes * 600 * 1000,
+    };
+    try {
+        localStorage.setItem(key, JSON.stringify(item));
+    } catch (e) {
+        console.warn("Gagal menyimpan cache, mungkin storage penuh.", e);
+    }
+}
+
+/**
+ * Mengambil data dari cache jika masih valid.
+ * @param {string} key Kunci cache yang akan diambil.
+ * @returns {any|null} Mengembalikan data jika ada dan valid, jika tidak null.
+ */
+function getCache(key) {
+    try {
+        const itemStr = localStorage.getItem(key);
+        if (!itemStr) {
+            return null;
+        }
+        const item = JSON.parse(itemStr);
+        const now = new Date();
+        if (now.getTime() > item.expiry) {
+            localStorage.removeItem(key);
+            return null;
+        }
+        return item.value;
+    } catch (e) {
+        console.error("Gagal membaca cache.", e);
+        return null;
+    }
+}
+
+/**
+ * Mengubah string tipe ajuan (misal: "Perubahan 1") menjadi format yang aman untuk CSS class/ID.
+ * @param {string} tipe String tipe ajuan.
+ * @returns {string} String yang aman untuk CSS.
+ */
+function sanitizeTipeForCSS(tipe) {
+    if (!tipe) return '';
+    return tipe.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+}
+
+/**
+ * Helper function to safely add an event listener only if the element exists.
+ * @param {string} id Element ID.
+ * @param {function} handler Click handler function.
+ */
+function safeAddClickListener(id, handler) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener('click', handler);
+    }
+}
+// --- OPTIMIZATION END ---
 
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -27,7 +95,8 @@ document.addEventListener('DOMContentLoaded', function() {
   let STATE = { 
     role: null, id: null, uid: null, currentUserData: null, 
     allKelompok: [], allProdi: [], allDirektoratUids: [],
-    currentAjuanDataAwal: [], currentAjuanDataPerubahan: [],
+    currentAjuanDataAwal: [], // Cache untuk tab Daftar Ajuan Awal
+    currentAjuanDataPerubahan: [], // Cache untuk tab Daftar Ajuan Perubahan
     stagingList: [], 
     selectedAjuanIdsAwal: new Set(), selectedAjuanIdsPerubahan: new Set(),
     allDashboardData: [], globalSettings: {},
@@ -259,6 +328,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if(STATE.notificationListener) STATE.notificationListener();
         await auth.signOut();
         clearSession();
+        // --- OPTIMIZATION: Hapus cache saat logout ---
+        localStorage.removeItem('cache_allKelompok');
+        localStorage.removeItem('cache_allProdi');
         window.location.reload();
     } catch (error) {
         showToast(`Gagal logout: ${error.message}`, 'danger');
@@ -470,7 +542,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             let currentTotalAjuanAwal = 0;
             activeAjuanQuery.forEach(doc => {
-                currentTotalAjuanAwal += Number(doc.data().Total) || 0;
+                const data = doc.data();
+                // All active ajuan in Awal stage count against the ceiling
+                currentTotalAjuanAwal += Number(data.Total) || 0;
             });
 
             const totalStaging = STATE.stagingList.reduce((sum, item) => sum + item.Total, 0);
@@ -516,10 +590,10 @@ document.addEventListener('DOMContentLoaded', function() {
         STATE.stagingList = []; renderStagingTable(); clearAjuanForm();
         
         if (STATE.currentAjuanType === 'Awal') {
-            refreshAjuanTableAwal();
+            refreshAjuanTableAwal(true); // Force refresh
             new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-daftar-awal"]')).show();
         } else {
-            refreshAjuanTablePerubahan();
+            refreshAjuanTablePerubahan(true); // Force refresh
             new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-daftar-perubahan"]')).show();
         }
         updateProdiPaguInfo(STATE.currentUserData);
@@ -564,7 +638,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const direktoratSnapshot = await db.collection('users').where('Role', '==', 'direktorat').get();
         STATE.allDirektoratUids = direktoratSnapshot.docs.map(doc => doc.id);
 
-        refreshAjuanTableAwal();
+        refreshAjuanTableAwal(true); // Memuat data ajuan awal pertama kali
     } catch (error) {
         console.error("Error loading initial data:", error);
         showToast('Gagal memuat data awal aplikasi. Coba refresh halaman.', 'danger');
@@ -573,27 +647,57 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
+  // --- OPTIMIZATION START: Fungsi diubah untuk menggunakan cache ---
   async function refreshKelompokData() {
-    try {
-        const kelompokSnapshot = await db.collection('kelompok').get();
-        STATE.allKelompok = kelompokSnapshot.docs.map(doc => doc.data());
-        ['selectKelompok', 'edit-selectKelompok'].forEach(id => populateKelompok(STATE.allKelompok, id));
-        ['filterKelompokAwal', 'filterKelompokPerubahan'].forEach(id => populateKelompokFilter(STATE.allKelompok, id));
-        if (STATE.role === 'direktorat') { populateKelompokList(STATE.allKelompok); }
-    } catch (e) {
-        console.error("Failed to refresh Kelompok data", e);
-        showToast("Gagal memuat data kelompok.", "danger");
+    const cacheKey = 'cache_allKelompok';
+    const cachedData = getCache(cacheKey);
+
+    if (cachedData) {
+        console.log("Memuat data Kelompok dari CACHE.");
+        STATE.allKelompok = cachedData;
+    } else {
+        console.log("Mengambil data Kelompok dari FIRESTORE.");
+        try {
+            const kelompokSnapshot = await db.collection('kelompok').get();
+            STATE.allKelompok = kelompokSnapshot.docs.map(doc => doc.data());
+            setCache(cacheKey, STATE.allKelompok, 120); // Simpan cache selama 2 jam
+        } catch (e) {
+            console.error("Gagal mengambil data Kelompok", e);
+            showToast("Gagal memuat data kelompok.", "danger");
+            return; // Penting: jangan lanjutkan jika fetch gagal
+        }
     }
+
+    // Bagian ini tetap dijalankan baik dari cache maupun fetch baru
+    ['selectKelompok', 'edit-selectKelompok'].forEach(id => populateKelompok(STATE.allKelompok, id));
+    ['filterKelompokAwal', 'filterKelompokPerubahan'].forEach(id => populateKelompokFilter(STATE.allKelompok, id));
+    if (STATE.role === 'direktorat') { populateKelompokList(STATE.allKelompok); }
   }
 
   async function refreshProdiData() {
       if (STATE.role !== 'direktorat') return;
-      try {
-          const prodiSnapshot = await db.collection('users').get();
-          STATE.allProdi = prodiSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
-          populateProdiList(STATE.allProdi);
-      } catch (e) { console.error("Failed to refresh Prodi data", e); showToast("Gagal memuat data pengguna.", "danger"); }
+
+      const cacheKey = 'cache_allProdi';
+      const cachedData = getCache(cacheKey);
+
+      if (cachedData) {
+          console.log("Memuat data Prodi dari CACHE.");
+          STATE.allProdi = cachedData;
+      } else {
+          console.log("Mengambil data Prodi dari FIRESTORE.");
+          try {
+              const prodiSnapshot = await db.collection('users').get();
+              STATE.allProdi = prodiSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+              setCache(cacheKey, STATE.allProdi, 120); // Simpan cache selama 2 jam
+          } catch (e) {
+              console.error("Gagal mengambil data Prodi", e);
+              showToast("Gagal memuat data pengguna.", "danger");
+              return;
+          }
+      }
+      populateProdiList(STATE.allProdi);
   }
+  // --- OPTIMIZATION END ---
 
   function populateKelompok(list, selectId) { const sel = document.getElementById(selectId); sel.innerHTML = '<option value="">-- Pilih Kelompok --</option>'; (list || []).forEach(it => sel.add(new Option(`${it.ID_Kelompok} - ${it.Nama_Kelompok}`, it.ID_Kelompok))); }
   function populateProdiFilter(list, selectId) { const sel = document.getElementById(selectId); sel.innerHTML = '<option value="">Semua Prodi</option>';(list || []).forEach(it => sel.add(new Option(`${it.ID_Prodi} - ${it.Nama_Prodi}`, it.ID_Prodi))); }
@@ -667,7 +771,6 @@ document.addEventListener('DOMContentLoaded', function() {
         let ajuanData = snapshot.docs.map(doc => {
             const data = doc.data();
             if (data.Timestamp && data.Timestamp.toDate) data.Timestamp = data.Timestamp.toDate();
-            // Ensure Is_Blocked property exists for safety, default to false
             if (data.Is_Blocked === undefined) data.Is_Blocked = false; 
             return { ID_Ajuan: doc.id, ...data };
         });
@@ -675,7 +778,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ajuanData.sort((a, b) => (b.Timestamp || 0) - (a.Timestamp || 0));
 
         if (isPerubahan) {
-            STATE.currentAjuanDataPerubahan = ajuanData;
+            STATE.currentAjuanDataPerubahan = ajuanData; // Simpan data ke state cache
             const asalIds = [...new Set(ajuanData.map(d => d.ID_Ajuan_Asal).filter(Boolean))];
             const awalDataMap = new Map();
             if (asalIds.length > 0) {
@@ -685,10 +788,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     originalSnapshot.forEach(doc => awalDataMap.set(doc.id, doc.data()));
                 }
             }
-            renderAjuanTable(ajuanData, 'Perubahan', awalDataMap);
+            renderAjuanTable(ajuanData, tipe, awalDataMap);
         } else { // 'Awal'
-            STATE.currentAjuanDataAwal = ajuanData;
-            renderAjuanTable(ajuanData, 'Awal');
+            STATE.currentAjuanDataAwal = ajuanData; // Simpan data ke state cache
+            renderAjuanTable(ajuanData, tipe);
         }
         
     } catch (error) {
@@ -700,24 +803,64 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   
-  const refreshAjuanTableAwal = () => refreshAjuanTable('Awal');
-  const refreshAjuanTablePerubahan = () => {
+  // --- OPTIMIZATION START: Fungsi "controller" baru untuk mengelola pemanggilan data ---
+  const refreshAjuanTableAwal = (forceRefresh = false) => {
+    // Jika tidak dipaksa refresh DAN data sudah ada di state, gunakan data yang ada
+    if (!forceRefresh && STATE.currentAjuanDataAwal && STATE.currentAjuanDataAwal.length > 0) {
+        console.log("Menampilkan data Ajuan Awal dari cache state.");
+        renderAjuanTable(STATE.currentAjuanDataAwal, 'Awal');
+        return;
+    }
+    // Jika dipaksa atau data belum ada, panggil fungsi fetch
+    console.log("Mengambil data Ajuan Awal dari Firestore.");
+    refreshAjuanTable('Awal');
+  };
+  
+  const refreshAjuanTablePerubahan = (forceRefresh = false) => {
+    // Jika tidak dipaksa refresh DAN data sudah ada di state, gunakan data yang ada
+    if (!forceRefresh && STATE.currentAjuanDataPerubahan && STATE.currentAjuanDataPerubahan.length > 0) {
+        console.log("Menampilkan data Ajuan Perubahan dari cache state.");
+        const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
+        renderAjuanTable(STATE.currentAjuanDataPerubahan, `Perubahan ${tahapAktif}`);
+        return;
+    }
+    // Jika dipaksa atau data belum ada, panggil fungsi fetch
+    console.log("Mengambil data Ajuan Perubahan dari Firestore.");
     const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
     refreshAjuanTable(`Perubahan ${tahapAktif}`);
   };
 
-  document.getElementById('btn-refresh-awal').addEventListener('click', refreshAjuanTableAwal);
-  ['filterStatusAwal', 'filterProdiAwal', 'filterKelompokAwal', 'filterGrubAwal'].forEach(id => document.getElementById(id).addEventListener('change', refreshAjuanTableAwal));
-  document.getElementById('btn-refresh-perubahan').addEventListener('click', refreshAjuanTablePerubahan);
-  ['filterStatusPerubahan', 'filterProdiPerubahan', 'filterKelompokPerubahan', 'filterGrubPerubahan'].forEach(id => document.getElementById(id).addEventListener('change', refreshAjuanTablePerubahan));
+  // --- OPTIMIZATION: Event listener diubah untuk menggunakan fungsi controller ---
+  safeAddClickListener('btn-refresh-awal', () => refreshAjuanTableAwal(true));
+  ['filterStatusAwal', 'filterProdiAwal', 'filterKelompokAwal', 'filterGrubAwal'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', () => {
+          STATE.currentAjuanDataAwal = []; // Hapus cache saat filter berubah
+          refreshAjuanTableAwal(true);
+      });
+  });
   
-  document.querySelector('[data-bs-target="#tab-daftar-awal"]').addEventListener('shown.bs.tab', refreshAjuanTableAwal);
-  document.querySelector('[data-bs-target="#tab-daftar-perubahan"]').addEventListener('shown.bs.tab', refreshAjuanTablePerubahan);
-
+  safeAddClickListener('btn-refresh-perubahan', () => refreshAjuanTablePerubahan(true));
+  ['filterStatusPerubahan', 'filterProdiPerubahan', 'filterKelompokPerubahan', 'filterGrubPerubahan'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', () => {
+          STATE.currentAjuanDataPerubahan = []; // Hapus cache saat filter berubah
+          refreshAjuanTablePerubahan(true);
+      });
+  });
+  
+  document.querySelector('[data-bs-target="#tab-daftar-awal"]').addEventListener('shown.bs.tab', () => refreshAjuanTableAwal(false));
+  document.querySelector('[data-bs-target="#tab-daftar-perubahan"]').addEventListener('shown.bs.tab', () => refreshAjuanTablePerubahan(false));
+  // --- OPTIMIZATION END ---
+  
   function renderAjuanTable(rows, tipe, originalDataMap = null) {
     const isPerubahan = tipe.startsWith('Perubahan');
     const container = document.getElementById(isPerubahan ? `tableAjuanPerubahan` : `tableAjuanAwal`);
     const summaryContainerId = isPerubahan ? `summary-display-perubahan` : `summary-display-awal`;
+    
+    // FIX: Sanitize Tipe for Checkbox Classes
+    const sanitizedTipe = sanitizeTipeForCSS(tipe);
+
     if (rows.length === 0) { container.innerHTML = '<div class="text-center text-muted p-5">Belum ada ajuan.</div>'; document.getElementById(summaryContainerId).style.display = 'none'; return; }
     
     let grandTotal = 0, acceptedTotal = 0, rejectedTotal = 0;
@@ -744,7 +887,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (isPerubahan) {
         let html = `<table class="table table-hover align-middle" style="min-width: 2200px;"><thead class="table-light"><tr>
-                        <th style="width: 30px;" rowspan="2" class="align-middle"><input type="checkbox" id="select-all-ajuan-${tipe}" title="Pilih Semua"></th>
+                        <th style="width: 30px;" rowspan="2" class="align-middle"><input type="checkbox" id="select-all-ajuan-${sanitizedTipe}" title="Pilih Semua"></th>
                         <th colspan="3" class="text-center bg-secondary-subtle">DATA AJUAN LAMA</th>
                         <th colspan="3" class="text-center bg-light">DATA AJUAN BARU</th>
                         <th rowspan="2" class="align-middle text-end" style="min-width: 120px;">Selisih</th>
@@ -801,7 +944,7 @@ document.addEventListener('DOMContentLoaded', function() {
                       const statusBadgeText = isBlocked && r.Status === 'Diterima' ? `Diterima (BLOKIR)` : (isBlocked ? `${r.Status} (BLOKIR)` : r.Status);
                       
                       html += `<tr class="prodi-indicator ${rowClass}" style="border-left-color: ${prodiColor};">
-                                  <td><input type="checkbox" class="ajuan-checkbox-${tipe}" data-id="${r.ID_Ajuan}"></td>
+                                  <td><input type="checkbox" class="ajuan-checkbox-${sanitizedTipe}" data-id="${r.ID_Ajuan}"></td>
                                   <td class="bg-secondary-subtle"><small>${escapeHtml(original.Nama_Ajuan || 'N/A')}</small></td>
                                   <td class="bg-secondary-subtle"><small class="text-nowrap">${Number(original.Jumlah || 0).toLocaleString('id-ID')} ${escapeHtml(original.Satuan || '')} X Rp ${Number(original.Harga_Satuan || 0).toLocaleString('id-ID')}</small></td>
                                   <td class="text-end bg-secondary-subtle"><small>Rp ${totalLama.toLocaleString('id-ID')}</small></td>
@@ -829,7 +972,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, {});
         const sortedGrubKeys = Object.keys(groupedData).sort(); 
         const prodiNameMap = STATE.allProdi.reduce((acc, prodi) => { acc[prodi.ID_Prodi] = prodi.Nama_Prodi; return acc; }, {});
-        let html = `<table class="table table-hover align-middle" style="min-width: 1350px;"><thead class="table-light"><tr><th style="width: 30px;"><input type="checkbox" id="select-all-ajuan-${tipe}" title="Pilih Semua"></th><th style="min-width: 250px;">Rincian Ajuan</th><th style="min-width: 200px;">Detail Kuantitas</th><th class="text-end" style="min-width: 130px;">Total Biaya</th><th class="text-center">Dakung</th><th style="min-width: 140px;">Status</th><th style="min-width: 200px;">Catatan Reviewer</th><th class="text-end action-buttons" style="min-width: 280px;">Aksi</th></tr></thead><tbody>`;
+        let html = `<table class="table table-hover align-middle" style="min-width: 1350px;"><thead class="table-light"><tr><th style="width: 30px;"><input type="checkbox" id="select-all-ajuan-${sanitizedTipe}" title="Pilih Semua"></th><th style="min-width: 250px;">Rincian Ajuan</th><th style="min-width: 200px;">Detail Kuantitas</th><th class="text-end" style="min-width: 130px;">Total Biaya</th><th class="text-center">Dakung</th><th style="min-width: 140px;">Status</th><th style="min-width: 200px;">Catatan Reviewer</th><th class="text-end action-buttons" style="min-width: 280px;">Aksi</th></tr></thead><tbody>`;
         sortedGrubKeys.forEach(grubKey => {
           html += `<tr class="group-header-grub"><td colspan="8" class="fw-bold"><i class="bi bi-folder-fill"></i> ${escapeHtml(grubKey)}</td></tr>`;
           const sortedKelompokKeys = Object.keys(groupedData[grubKey]).sort();
@@ -850,7 +993,7 @@ document.addEventListener('DOMContentLoaded', function() {
                       const rowClass = isBlocked ? 'blocked-row' : ''; 
                       const statusBadgeText = isBlocked && r.Status === 'Diterima' ? `Diterima (BLOKIR)` : (isBlocked ? `${r.Status} (BLOKIR)` : r.Status);
 
-                      html += `<tr class="prodi-indicator ${rowClass}" style="border-left-color: ${prodiColor};"><td><input type="checkbox" class="ajuan-checkbox-${tipe}" data-id="${r.ID_Ajuan}"></td><td><div class="d-flex justify-content-between align-items-start"><strong class="me-2">${escapeHtml(r.Nama_Ajuan)}</strong><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal text-nowrap">${r.ID_Ajuan.substring(0, 6)}..</span></div>${prodiInfoHtml}<div class="mt-1"><span class="badge bg-info-subtle text-info-emphasis fw-normal">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</span> ${idAjuanAsal}</div></td><td><div class="small text-nowrap">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)} X Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div></td><td class="text-end text-nowrap"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td><td class="text-center">${dataDukungLink}</td><td><span class="badge rounded-pill status-badge ${statusClassMap[statusKey] || statusClassMap[r.Status] || 'bg-secondary'}">${statusBadgeText}</span></td><td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td><td class="text-end action-buttons">${renderActionsForRow(r, tipe)}</td></tr>`;
+                      html += `<tr class="prodi-indicator ${rowClass}" style="border-left-color: ${prodiColor};"><td><input type="checkbox" class="ajuan-checkbox-${sanitizedTipe}" data-id="${r.ID_Ajuan}"></td><td><div class="d-flex justify-content-between align-items-start"><strong class="me-2">${escapeHtml(r.Nama_Ajuan)}</strong><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal text-nowrap">${r.ID_Ajuan.substring(0, 6)}..</span></div>${prodiInfoHtml}<div class="mt-1"><span class="badge bg-info-subtle text-info-emphasis fw-normal">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</span> ${idAjuanAsal}</div></td><td><div class="small text-nowrap">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)} X Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div></td><td class="text-end text-nowrap"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td><td class="text-center">${dataDukungLink}</td><td><span class="badge rounded-pill status-badge ${statusClassMap[statusKey] || statusClassMap[r.Status] || 'bg-secondary'}">${statusBadgeText}</span></td><td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td><td class="text-end action-buttons">${renderActionsForRow(r, tipe)}</td></tr>`;
                   });
               });
           });
@@ -877,7 +1020,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
           showToast(`Ajuan ${id.substring(0,6)}.. berhasil di${blockStatus ? 'blokir' : 'buka blokir'}.`);
           
-          if(tipe === 'Awal') refreshAjuanTableAwal(); else refreshAjuanTablePerubahan();
+          if(tipe === 'Awal') refreshAjuanTableAwal(true); else refreshAjuanTablePerubahan(true);
           loadDashboardData(); 
 
       } catch(error) { 
@@ -1011,7 +1154,7 @@ document.addEventListener('DOMContentLoaded', function() {
         await ajuanRef.update(dataAfter);
         showToast('Ajuan berhasil diperbarui.');
         EDIT_MODAL.hide();
-        if (tipeAjuan.startsWith('Perubahan')) refreshAjuanTablePerubahan(); else refreshAjuanTableAwal();
+        if (tipeAjuan.startsWith('Perubahan')) refreshAjuanTablePerubahan(true); else refreshAjuanTableAwal(true);
         if (STATE.role === 'prodi') updateProdiPaguInfo(STATE.currentUserData);
 
     } catch (error) {
@@ -1028,7 +1171,7 @@ document.addEventListener('DOMContentLoaded', function() {
               await db.collection('ajuan').doc(id).delete();
               await logActivity('Delete Ajuan', `Menghapus ajuan ID: ${id} (${tipe}).`);
               showToast('Ajuan berhasil dihapus.');
-              if(tipe === 'Awal') refreshAjuanTableAwal(); else refreshAjuanTablePerubahan();
+              if(tipe === 'Awal') refreshAjuanTableAwal(true); else refreshAjuanTablePerubahan(true);
               if(STATE.role === 'prodi') updateProdiPaguInfo(STATE.currentUserData);
           } catch(error) { showToast(`Gagal menghapus: ${error.message}`, 'danger'); } finally { showLoader(false); }
       }
@@ -1098,14 +1241,43 @@ document.addEventListener('DOMContentLoaded', function() {
 
         showToast(`${ids.length} review berhasil dikirim.`);
         REVIEW_MODAL.hide();
-        if(tipe === 'Awal') refreshAjuanTableAwal(); else refreshAjuanTablePerubahan();
+        if(tipe === 'Awal') refreshAjuanTableAwal(true); else refreshAjuanTablePerubahan(true);
         loadDashboardData();
 
     } catch (error) { showToast(`Gagal mengirim review: ${error.message}`, 'danger'); } finally { showLoader(false); }
   });
   
   function updateBulkActionBar(tipe) { const bar = document.getElementById(`bulk-action-bar-${tipe.toLowerCase()}`); const countEl = document.getElementById(`bulk-selected-count-${tipe.toLowerCase()}`); const selectedIds = tipe === 'Awal' ? STATE.selectedAjuanIdsAwal : STATE.selectedAjuanIdsPerubahan; const selectedCount = selectedIds.size; if (selectedCount > 0 && STATE.role === 'direktorat') { bar.style.display = 'flex'; countEl.textContent = selectedCount; } else { bar.style.display = 'none'; } }
-  function addCheckboxListeners(tipe) { const selectAll = document.getElementById(`select-all-ajuan-${tipe}`); const checkboxes = document.querySelectorAll(`.ajuan-checkbox-${tipe}`); const selectedIds = tipe === 'Awal' ? STATE.selectedAjuanIdsAwal : STATE.selectedAjuanIdsPerubahan; if (selectAll) { selectAll.addEventListener('change', (e) => { checkboxes.forEach(cb => { cb.checked = e.target.checked; const id = cb.dataset.id; if (e.target.checked) selectedIds.add(id); else selectedIds.delete(id); }); updateBulkActionBar(tipe); }); } checkboxes.forEach(cb => { cb.addEventListener('change', (e) => { const id = e.target.dataset.id; if (e.target.checked) selectedIds.add(id); else selectedIds.delete(id); if(selectAll) selectAll.checked = checkboxes.length === selectedIds.size; updateBulkActionBar(tipe); }); }); }
+  
+  function addCheckboxListeners(tipe) { 
+      // FIX: Sanitize Tipe for Checkbox Classes
+      const sanitizedTipe = sanitizeTipeForCSS(tipe);
+
+      const selectAll = document.getElementById(`select-all-ajuan-${sanitizedTipe}`); 
+      const checkboxes = document.querySelectorAll(`.ajuan-checkbox-${sanitizedTipe}`); 
+      const selectedIds = tipe === 'Awal' ? STATE.selectedAjuanIdsAwal : STATE.selectedAjuanIdsPerubahan; 
+      
+      if (selectAll) { 
+          selectAll.addEventListener('change', (e) => { 
+              checkboxes.forEach(cb => { 
+                  cb.checked = e.target.checked; 
+                  const id = cb.dataset.id; 
+                  if (e.target.checked) selectedIds.add(id); 
+                  else selectedIds.delete(id); 
+              }); 
+              updateBulkActionBar(tipe.startsWith('Perubahan') ? 'Perubahan' : 'Awal'); 
+          }); 
+      } 
+      checkboxes.forEach(cb => { 
+          cb.addEventListener('change', (e) => { 
+              const id = e.target.dataset.id; 
+              if (e.target.checked) selectedIds.add(id); 
+              else selectedIds.delete(id); 
+              if(selectAll) selectAll.checked = checkboxes.length === selectedIds.size; 
+              updateBulkActionBar(tipe.startsWith('Perubahan') ? 'Perubahan' : 'Awal'); 
+          }); 
+      }); 
+  }
   
   ['Awal', 'Perubahan'].forEach(tipe => {
     const lowerTipe = tipe.toLowerCase();
@@ -1122,14 +1294,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 await batch.commit();
                 await logActivity('Bulk Delete Ajuan', `Menghapus ${ids.length} ajuan (${tipe}).`);
                 showToast(`${ids.length} ajuan berhasil dihapus.`);
-                if (tipe === 'Awal') refreshAjuanTableAwal(); else refreshAjuanTablePerubahan();
+                if (tipe === 'Awal') refreshAjuanTableAwal(true); else refreshAjuanTablePerubahan(true);
                 loadDashboardData();
             } catch (error) { showToast(`Gagal menghapus: ${error.message}`, 'danger'); } finally { showLoader(false); }
         }
     });
   });
 
-  document.getElementById('btn-copy-accepted').addEventListener('click', async () => {
+  safeAddClickListener('btn-copy-accepted', async () => {
     if (STATE.role !== 'prodi') return;
 
     const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
@@ -1188,7 +1360,7 @@ document.addEventListener('DOMContentLoaded', function() {
             await batch.commit();
             await logActivity('Pindahkan Ajuan', `Menyalin ${copyCount} ajuan dari ${sourceType} ke ${destinationType}.`);
             showToast(`${copyCount} ajuan baru berhasil disalin ke daftar ${destinationType}.`, 'success');
-            refreshAjuanTablePerubahan();
+            refreshAjuanTablePerubahan(true);
         } else {
             showToast('Tidak ada ajuan baru untuk disalin.', 'info');
         }
@@ -1250,7 +1422,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const readOnlyAttr = isDirektorat ? 'readonly' : ''; 
     const disabledBtnClass = isDirektorat ? 'disabled' : ''; 
     
-    let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Prodi</th><th rowspan="2" class="align-middle">Rincian</th><th rowspan="2" class="align-middle text-end">Total Diterima</th><th colspan="12" class="text-center">Rencana Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end">Total RPD</th><th rowspan="2" class="align-middle text-end">Sisa</th><th rowspan="2" class="align-middle text-center">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}</tr>`; 
+    let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Prodi</th><th rowspan="2" class="align-middle">Rincian</th><th rowspan="2" class="align-middle text-end">Total Diterima</th><th colspan="12" class="text-center">Rencana Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end">Total RPD</th><th rowspan="2" class="align-middle text-end">Sisa</th><th rowspan="2" class="align-middle text-center action-buttons">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}</tr>`; 
     
     const tableRows = data.map(r => { 
         const ajuanId = r.ID_Ajuan; 
@@ -1266,7 +1438,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const sisa = totalAjuan - totalAllocated; 
         const sisaClass = sisa < 0 ? 'text-danger fw-bold' : ''; 
         
-        return `<tr id="rpd-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td><td>${escapeHtml(r.ID_Prodi)}</td><td><strong>${escapeHtml(r.Nama_Ajuan)}</strong><div class="small text-muted">${escapeHtml(r.Judul_Kegiatan)}</div></td><td class="text-end fw-bold" data-total="${totalAjuan}">${totalAjuan.toLocaleString('id-ID')}</td>${rpdInputs}<td class="text-end fw-bold rpd-total-allocated">${totalAllocated.toLocaleString('id-ID')}</td><td class="text-end fw-bold rpd-sisa ${sisaClass}">${sisa.toLocaleString('id-ID')}</td><td class="text-center"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRPD('${ajuanId}', '${tipe}')" title="Simpan RPD"><i class="bi bi-save"></i></button></td></tr>`; 
+        return `<tr id="rpd-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td><td>${escapeHtml(r.ID_Prodi)}</td><td><strong>${escapeHtml(r.Nama_Ajuan)}</strong><div class="small text-muted">${escapeHtml(r.Judul_Kegiatan)}</div></td><td class="text-end fw-bold" data-total="${totalAjuan}">${totalAjuan.toLocaleString('id-ID')}</td>${rpdInputs}<td class="text-end fw-bold rpd-total-allocated">${totalAllocated.toLocaleString('id-ID')}</td><td class="text-end fw-bold rpd-sisa ${sisaClass}">${sisa.toLocaleString('id-ID')}</td><td class="text-center action-buttons"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRPD('${ajuanId}', '${tipe}')" title="Simpan RPD"><i class="bi bi-save"></i></button></td></tr>`; 
     }).join(''); 
     
     container.innerHTML = `<table class="table table-bordered table-sm small"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`; 
@@ -1275,8 +1447,8 @@ document.addEventListener('DOMContentLoaded', function() {
   window.updateRpdRowSummary = (ajuanId, tipe) => { const row = document.getElementById(`rpd-row-${tipe}-${ajuanId}`); if (!row) return false; const totalValue = parseFloat(row.querySelector('[data-total]').dataset.total); let currentSum = 0; row.querySelectorAll('.rpd-input').forEach(input => { currentSum += Number(input.value) || 0; }); const sisa = totalValue - currentSum; row.querySelector('.rpd-total-allocated').textContent = currentSum.toLocaleString('id-ID'); row.querySelector('.rpd-sisa').textContent = sisa.toLocaleString('id-ID'); if (sisa < 0) { row.querySelector('.rpd-sisa').classList.add('text-danger'); return false; } else { row.querySelector('.rpd-sisa').classList.remove('text-danger'); return true; } }
   window.saveRPD = async (ajuanId, tipe) => { if (!window.updateRpdRowSummary(ajuanId, tipe)) { showToast('Gagal. Total alokasi RPD melebihi total diterima.', 'danger'); return; } showLoader(true); const row = document.getElementById(`rpd-row-${tipe}-${ajuanId}`); const rpdData = {}; let totalRpd = 0; row.querySelectorAll('.rpd-input').forEach((input, index) => { const value = Number(input.value) || 0; rpdData[`RPD_${RPD_MONTHS[index]}`] = value; totalRpd += value; }); try { await db.collection('ajuan').doc(ajuanId).update(rpdData); await logHistory(ajuanId, "RPD Disimpan", `Total RPD yang disimpan: Rp ${totalRpd.toLocaleString('id-ID')}.`); await logActivity('Save RPD', `Menyimpan RPD untuk ajuan ID ${ajuanId} (${tipe}). Total: Rp ${totalRpd.toLocaleString('id-ID')}.`); showToast(`RPD untuk ${ajuanId.substring(0,6)}.. disimpan.`); if (tipe === 'Awal') refreshTable('RPD', 'Awal'); else refreshTable('RPD', `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}`); } catch (error) { showToast(`Gagal menyimpan RPD: ${error.message}`, 'danger'); } finally { showLoader(false); } };
 
-  function renderRealisasiTable(data, tipe) { const container = document.getElementById(`tableRealisasi${tipe}`); if (data.length === 0) { container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada ajuan diterima dan tidak diblokir.</div>'; return; } const isDirektorat = STATE.role === 'direktorat'; const readOnlyAttr = isDirektorat ? 'readonly' : ''; const disabledBtnClass = isDirektorat ? 'disabled' : ''; let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Rincian</th><th rowspan="2" class="align-middle text-end">Total RPD</th><th colspan="12" class="text-center">Realisasi Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end">Total Realisasi</th><th rowspan="2" class="align-middle text-center">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}</tr>`; const tableRows = data.map(r => { const ajuanId = r.ID_Ajuan; let totalRealisasi = 0; let totalRPD = 0; const realisasiInputs = RPD_MONTHS.map(month => { const value = Number(r[`Realisasi_${month}`] || 0); totalRealisasi += value; totalRPD += Number(r[`RPD_${month}`] || 0); return `<td><input type="number" class="form-control form-control-sm realisasi-input" value="${value}" oninput="window.updateRealisasiRowSummary('${ajuanId}', '${tipe}')" min="0" ${readOnlyAttr}></td>`; }).join(''); return `<tr id="realisasi-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td><td><strong>${escapeHtml(r.Nama_Ajuan)}</strong></td><td class="text-end fw-bold">${totalRPD.toLocaleString('id-ID')}</td>${realisasiInputs}<td class="text-end fw-bold realisasi-total">${totalRealisasi.toLocaleString('id-ID')}</td><td class="text-center"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRealisasi('${ajuanId}', '${tipe}')" title="Simpan Realisasi"><i class="bi bi-save"></i></button></td></tr>`; }).join(''); container.innerHTML = `<table class="table table-bordered table-sm small"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`; }
-  function renderRealisasiSummary(data, tipe) { const container = document.getElementById(`realisasi-summary-area-${tipe.toLowerCase()}`); const rpdPerBulan = Array(12).fill(0); const realisasiPerBulan = Array(12).fill(0); data.forEach(ajuan => { RPD_MONTHS.forEach((month, index) => { rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0; realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0; }); }); const totalRPD = rpdPerBulan.reduce((a, b) => a + b, 0); const totalRealisasi = realisasiPerBulan.reduce((a, b) => a + b, 0); const rpdTriwulan = calculateQuarterlySummary(rpdPerBulan, totalRPD); const realisasiTriwulan = calculateQuarterlySummary(realisasiPerBulan, totalRealisasi); let summaryHtml = `<div class="card d-print-none"><div class="card-header fw-bold">Ringkasan Realisasi Anggaran ${tipe}</div><div class="card-body"><div class="row g-4"><div class="col-lg-6"><h6 class="text-center small text-muted">Realisasi per Bulan</h6><table class="table table-sm table-striped small"><thead class="table-light"><tr><th>Bulan</th><th class="text-end">RPD</th><th class="text-end">Realisasi</th><th class="text-center">%</th></tr></thead><tbody>${rpdPerBulan.map((rpd, i) => { const real = realisasiPerBulan[i]; const percent = rpd > 0 ? ((real / rpd) * 100).toFixed(1) : '0.0'; return `<tr><td>${RPD_MONTHS[i]}</td><td class="text-end">${rpd.toLocaleString('id-ID')}</td><td class="text-end">${real.toLocaleString('id-ID')}</td><td class="text-center"><span class="badge ${percent >= 100 ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'}">${percent}%</span></td></tr>`; }).join('')}<tr class="table-dark"><td><strong>Total</strong></td><td class="text-end"><strong>${totalRPD.toLocaleString('id-ID')}</strong></td><td class="text-end"><strong>${totalRealisasi.toLocaleString('id-ID')}</strong></td><td class="text-center"><strong>${totalRPD > 0 ? ((totalRealisasi/totalRPD)*100).toFixed(1) : '0.0'}%</strong></td></tr></tbody></table></div><div class="col-lg-6"><h6 class="text-center small text-muted">Realisasi per Triwulan</h6><table class="table table-sm table-striped small"><thead class="table-light"><tr><th>Triwulan</th><th class="text-end">RPD</th><th class="text-end">Realisasi</th><th class="text-center">%</th></tr></thead><tbody>${rpdTriwulan.values.map((rpd, i) => { const real = realisasiTriwulan.values[i]; const percent = rpd > 0 ? ((real / rpd) * 100).toFixed(1) : '0.0'; return `<tr><td><strong>Q${i+1}</strong></td><td class="text-end">${rpd.toLocaleString('id-ID')}</td><td class="text-end">${real.toLocaleString('id-ID')}</td><td class="text-center"><span class="badge ${percent >= 100 ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'}">${percent}%</span></td></tr>`; }).join('')}</tbody></table></div></div></div></div>`; container.innerHTML = summaryHtml; }
+  function renderRealisasiTable(data, tipe) { const container = document.getElementById(`tableRealisasi${tipe}`); if (data.length === 0) { container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada ajuan diterima dan tidak diblokir.</div>'; return; } const isDirektorat = STATE.role === 'direktorat'; const readOnlyAttr = isDirektorat ? 'readonly' : ''; const disabledBtnClass = isDirektorat ? 'disabled' : ''; let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Rincian</th><th rowspan="2" class="align-middle text-end">Total RPD</th><th colspan="12" class="text-center">Realisasi Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end">Total Realisasi</th><th rowspan="2" class="align-middle text-center action-buttons">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}</tr>`; const tableRows = data.map(r => { const ajuanId = r.ID_Ajuan; let totalRealisasi = 0; let totalRPD = 0; const realisasiInputs = RPD_MONTHS.map(month => { const value = Number(r[`Realisasi_${month}`] || 0); totalRealisasi += value; totalRPD += Number(r[`RPD_${month}`] || 0); return `<td><input type="number" class="form-control form-control-sm realisasi-input" value="${value}" oninput="window.updateRealisasiRowSummary('${ajuanId}', '${tipe}')" min="0" ${readOnlyAttr}></td>`; }).join(''); return `<tr id="realisasi-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td><td><strong>${escapeHtml(r.Nama_Ajuan)}</strong></td><td class="text-end fw-bold">${totalRPD.toLocaleString('id-ID')}</td>${realisasiInputs}<td class="text-end fw-bold realisasi-total">${totalRealisasi.toLocaleString('id-ID')}</td><td class="text-center action-buttons"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRealisasi('${ajuanId}', '${tipe}')" title="Simpan Realisasi"><i class="bi bi-save"></i></button></td></tr>`; }).join(''); container.innerHTML = `<table class="table table-bordered table-sm small"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`; }
+  function renderRealisasiSummary(data, tipe) { const container = document.getElementById(`realisasi-summary-area-${tipe.toLowerCase()}`); const rpdPerBulan = Array(12).fill(0); const realisasiPerBulan = Array(12).fill(0); data.forEach(ajuan => { RPD_MONTHS.forEach((month, index) => { rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0; realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0; }); }); const totalRPD = rpdPerBulan.reduce((a, b) => a + b, 0); const totalRealisasi = realisasiPerBulan.reduce((a, b) => a + b, 0); const rpdTriwulan = calculateQuarterlySummary(rpdPerBulan, totalRPD); const realisasiTriwulan = calculateQuarterlySummary(realisasiPerBulan, totalRealisasi); let summaryHtml = `<div class="card d-print-none"><div class="card-header fw-bold">Ringkasan Realisasi Anggaran ${tipe}</div><div class="card-body"><div class="row g-4"><div class="col-lg-6"><h6 class="text-center small text-muted">Realisasi per Bulan</h6><table class="table table-sm table-striped small"><thead class="table-light"><tr><th>Bulan</th><th class="text-end">RPD</th><th class="text-end">Realisasi</th><th class="text-center">%</th></tr></thead><tbody>${rpdPerBulan.map((rpd, i) => { const real = realisasiPerBulan[i]; const percent = rpd > 0 ? ((real / rpd) * 100).toFixed(1) : '0.0'; return `<tr><td>${RPD_MONTHS[i]}</td><td class="text-end">${rpd.toLocaleString('id-ID')}</td><td class="text-end">${real.toLocaleString('id-ID')}</td><td class="text-center"><span class="badge ${percent >= 100 ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'}">${percent}%</span></td></tr>`; }).join('')}<tr class="table-dark"><td><strong>Total</strong></td><td class="text-end"><strong>${totalRPD.toLocaleString('id-ID')}</strong></td><td class="text-end"><strong>${totalRealisasi.toLocaleString('id-ID')}</strong></td><td class="text-center"><strong>${totalRPD > 0 ? ((totalRealisasi/totalRPD)*100).toFixed(1) : '0.0'}%</strong></td></tr></tbody></table></div><div class="col-lg-6"><h6 class="small text-muted text-center">Realisasi per Triwulan</h6><table class="table table-sm table-striped small"><thead class="table-light"><tr><th>Triwulan</th><th class="text-end">RPD</th><th class="text-end">Realisasi</th><th class="text-center">%</th></tr></thead><tbody>${rpdTriwulan.values.map((rpd, i) => { const real = realisasiTriwulan.values[i]; const percent = rpd > 0 ? ((real / rpd) * 100).toFixed(1) : '0.0'; return `<tr><td><strong>Q${i+1}</strong></td><td class="text-end">${rpd.toLocaleString('id-ID')}</td><td class="text-end">${real.toLocaleString('id-ID')}</td><td class="text-center"><span class="badge ${percent >= 100 ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'}">${percent}%</span></td></tr>`; }).join('')}</tbody></table></div></div></div></div>`; container.innerHTML = summaryHtml; }
   window.updateRealisasiRowSummary = (ajuanId, tipe) => { const row = document.getElementById(`realisasi-row-${tipe}-${ajuanId}`); if (!row) return; let currentSum = 0; row.querySelectorAll('.realisasi-input').forEach(input => currentSum += Number(input.value) || 0); row.querySelector('.realisasi-total').textContent = currentSum.toLocaleString('id-ID'); }
   window.saveRealisasi = async (ajuanId, tipe) => { showLoader(true); const row = document.getElementById(`realisasi-row-${tipe}-${ajuanId}`); const realisasiData = {}; let totalRealisasi = 0; row.querySelectorAll('.realisasi-input').forEach((input, index) => { const value = Number(input.value) || 0; realisasiData[`Realisasi_${RPD_MONTHS[index]}`] = value; totalRealisasi += value; }); try { await db.collection('ajuan').doc(ajuanId).update(realisasiData); await logHistory(ajuanId, "Realisasi Disimpan", `Total Realisasi yang disimpan: Rp ${totalRealisasi.toLocaleString('id-ID')}.`); await logActivity('Save Realisasi', `Menyimpan realisasi untuk ajuan ID ${ajuanId} (${tipe}). Total: Rp ${totalRealisasi.toLocaleString('id-ID')}.`); showToast(`Realisasi untuk ${ajuanId.substring(0,6)}.. disimpan.`); if (tipe === 'Awal') refreshTable('Realisasi', 'Awal'); else refreshTable('Realisasi', `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}`); } catch (error) { showToast(`Gagal menyimpan Realisasi: ${error.message}`, 'danger'); } finally { showLoader(false); } };
 
@@ -1284,35 +1456,51 @@ document.addEventListener('DOMContentLoaded', function() {
       const isPerubahan = tipe === 'Perubahan';
       const tipeLower = tipe.toLowerCase();
       
-      document.querySelector(`[data-bs-target="#tab-rpd-${tipeLower}"]`).addEventListener('shown.bs.tab', () => {
+      const tabTargetRpd = document.querySelector(`[data-bs-target="#tab-rpd-${tipeLower}"]`);
+      if (tabTargetRpd) {
+        tabTargetRpd.addEventListener('shown.bs.tab', () => {
+            const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
+            refreshTable('RPD', tipeQuery);
+        });
+      }
+      safeAddClickListener(`btn-refresh-rpd-${tipeLower}`, () => {
           const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
           refreshTable('RPD', tipeQuery);
       });
-      document.getElementById(`btn-refresh-rpd-${tipeLower}`).addEventListener('click', () => {
-          const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
-          refreshTable('RPD', tipeQuery);
-      });
-      document.getElementById(`filterProdiRPD${tipe}`).addEventListener('change', () => {
-          const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
-          refreshTable('RPD', tipeQuery);
-      });
+      
+      const filterProdiRpd = document.getElementById(`filterProdiRPD${tipe}`);
+      if (filterProdiRpd) {
+        filterProdiRpd.addEventListener('change', () => {
+            const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
+            refreshTable('RPD', tipeQuery);
+        });
+      }
 
-      document.querySelector(`[data-bs-target="#tab-realisasi-${tipeLower}"]`).addEventListener('shown.bs.tab', () => {
+
+      const tabTargetRealisasi = document.querySelector(`[data-bs-target="#tab-realisasi-${tipeLower}"]`);
+      if (tabTargetRealisasi) {
+        tabTargetRealisasi.addEventListener('shown.bs.tab', () => {
+            const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
+            refreshTable('Realisasi', tipeQuery);
+        });
+      }
+      safeAddClickListener(`btn-refresh-realisasi-${tipeLower}`, () => {
           const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
           refreshTable('Realisasi', tipeQuery);
       });
-      document.getElementById(`btn-refresh-realisasi-${tipeLower}`).addEventListener('click', () => {
-          const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
-          refreshTable('Realisasi', tipeQuery);
-      });
-      document.getElementById(`filterProdiRealisasi${tipe}`).addEventListener('change', () => {
-          const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
-          refreshTable('Realisasi', tipeQuery);
-      });
+      
+      const filterProdiRealisasi = document.getElementById(`filterProdiRealisasi${tipe}`);
+      if (filterProdiRealisasi) {
+        filterProdiRealisasi.addEventListener('change', () => {
+            const tipeQuery = isPerubahan ? `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}` : 'Awal';
+            refreshTable('Realisasi', tipeQuery);
+        });
+      }
   });
 
   function setupBeritaAcaraTab() {
     const select = document.getElementById('filterTipeBA');
+    if (!select) return;
     select.innerHTML = '<option value="Awal">Ajuan Awal</option>';
     if (STATE.globalSettings.Status_Ajuan_Perubahan === 'Dibuka') {
         const totalTahap = STATE.globalSettings.Jumlah_Tahap_Perubahan || 1;
@@ -1366,14 +1554,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     const tahunAnggaran = today.getFullYear();
                     
                     let grandTotal = 0;
-                    const tableRowsHtml = data
-                      .sort((a,b) => (a.Grub_Belanja_Utama || '').localeCompare(b.Grub_Belanja_Utama || ''))
-                      .map((r, index) => {
-                          grandTotal += Number(r.Total) || 0;
-                          return `<tr><td style="text-align: center;">${index + 1}</td><td>${escapeHtml(r.Nama_Ajuan)}</td><td style="text-align: center;">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)}</td><td style="text-align: right;">${Number(r.Harga_Satuan).toLocaleString('id-ID')}</td><td style="text-align: right;">${Number(r.Total).toLocaleString('id-ID')}</td></tr>`;
-                      }).join('');
+                    const groupedData = data.reduce((acc, row) => {
+                        const grubKey = row.Grub_Belanja_Utama || 'Lain-lain';
+                        if (!acc[grubKey]) acc[grubKey] = [];
+                        acc[grubKey].push(row);
+                        return acc;
+                    }, {});
+                    const sortedGrubKeys = Object.keys(groupedData).sort();
+                    
+                    let tableRowsHtml = '';
+                    let no = 1;
+
+                    sortedGrubKeys.forEach(grubKey => {
+                        tableRowsHtml += `<tr><td colspan="5" style="background-color: #f2f2f2;"><strong>${escapeHtml(grubKey)}</strong></td></tr>`;
+                        groupedData[grubKey].forEach(r => {
+                            grandTotal += Number(r.Total) || 0;
+                            tableRowsHtml += `<tr><td style="text-align: center;">${no++}</td><td>${escapeHtml(r.Nama_Ajuan)}</td><td style="text-align: center;">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)}</td><td style="text-align: right;">${Number(r.Harga_Satuan).toLocaleString('id-ID')}</td><td style="text-align: right;">${Number(r.Total).toLocaleString('id-ID')}</td></tr>`;
+                        });
+                    });
+
 
                     allProdisHtml += `
+                        <div class="ba-page-content">
                         <div class="ba-kop">
                             <table><tr><td style="width: 100px; text-align: right; border:none; padding-right: 15px;"><img src="https://si-pandai.netlify.app/LOGO%20POLTEKKES%20KEMENKES%20KUPANG.png" alt="Logo"></td><td style="text-align: left; border:none;"><div class="ba-kop-text"><h5>KEMENTERIAN KESEHATAN REPUBLIK INDONESIA</h5><h5>BADAN PENGEMBANGAN DAN PEMBERDAYAAN SUMBER DAYA MANUSIA KESEHATAN</h5><h5 style="font-size: 1.3em;">POLITEKNIK KESEHATAN KEMENKES KUPANG</h5><p style="font-weight: normal; font-size: 0.9em;">Jalan Piet A. Tallo, Liliba - Kupang, Nusa Tenggara Timur</p></div></td></tr></table>
                         </div>
@@ -1390,6 +1592,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="ba-paragraf">Demikian Berita Acara ini dibuat untuk dapat dipergunakan sebagaimana mestinya.</div>
                         <div class="ba-signatures">
                             <table><tr><td><p>Kupang, ${tglCetak}</p><p><strong>${escapeHtml(ttdKiriJabatan)}</strong></p><br><br><br><br><p><strong><u>${escapeHtml(ttdKiriNama)}</u></strong></p></td><td><p><br></p><p><strong>${escapeHtml(ttdKananJabatan)}</strong></p><br><br><br><br><p><strong><u>${escapeHtml(ttdKananNama)}</u></strong></p></td></tr></table>
+                        </div>
                         </div>
                     `;
                 }
@@ -1455,6 +1658,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             const contentHtml = `
+                <div class="ba-page-content">
                 <div class="ba-kop">
                     <table><tr><td style="width: 100px; text-align: right; border:none; padding-right: 15px;"><img src="https://si-pandai.netlify.app/LOGO%20POLTEKKES%20KEMENKES%20KUPANG.png" alt="Logo"></td><td style="text-align: left; border:none;"><div class="ba-kop-text"><h5>KEMENTERIAN KESEHATAN REPUBLIK INDONESIA</h5><h5>BADAN PENGEMBANGAN DAN PEMBERDAYAAN SUMBER DAYA MANUSIA KESEHATAN</h5><h5 style="font-size: 1.3em;">POLITEKNIK KESEHATAN KEMENKES KUPANG</h5><p style="font-weight: normal; font-size: 0.9em;">Jalan Piet A. Tallo, Liliba - Kupang, Nusa Tenggara Timur</p></div></td></tr></table>
                 </div>
@@ -1472,6 +1676,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="ba-signatures">
                     <table><tr><td><p>Kupang, ${tglCetak}</p><p><strong>${escapeHtml(ttdKiriJabatan)}</strong></p><br><br><br><br><p><strong><u>${escapeHtml(ttdKiriNama)}</u></strong></p></td><td><p><br></p><p><strong>${escapeHtml(ttdKananJabatan)}</strong></p><br><br><br><br><p><strong><u>${escapeHtml(ttdKananNama)}</u></strong></p></td></tr></table>
                 </div>
+                </div>
             `;
             container.innerHTML = contentHtml;
         } // Penutup dari `else`
@@ -1483,11 +1688,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  document.querySelector('[data-bs-target="#tab-berita-acara"]').addEventListener('shown.bs.tab', setupBeritaAcaraTab);
-  document.getElementById('btn-preview-ba').addEventListener('click', renderBeritaAcara);
-  document.getElementById('btn-download-pdf-ba').addEventListener('click', () => {
+  const tabBeritaAcara = document.querySelector('[data-bs-target="#tab-berita-acara"]');
+  if (tabBeritaAcara) {
+    tabBeritaAcara.addEventListener('shown.bs.tab', setupBeritaAcaraTab);
+  }
+  safeAddClickListener('btn-preview-ba', renderBeritaAcara);
+  safeAddClickListener('btn-download-pdf-ba', () => {
     const contentElement = document.getElementById('berita-acara-content');
-    if (contentElement.querySelector('.ba-kop')) {
+    if (contentElement && contentElement.querySelector('.ba-kop')) {
         showLoader(true);
         showToast('Mempersiapkan file PDF... Ini mungkin memerlukan beberapa saat.', 'info');
         
@@ -1495,7 +1703,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const prodiText = prodiSelect.style.display !== 'none' && prodiSelect.value ? prodiSelect.options[prodiSelect.selectedIndex].text : STATE.id;
         const tipeAjuan = document.getElementById('filterTipeBA').value;
         const cleanProdiName = prodiText.split(' - ')[0].replace(/[^a-z0-9]/gi, '_');
-        const fileName = `Berita_Acara_${tipeAjuan}_${cleanProdiName}.pdf`;
+        const fileName = `Berita_Acara_${sanitizeTipeForCSS(tipeAjuan)}_${cleanProdiName}.pdf`;
 
         const paperSize = document.getElementById('ba-paper-size').value;
         const orientation = document.getElementById('ba-orientation').value;
@@ -1522,19 +1730,22 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
 
-  document.querySelector('[data-bs-target="#tab-pengaturan-akun"]').addEventListener('shown.bs.tab', async () => {
-    if (STATE.role === 'prodi') {
-      const userDoc = await db.collection('users').doc(STATE.uid).get();
-      if(userDoc.exists) {
-        const userData = userDoc.data();
-        const baSettings = userData.beritaAcaraSettings || {};
-        document.getElementById('prodi_ba_jabatan').value = baSettings.TTD_Jabatan || '';
-        document.getElementById('prodi_ba_nama').value = baSettings.TTD_Nama || '';
-      }
-    }
-  });
+  const tabPengaturanAkun = document.querySelector('[data-bs-target="#tab-pengaturan-akun"]');
+  if (tabPengaturanAkun) {
+      tabPengaturanAkun.addEventListener('shown.bs.tab', async () => {
+        if (STATE.role === 'prodi') {
+          const userDoc = await db.collection('users').doc(STATE.uid).get();
+          if(userDoc.exists) {
+            const userData = userDoc.data();
+            const baSettings = userData.beritaAcaraSettings || {};
+            document.getElementById('prodi_ba_jabatan').value = baSettings.TTD_Jabatan || '';
+            document.getElementById('prodi_ba_nama').value = baSettings.TTD_Nama || '';
+          }
+        }
+      });
+  }
 
-  document.getElementById('btn-save-prodi-ba-settings').addEventListener('click', async () => {
+  safeAddClickListener('btn-save-prodi-ba-settings', async () => {
     if (STATE.role !== 'prodi') return;
     const settings = {
         TTD_Jabatan: document.getElementById('prodi_ba_jabatan').value.trim(),
@@ -1571,7 +1782,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   };
 
-  document.getElementById('btn-save-prodi').addEventListener('click', async () => { 
+  safeAddClickListener('btn-save-prodi', async () => { 
     const uid = document.getElementById('mp_UID').value; 
     if (!uid) { showToast('Silakan pilih pengguna dari daftar untuk diedit.', 'warning'); return; } 
     const role = document.getElementById('mp_Role').value;
@@ -1593,6 +1804,7 @@ document.addEventListener('DOMContentLoaded', function() {
       await db.collection('users').doc(uid).update(dataToUpdate); 
       showToast('Data pengguna berhasil diperbarui.'); 
       clearUserForm(); 
+      localStorage.removeItem('cache_allProdi'); // Hapus cache agar data baru diambil
       refreshProdiData(); 
     } catch (error) { showToast(`Gagal memperbarui pengguna: ${error.message}`, 'danger'); } finally { showLoader(false); } 
   });
@@ -1633,10 +1845,47 @@ document.addEventListener('DOMContentLoaded', function() {
         showLoader(false);
     }
   }
-  document.getElementById('btn-save-ba-settings').addEventListener('click', saveBeritaAcaraSettings);
+  safeAddClickListener('btn-save-ba-settings', saveBeritaAcaraSettings);
   
-  document.getElementById('btn-refresh-dashboard').addEventListener('click', loadDashboardData); document.querySelector('[data-bs-target="#tab-dashboard"]').addEventListener('shown.bs.tab', loadDashboardData); ['filterTahunDashboard', 'filterTipeDashboard'].forEach(id => document.getElementById(id).addEventListener('change', () => processDataForDashboard()));
-  async function loadDashboardData() { showLoader(true); try { let query = db.collection('ajuan'); if (STATE.role === 'prodi') { query = query.where('ID_Prodi', '==', STATE.id); } const snapshot = await query.get(); STATE.allDashboardData = snapshot.docs.map(doc => { const data = doc.data(); if (data.Timestamp && data.Timestamp.toDate) data.Timestamp = data.Timestamp.toDate(); if (data.Is_Blocked === undefined) data.Is_Blocked = false; return { ID_Ajuan: doc.id, ...data }; }); populateDashboardFilters(STATE.allDashboardData); processDataForDashboard(); await displayGlobalAnnouncement(); } catch(error) { showToast('Gagal memuat data dashboard.', 'danger'); console.error("Dashboard error:", error); } finally { showLoader(false); } }
+  safeAddClickListener('btn-refresh-dashboard', loadDashboardData); 
+  const tabDashboard = document.querySelector('[data-bs-target="#tab-dashboard"]');
+  if (tabDashboard) {
+    tabDashboard.addEventListener('shown.bs.tab', loadDashboardData); 
+  }
+
+  ['filterTahunDashboard', 'filterTipeDashboard'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('change', () => processDataForDashboard());
+  });
+  
+  // --- OPTIMIZATION START: Persiapan untuk Agregasi Dashboard ---
+  // Fungsi ini saat ini masih membaca semua 'ajuan' (boros reads).
+  async function loadDashboardData() { 
+      showLoader(true); 
+      try { 
+          console.log("MODE DASHBOARD: Membaca semua ajuan (Tidak Efisien). Pertimbangkan migrasi ke Cloud Functions.");
+          let query = db.collection('ajuan'); 
+          if (STATE.role === 'prodi') { 
+              query = query.where('ID_Prodi', '==', STATE.id); 
+          } 
+          const snapshot = await query.get(); 
+          STATE.allDashboardData = snapshot.docs.map(doc => { 
+              const data = doc.data(); 
+              if (data.Timestamp && data.Timestamp.toDate) data.Timestamp = data.Timestamp.toDate(); 
+              if (data.Is_Blocked === undefined) data.Is_Blocked = false; 
+              return { ID_Ajuan: doc.id, ...data }; 
+          }); 
+          populateDashboardFilters(STATE.allDashboardData); 
+          processDataForDashboard(); 
+          await displayGlobalAnnouncement(); 
+      } catch(error) { 
+          showToast('Gagal memuat data dashboard.', 'danger'); 
+          console.error("Dashboard error:", error); 
+      } finally { 
+          showLoader(false); 
+      } 
+  }
+  
   function populateDashboardFilters(data) { const yearSelect = document.getElementById('filterTahunDashboard'); const years = [...new Set(data.map(d => { if(d.Timestamp) return new Date(d.Timestamp).getFullYear(); return null; }))].filter(Boolean).sort((a, b) => b - a); yearSelect.innerHTML = '<option value="">Semua Tahun</option>'; years.forEach(year => { if (!isNaN(year)) yearSelect.innerHTML += `<option value="${year}">${year}</option>`; }); }
   function setupChart(canvasId, type, data, options) { const canvas = document.getElementById(canvasId); if (!canvas) return; if (CHARTS[canvasId]) CHARTS[canvasId].destroy(); CHARTS[canvasId] = new Chart(canvas.getContext('2d'), { type, data, options }); }
   function calculateQuarterlySummary(monthlyData, total) { const quarters = [0, 0, 0, 0]; for (let i = 0; i < 12; i++) { if (i < 3) quarters[0] += monthlyData[i]; else if (i < 6) quarters[1] += monthlyData[i]; else if (i < 9) quarters[2] += monthlyData[i]; else quarters[3] += monthlyData[i]; } return { values: quarters, percentages: quarters.map(q => total > 0 ? ((q / total) * 100).toFixed(1) + '%' : '0.0%') }; }
@@ -1660,12 +1909,12 @@ document.addEventListener('DOMContentLoaded', function() {
       updateDashboardDeadlineInfo(); 
       const yearSelect = document.getElementById('filterTahunDashboard');
       const tipeSelect = document.getElementById('filterTipeDashboard');
-      const selectedYear = yearSelect.value; 
-      const selectedTipe = tipeSelect.value; 
+      const selectedYear = yearSelect ? yearSelect.value : null; 
+      const selectedTipe = tipeSelect ? tipeSelect.value : null; 
 
       const filterInfoEl = document.getElementById('dashboard-filter-info');
-      const yearText = selectedYear ? yearSelect.options[yearSelect.selectedIndex].text : "Semua Tahun";
-      const tipeText = selectedTipe ? tipeSelect.options[tipeSelect.selectedIndex].text : "Semua Tipe Ajuan";
+      const yearText = yearSelect && selectedYear ? yearSelect.options[yearSelect.selectedIndex].text : "Semua Tahun";
+      const tipeText = tipeSelect && selectedTipe ? tipeSelect.options[tipeSelect.selectedIndex].text : "Semua Tipe Ajuan";
       filterInfoEl.innerHTML = `Menampilkan data untuk: <strong>${yearText}</strong> & <strong>${tipeText}</strong>`;
       filterInfoEl.style.display = 'block';
 
@@ -1685,6 +1934,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function renderPaguComparison(data) {
     const comparisonContainer = document.getElementById('dashboard-pagu-comparison');
+    if (!comparisonContainer) return;
     
     // 1. Calculate Total Accepted Budget by Stage (Tipe_Ajuan)
     const acceptedTotalsByStage = {};
@@ -1768,17 +2018,20 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   function renderDashboardSummary(data, containerPrefix = 'dashboard-', chartPrefix = 'chart') { 
+    
     let totalDiajukanOverall = 0;
     let totalDiterimaOverall = 0; // Bersih (Unblocked)
     let totalDiajukanAwal = 0;
-    let totalDiterimaAwal = 0; // Bersih (Unblocked)
     let totalDiajukanPerubahan = 0;
-    let totalDiterimaPerubahan = 0; // Bersih (Unblocked)
     
     let statusCounts = { 'Menunggu Review': 0, 'Diterima': 0, 'Ditolak': 0, 'Revisi': 0 }; 
     const rpdPerBulan = Array(12).fill(0); 
     const realisasiPerBulan = Array(12).fill(0); 
-    
+    let rpdAwal = 0, rpdPerubahan = 0;
+    let realisasiAwal = 0, realisasiPerubahan = 0;
+    let totalDiterimaAwal = 0;
+    let totalDiterimaPerubahan = 0;
+
     data.forEach(ajuan => { 
         const total = Number(ajuan.Total) || 0;
         const isAwal = ajuan.Tipe_Ajuan === 'Awal' || !ajuan.Tipe_Ajuan;
@@ -1798,6 +2051,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (ajuan.Status === 'Diterima' && !isBlocked) { 
             totalDiterimaOverall += total;
+            
             if (isAwal) {
                 totalDiterimaAwal += total;
             } else {
@@ -1806,81 +2060,174 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // RPD and Realisasi calculations only apply to Diterima and UNBLOCKED items
             RPD_MONTHS.forEach((month, index) => { 
-                rpdPerBulan[index] += Number(ajuan[`RPD_${month}`]) || 0; 
-                realisasiPerBulan[index] += Number(ajuan[`Realisasi_${month}`]) || 0; 
+                const rpdVal = Number(ajuan[`RPD_${month}`]) || 0;
+                const realVal = Number(ajuan[`Realisasi_${month}`]) || 0;
+                rpdPerBulan[index] += rpdVal;
+                realisasiPerBulan[index] += realVal;
+                if(isAwal) {
+                    rpdAwal += rpdVal;
+                    realisasiAwal += realVal;
+                } else {
+                    rpdPerubahan += rpdVal;
+                    realisasiPerubahan += realVal;
+                }
             }); 
         } 
     }); 
     
-    const totalRPD = rpdPerBulan.reduce((a, b) => a + b, 0); 
-    const totalRealisasi = realisasiPerBulan.reduce((a, b) => a + b, 0); 
+    const totalRPD = rpdAwal + rpdPerubahan;
+    const totalRealisasi = realisasiAwal + realisasiPerubahan;
     
-    // Update Diajukan Breakdown Cards
-    document.getElementById(`${containerPrefix}total-diajukan-total`).textContent = 'Rp ' + totalDiajukanOverall.toLocaleString('id-ID');
-    document.getElementById(`${containerPrefix}total-diajukan-awal`).textContent = 'Rp ' + totalDiajukanAwal.toLocaleString('id-ID');
-    document.getElementById(`${containerPrefix}total-diajukan-perubahan`).textContent = 'Rp ' + totalDiajukanPerubahan.toLocaleString('id-ID');
-    
-    // Update Diterima Breakdown Cards (now 'Bersih' - excluding blocked)
-    document.getElementById(`${containerPrefix}total-diterima-total`).textContent = 'Rp ' + totalDiterimaOverall.toLocaleString('id-ID');
-    document.getElementById(`${containerPrefix}total-diterima-awal`).textContent = 'Rp ' + totalDiterimaAwal.toLocaleString('id-ID');
-    document.getElementById(`${containerPrefix}total-diterima-perubahan`).textContent = 'Rp ' + totalDiterimaPerubahan.toLocaleString('id-ID');
+    // --- START MODIFIED CARD RENDERING LOGIC ---
 
-    document.getElementById(`${containerPrefix}total-rpd`).textContent = 'Rp ' + totalRPD.toLocaleString('id-ID'); 
-    document.getElementById(`${containerPrefix}total-realisasi`).textContent = 'Rp ' + totalRealisasi.toLocaleString('id-ID'); 
+    // 1. Update Diajukan Breakdown Cards
+    const totalDiajukanTotalEl = document.getElementById(`${containerPrefix}total-diajukan-total`);
+    // Sembunyikan total jika Direktorat, tampilkan breakdown
+    if (totalDiajukanTotalEl) {
+        if (STATE.role === 'direktorat') {
+            totalDiajukanTotalEl.style.display = 'none';
+        } else {
+            totalDiajukanTotalEl.style.display = 'block';
+            totalDiajukanTotalEl.textContent = 'Rp ' + totalDiajukanOverall.toLocaleString('id-ID'); 
+        }
+    }
+
+
+    const diajukanAwalEl = document.getElementById(`${containerPrefix}total-diajukan-awal`);
+    if(diajukanAwalEl) diajukanAwalEl.textContent = 'Rp ' + totalDiajukanAwal.toLocaleString('id-ID');
+
+    const diajukanPerubahanEl = document.getElementById(`${containerPrefix}total-diajukan-perubahan`);
+    if(diajukanPerubahanEl) diajukanPerubahanEl.textContent = 'Rp ' + totalDiajukanPerubahan.toLocaleString('id-ID');
     
-    // Update Status Counts
-    document.getElementById(`${containerPrefix}count-menunggu`).textContent = statusCounts['Menunggu Review']; 
-    document.getElementById(`${containerPrefix}count-diterima`).textContent = statusCounts['Diterima']; 
-    document.getElementById(`${containerPrefix}count-ditolak`).textContent = statusCounts['Ditolak']; 
-    document.getElementById(`${containerPrefix}count-revisi`).textContent = statusCounts['Revisi']; 
+    // 2. Update Diterima Breakdown Cards
+    const totalDiterimaTotalEl = document.getElementById(`${containerPrefix}total-diterima-total`);
+    // Sembunyikan total jika Direktorat, tampilkan breakdown
+    if (totalDiterimaTotalEl) {
+        if (STATE.role === 'direktorat') {
+            totalDiterimaTotalEl.style.display = 'none';
+        } else {
+            totalDiterimaTotalEl.style.display = 'block';
+            totalDiterimaTotalEl.textContent = 'Rp ' + totalDiterimaOverall.toLocaleString('id-ID');
+        }
+    }
+
+    // Populate breakdown elements (These are used by both roles)
+    const diterimaAwalEl = document.getElementById('dashboard-total-diterima-awal');
+    if(diterimaAwalEl) diterimaAwalEl.textContent = 'Rp ' + totalDiterimaAwal.toLocaleString('id-ID');
     
-    // Pagu Logic Update
+    const diterimaPerubahanEl = document.getElementById('dashboard-total-diterima-perubahan');
+    if(diterimaPerubahanEl) diterimaPerubahanEl.textContent = 'Rp ' + totalDiterimaPerubahan.toLocaleString('id-ID');
+    
+    // 3. Update Pagu Logic and Display
     const paguCard = document.getElementById('dashboard-total-pagu-card'); 
     const paguLabelEl = document.getElementById('dashboard-pagu-label'); 
-    paguCard.style.display = 'none'; 
+    const totalPaguTotalEl = document.getElementById('dashboard-total-pagu-total');
+    if (paguCard) paguCard.style.display = 'none'; 
     
     let totalPaguAwal = 0; // Pagu_Anggaran set by Direktorat (Ceiling Awal)
-    let totalDiterimaFinal = totalDiterimaOverall; // Total budget approved across all stages (Awal + Perubahan, Clean/Unblocked)
+    let totalDiterimaFinal = totalDiterimaOverall; // Total budget accepted across all stages (Clean/Unblocked)
 
     if (STATE.role === 'direktorat') { 
         totalPaguAwal = (STATE.allProdi || []).filter(p => p.Role === 'prodi').reduce((sum, p) => sum + (Number(p.Pagu_Anggaran) || 0), 0); 
-        paguLabelEl.textContent = 'TOTAL PAGU PRODI/UNIT (AWAL)'; 
-        paguCard.style.display = 'block'; 
+        if (paguLabelEl) paguLabelEl.textContent = 'TOTAL PAGU PRODI/UNIT (AWAL)'; 
+        if (paguCard) paguCard.style.display = 'block'; 
     } else if (STATE.role === 'prodi' && STATE.currentUserData) { 
         totalPaguAwal = STATE.currentUserData.Pagu_Anggaran || 0; 
-        paguLabelEl.textContent = 'PAGU ANGGARAN SAYA (AWAL)'; 
-        paguCard.style.display = 'block'; 
+        if (paguLabelEl) paguLabelEl.textContent = 'PAGU ANGGARAN SAYA (AWAL)'; 
+        if (paguCard) paguCard.style.display = 'block'; 
     }
     
-    const selectedTipe = document.getElementById('filterTipeDashboard').value;
-    let paguHeaderValue;
-
-    if (selectedTipe === 'Awal') {
-         // If filtering Awal, the header shows the Awal ceiling
-         paguHeaderValue = totalPaguAwal;
-         paguLabelEl.textContent = STATE.role === 'direktorat' ? 'TOTAL PAGU PRODI/UNIT (AWAL)' : 'PAGU ANGGARAN SAYA (AWAL)';
-    } else if (selectedTipe === 'Perubahan') {
-        // If filtering Perubahan, the header shows the accepted Perubahan total (Bersih)
-        paguHeaderValue = totalDiterimaPerubahan;
-        paguLabelEl.textContent = 'TOTAL DITERIMA TAHAP PERUBAHAN (BERSIH)';
-    } else { // Semua Tipe
-        // If showing all, the most critical number is the initial Pagu constraint
-        paguHeaderValue = totalPaguAwal;
-        paguLabelEl.textContent = STATE.role === 'direktorat' ? 'TOTAL PAGU PRODI/UNIT (AWAL)' : 'PAGU ANGGARAN SAYA (AWAL)';
+    // Untuk Direktorat, sembunyikan total besar pada kartu Pagu
+    if (totalPaguTotalEl) {
+        if (STATE.role === 'direktorat') {
+            totalPaguTotalEl.style.display = 'none';
+        } else {
+            totalPaguTotalEl.style.display = 'block';
+            // Logika untuk Prodi (menampilkan total relevan)
+            const selectedTipe = document.getElementById('filterTipeDashboard') ? document.getElementById('filterTipeDashboard').value : 'Awal';
+            if (selectedTipe === 'Perubahan') {
+                 // Jika filter Perubahan, tampilkan total diterima perubahan
+                 totalPaguTotalEl.textContent = 'Rp ' + totalDiterimaPerubahan.toLocaleString('id-ID');
+            } else {
+                 // Jika filter Awal atau Semua, tampilkan Pagu Awal (ceiling)
+                 totalPaguTotalEl.textContent = 'Rp ' + totalPaguAwal.toLocaleString('id-ID');
+            }
+        }
     }
-    
-    // The main header shows the relevant Pagu figure
-    document.getElementById('dashboard-total-pagu-total').textContent = 'Rp ' + paguHeaderValue.toLocaleString('id-ID');
 
-    // The breakdown still shows Pagu Awal (the ceiling) and Total Diterima Final (the current budget, clean)
-    document.getElementById('dashboard-total-pagu-awal').textContent = 'Rp ' + totalPaguAwal.toLocaleString('id-ID');
-    document.getElementById('dashboard-total-pagu-perubahan').textContent = 'Rp ' + totalDiterimaFinal.toLocaleString('id-ID');
+
+    // Breakdown for Pagu card (Pagu Awal vs Pagu Final Diterima Bersih)
+    const paguAwalEl = document.getElementById('dashboard-total-pagu-awal');
+    if (paguAwalEl) paguAwalEl.textContent = 'Rp ' + totalPaguAwal.toLocaleString('id-ID');
+    const paguPerubahanEl = document.getElementById('dashboard-total-pagu-perubahan');
+    if (paguPerubahanEl) paguPerubahanEl.textContent = 'Rp ' + totalDiterimaFinal.toLocaleString('id-ID');
     
+    // Update RPD and Realisasi
+    const totalRPDEl = document.getElementById(`${containerPrefix}total-rpd`);
+    if(totalRPDEl) totalRPDEl.textContent = 'Rp ' + totalRPD.toLocaleString('id-ID'); 
+
+    const totalRealisasiEl = document.getElementById(`${containerPrefix}total-realisasi`);
+    if(totalRealisasiEl) totalRealisasiEl.textContent = 'Rp ' + totalRealisasi.toLocaleString('id-ID'); 
+    
+    // 4. Update Status Counts (No change needed)
+    const countMenungguEl = document.getElementById(`${containerPrefix}count-menunggu`);
+    if(countMenungguEl) countMenungguEl.textContent = statusCounts['Menunggu Review']; 
+    const countDiterimaEl = document.getElementById(`${containerPrefix}count-diterima`);
+    if(countDiterimaEl) countDiterimaEl.textContent = statusCounts['Diterima']; 
+    const countDitolakEl = document.getElementById(`${containerPrefix}count-ditolak`);
+    if(countDitolakEl) countDitolakEl.textContent = statusCounts['Ditolak']; 
+    const countRevisiEl = document.getElementById(`${containerPrefix}count-revisi`);
+    if(countRevisiEl) countRevisiEl.textContent = statusCounts['Revisi']; 
+    
+    // Chart Setup (No change needed)
     setupChart(`${chartPrefix}RPDvsRealisasi`, 'bar', { labels: RPD_MONTHS, datasets: [{ label: 'Realisasi (Rp)', data: realisasiPerBulan, backgroundColor: 'rgba(255, 193, 7, 0.7)' }, { label: 'RPD (Rp)', data: rpdPerBulan, backgroundColor: 'rgba(13, 110, 253, 0.6)' }] }, { responsive: true, scales: { x: { stacked: false }, y: { stacked: false, beginAtZero: true } } }); 
-    // START: Perbaikan rekap triwulan dan semester
+    
+    // 5. Update RPD/Realisasi Breakdowns (Custom display for Directorate)
+    const diterimaBreakdown = document.getElementById('dashboard-diterima-breakdown');
+    const rpdBreakdown = document.getElementById('dashboard-rpd-breakdown');
+    const realisasiBreakdown = document.getElementById('dashboard-realisasi-breakdown');
+
+    if (STATE.role === 'direktorat') {
+        if(diterimaBreakdown) {
+             // Breakdown for Diterima card (Ensure the labels match the requirement: Pagu sebelum dan sekarang)
+            diterimaBreakdown.innerHTML = `
+                <div class="small text-muted">Pagu Diterima Awal (Bersih): <strong>Rp ${totalDiterimaAwal.toLocaleString('id-ID')}</strong></div>
+                <div class="small text-success">Pagu Diterima Final (Bersih): <strong>Rp ${totalDiterimaFinal.toLocaleString('id-ID')}</strong></div>
+            `;
+        }
+        
+        // RPD Breakdown
+        if(rpdBreakdown) {
+            rpdBreakdown.innerHTML = `
+                <div class="small text-muted">RPD Awal (Bersih): <strong>Rp ${rpdAwal.toLocaleString('id-ID')}</strong></div>
+                <div class="small text-info">RPD Perubahan (Bersih): <strong>Rp ${rpdPerubahan.toLocaleString('id-ID')}</strong></div>
+            `;
+        }
+        // Realisasi Breakdown
+        if(realisasiBreakdown) {
+            realisasiBreakdown.innerHTML = `
+                <div class="small text-muted">Realisasi Awal: <strong>Rp ${realisasiAwal.toLocaleString('id-ID')}</strong></div>
+                <div class="small text-warning">Realisasi Perubahan: <strong>Rp ${realisasiPerubahan.toLocaleString('id-ID')}</strong></div>
+            `;
+        }
+    } else { // prodi role (keep original breakdown style)
+        if(diterimaBreakdown) {
+            diterimaBreakdown.innerHTML = `
+                <div class="small text-success">Awal: <strong>Rp ${totalDiterimaAwal.toLocaleString('id-ID')}</strong></div>
+                <div class="small text-secondary">Perubahan: <strong>Rp ${totalDiterimaPerubahan.toLocaleString('id-ID')}</strong></div>
+            `;
+        }
+        // Clear RPD/Realisasi breakdown for Prodi (since the totals are the main focus)
+        if(rpdBreakdown) rpdBreakdown.innerHTML = '';
+        if(realisasiBreakdown) realisasiBreakdown.innerHTML = '';
+    }
+    
+    // Update Triwulan/Semester summaries (no change needed)
     if (containerPrefix === 'dashboard-') { 
       const persentaseRealisasi = totalRPD > 0 ? (totalRealisasi / totalRPD) * 100 : 0; 
-      document.getElementById('dashboard-persen-realisasi').textContent = persentaseRealisasi.toFixed(1) + '%'; 
+      const persenRealisasiEl = document.getElementById('dashboard-persen-realisasi');
+      if (persenRealisasiEl) persenRealisasiEl.textContent = persentaseRealisasi.toFixed(1) + '%'; 
+      
       const progressBar = document.getElementById('dashboard-persen-realisasi-bar'); 
       if (progressBar) progressBar.style.width = `${Math.min(persentaseRealisasi, 100)}%`; 
       
@@ -1898,7 +2245,8 @@ document.addEventListener('DOMContentLoaded', function() {
           semesterContainer.innerHTML = `<h6 class="small text-muted">Rencana Penarikan (RPD)</h6><table class="table table-sm table-borderless text-center small"><thead class="table-light"><tr><th>S</th><th>Total</th><th>%</th></tr></thead><tbody>${rpdSemester.values.map((val, i) => `<tr><td><strong>S${i+1}</strong></td><td>${val.toLocaleString('id-ID')}</td><td><span class="badge bg-primary-subtle text-primary-emphasis">${rpdSemester.percentages[i]}</span></td></tr>`).join('')}</tbody></table><h6 class="small text-muted mt-2">Realisasi</h6><table class="table table-sm table-borderless text-center small"><thead class="table-light"><tr><th>S</th><th>Total</th><th>%</th></tr></thead><tbody>${realisasiSemester.values.map((val, i) => `<tr><td><strong>S${i+1}</strong></td><td>${val.toLocaleString('id-ID')}</td><td><span class="badge bg-success-subtle text-success-emphasis">${realisasiSemester.percentages[i]}</span></td></tr>`).join('')}</tbody></table>`;
       }
     } 
-    // END: Perbaikan rekap triwulan dan semester
+    // --- END MODIFIED CARD RENDERING LOGIC ---
+
   }
   
   // START: MODIFIED DIREKTORAT DASHBOARD LOGIC
@@ -1919,49 +2267,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const ajuanData = dataByProdi[prodiId] || [];
 
         let paguAwal = Number(prodiInfo.Pagu_Anggaran) || 0;
-        let totalDiterimaAwal = 0; // Total accepted from 'Awal' stage (unblocked)
         let totalRealisasi = 0;
 
         const realisasiPerBulan = Array(12).fill(0);
         
-        // Find all accepted stages (only unblocked)
-        const acceptedStages = [...new Set(ajuanData.filter(d => d.Status === 'Diterima' && !d.Is_Blocked).map(d => d.Tipe_Ajuan || 'Awal'))];
-        
-        // Sort stages to find the 'Final' one (Awal, Perubahan 1, Perubahan 2, etc.)
-        acceptedStages.sort((a, b) => {
-            if (a === 'Awal') return -1;
-            if (b === 'Awal') return 1;
-            const numA = parseInt(a.replace('Perubahan ', ''));
-            const numB = parseInt(b.replace('Perubahan ', ''));
-            return numA - numB;
-        });
-        
         // Determine the "Final Stage" Accepted Total (Pagu Sekarang)
         let paguSekarang = 0;
-        if (acceptedStages.length > 0) {
-            const finalStage = acceptedStages[acceptedStages.length - 1];
-            ajuanData.forEach(ajuan => {
-                // Check status and block status
-                if (ajuan.Status === 'Diterima' && !ajuan.Is_Blocked) {
-                     const ajuanStage = ajuan.Tipe_Ajuan || 'Awal';
-                    if (ajuanStage === finalStage) {
-                        paguSekarang += Number(ajuan.Total) || 0;
-                    }
-                }
-            });
-        }
         
         // Calculate totals for Awal acceptance and Realisasi across ALL accepted stages
         ajuanData.forEach(ajuan => {
             const total = Number(ajuan.Total) || 0;
-            const ajuanStage = ajuan.Tipe_Ajuan || 'Awal';
 
             // Check status and block status
             if (ajuan.Status === 'Diterima' && !ajuan.Is_Blocked) {
-                if (ajuanStage === 'Awal') {
-                    totalDiterimaAwal += total;
-                }
                 
+                // Pagu Sekarang (Final Budget Diterima Bersih) adalah total dari SEMUA accepted ajuan
+                paguSekarang += total;
+
                 // Calculate Realisasi (Realization applies across all accepted stages)
                 RPD_MONTHS.forEach((month, index) => { 
                     const realVal = Number(ajuan[`Realisasi_${month}`]) || 0;
@@ -1971,10 +2293,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Ensure Pagu Sekarang reflects the reality if only Awal data exists or if only Awal data matches the filter
-        if (paguSekarang === 0 && totalDiterimaAwal > 0) {
-             paguSekarang = totalDiterimaAwal;
-        }
         
         // Calculate Quarterly and Semester Realizations
         const tw = [
@@ -2106,6 +2424,7 @@ document.addEventListener('DOMContentLoaded', function() {
       
       const overallSelisihClass = grandTotals.Selisih_Pagu > 0 ? 'text-success' : (grandTotals.Selisih_Pagu < 0 ? 'text-danger' : '');
       const grandTotalPercentage = grandTotals.Pagu_Sekarang > 0 ? ((grandTotals.Total_Realisasi / grandTotals.Pagu_Sekarang) * 100).toFixed(1) : '0.0';
+      const overallProgressColor = grandTotalPercentage >= 90 ? 'bg-success' : (grandTotalPercentage >= 70 ? 'bg-warning' : 'bg-danger');
 
       // Add Grand Total row
       tableHTML += `
@@ -2130,7 +2449,11 @@ document.addEventListener('DOMContentLoaded', function() {
               <td class="text-center fw-bold">${getPeriodPercentage(grandTotals.Realisasi_S2, grandTotals.Pagu_Sekarang)}</td>
 
               <td class="text-end fw-bold text-warning">${grandTotals.Total_Realisasi.toLocaleString('id-ID')}</td>
-              <td class="text-center fw-bold text-warning">${grandTotalPercentage}%</td>
+              <td class="text-center">
+                   <div class="progress" role="progressbar" title="${grandTotalPercentage}%" style="height: 18px; font-size: 0.75rem;">
+                          <div class="progress-bar ${overallProgressColor} text-dark" style="width: ${Math.min(parseFloat(grandTotalPercentage), 100)}%">${grandTotalPercentage}%</div>
+                      </div>
+              </td>
           </tr>
       `;
 
@@ -2139,20 +2462,24 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   // END: MODIFIED DIREKTORAT DASHBOARD LOGIC
   
-  document.querySelector('[data-bs-target="#tab-manage"]').addEventListener('shown.bs.tab', async () => {
-    if (STATE.role === 'direktorat') {
-      showLoader(true);
-      await refreshProdiData();
-      await refreshKelompokData();
-      await loadGlobalSettings();
-      await loadAnnouncement();
-      await loadBeritaAcaraSettings();
-      showLoader(false);
-    }
-  });
+  const tabManage = document.querySelector('[data-bs-target="#tab-manage"]');
+  if (tabManage) {
+      tabManage.addEventListener('shown.bs.tab', async () => {
+        if (STATE.role === 'direktorat') {
+          showLoader(true);
+          await refreshProdiData();
+          await refreshKelompokData();
+          await loadGlobalSettings();
+          await loadAnnouncement();
+          await loadBeritaAcaraSettings();
+          showLoader(false);
+        }
+      });
+  }
 
-  window.savePagu = async (uid) => { const paguInput = document.getElementById(`pagu-input-${uid}`); const newPagu = Number(paguInput.value) || 0; if (newPagu < 0) { showToast("Pagu tidak boleh negatif.", "warning"); return; } showLoader(true); try { await db.collection('users').doc(uid).update({ Pagu_Anggaran: newPagu }); showToast(`Pagu anggaran berhasil disimpan.`, "success"); } catch (error) { showToast(`Gagal menyimpan pagu: ${error.message}`, "danger"); } finally { showLoader(false); } };
-  document.getElementById('btn-save-settings').addEventListener('click', async () => {
+
+  window.savePagu = async (uid) => { const paguInput = document.getElementById(`pagu-input-${uid}`); if (!paguInput) return; const newPagu = Number(paguInput.value) || 0; if (newPagu < 0) { showToast("Pagu tidak boleh negatif.", "warning"); return; } showLoader(true); try { await db.collection('users').doc(uid).update({ Pagu_Anggaran: newPagu }); showToast(`Pagu anggaran berhasil disimpan.`, "success"); localStorage.removeItem('cache_allProdi'); } catch (error) { showToast(`Gagal menyimpan pagu: ${error.message}`, "danger"); } finally { showLoader(false); } };
+  safeAddClickListener('btn-save-settings', async () => {
     const deadlineInput = document.getElementById('ms_deadline').value;
     const tahapPerubahan = document.getElementById('ms_tahap_perubahan').value;
     const jumlahTahap = parseInt(document.getElementById('ms_jumlah_tahap_perubahan').value, 10) || 1;
@@ -2181,41 +2508,47 @@ document.addEventListener('DOMContentLoaded', function() {
         showLoader(false);
     }
   });
-  async function loadGlobalSettings() { try { const doc = await db.collection('appConfig').doc('settings').get(); if (doc.exists) { STATE.globalSettings = doc.data(); const deadline = STATE.globalSettings.Batas_Tanggal_Pengajuan; if (deadline && deadline.toDate) { const deadlineDate = deadline.toDate(); document.getElementById('current-deadline-display').textContent = deadlineDate.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); const yyyy = deadlineDate.getFullYear(); const mm = String(deadlineDate.getMonth() + 1).padStart(2, '0'); const dd = String(deadlineDate.getDate()).padStart(2, '0'); document.getElementById('ms_deadline').value = `${yyyy}-${mm}-${dd}`; } else { document.getElementById('current-deadline-display').textContent = "Belum ditentukan"; } const tahapStatus = STATE.globalSettings.Status_Ajuan_Perubahan || 'Ditutup'; const tahapDisplay = document.getElementById('current-tahap-display'); tahapDisplay.textContent = tahapStatus; document.getElementById('ms_tahap_perubahan').value = tahapStatus; tahapDisplay.classList.toggle('text-success', tahapStatus === 'Dibuka'); tahapDisplay.classList.toggle('text-danger', tahapStatus !== 'Dibuka'); 
+  async function loadGlobalSettings() { try { const doc = await db.collection('appConfig').doc('settings').get(); if (doc.exists) { STATE.globalSettings = doc.data(); const deadline = STATE.globalSettings.Batas_Tanggal_Pengajuan; if (deadline && deadline.toDate) { const deadlineDate = deadline.toDate(); document.getElementById('current-deadline-display').textContent = deadlineDate.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); const yyyy = deadlineDate.getFullYear(); const mm = String(deadlineDate.getMonth() + 1).padStart(2, '0'); const dd = String(deadlineDate.getDate()).padStart(2, '0'); document.getElementById('ms_deadline').value = `${yyyy}-${mm}-${dd}`; } else { document.getElementById('current-deadline-display').textContent = "Belum ditentukan"; } const tahapStatus = STATE.globalSettings.Status_Ajuan_Perubahan || 'Ditutup'; const tahapDisplay = document.getElementById('current-tahap-display'); if(tahapDisplay) { tahapDisplay.textContent = tahapStatus; tahapDisplay.classList.toggle('text-success', tahapStatus === 'Dibuka'); tahapDisplay.classList.toggle('text-danger', tahapStatus !== 'Dibuka'); } 
         
         const jumlahTahap = STATE.globalSettings.Jumlah_Tahap_Perubahan || 1;
         const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
         document.getElementById('ms_jumlah_tahap_perubahan').value = jumlahTahap;
         const selectAktif = document.getElementById('ms_tahap_perubahan_aktif');
-        selectAktif.innerHTML = '';
-        for (let i = 1; i <= jumlahTahap; i++) {
-            selectAktif.add(new Option(`Tahap ${i}`, i));
+        if(selectAktif) {
+            selectAktif.innerHTML = '';
+            for (let i = 1; i <= jumlahTahap; i++) {
+                selectAktif.add(new Option(`Tahap ${i}`, i));
+            }
+            selectAktif.value = tahapAktif;
         }
-        selectAktif.value = tahapAktif;
-        document.getElementById('current-tahap-aktif-display').textContent = `Tahap ${tahapAktif}`;
+        const tahapAktifDisplay = document.getElementById('current-tahap-aktif-display');
+        if(tahapAktifDisplay) tahapAktifDisplay.textContent = `Tahap ${tahapAktif}`;
         
       } else { 
-        document.getElementById('current-deadline-display').textContent = "Belum ditentukan"; 
-        document.getElementById('current-tahap-display').textContent = "Ditutup"; 
-        document.getElementById('current-tahap-aktif-display').textContent = "Tahap 1";
+        const deadlineDisplay = document.getElementById('current-deadline-display');
+        if (deadlineDisplay) deadlineDisplay.textContent = "Belum ditentukan"; 
+        const tahapDisplay = document.getElementById('current-tahap-display');
+        if (tahapDisplay) tahapDisplay.textContent = "Ditutup"; 
+        const tahapAktifDisplay = document.getElementById('current-tahap-aktif-display');
+        if (tahapAktifDisplay) tahapAktifDisplay.textContent = "Tahap 1";
         STATE.globalSettings = { Status_Ajuan_Perubahan: 'Ditutup', Jumlah_Tahap_Perubahan: 1, Tahap_Perubahan_Aktif: 1 };
       } } catch (error) { console.error("Gagal memuat pengaturan global:", error); } 
   }
   
-  async function loadAnnouncement() { try { const doc = await db.collection('appConfig').doc('announcement').get(); if (doc.exists) { const data = doc.data(); document.getElementById('ma_announcement_text').value = data.text || ''; const statusEl = document.getElementById('current-announcement-status'); statusEl.textContent = data.isActive ? 'Aktif' : 'Tidak Aktif'; statusEl.className = `text-center fw-bold ${data.isActive ? 'text-success' : 'text-danger'}`; } } catch (e) { console.error("Gagal memuat pengumuman:", e); } }
-  async function displayGlobalAnnouncement() { const area = document.getElementById('global-announcement-area'); try { const doc = await db.collection('appConfig').doc('announcement').get(); if (doc.exists && doc.data().isActive) { document.getElementById('global-announcement-text').innerText = doc.data().text; area.style.display = 'block'; } else { area.style.display = 'none'; } } catch (e) { area.style.display = 'none'; console.error("Gagal menampilkan pengumuman:", e); } }
-  document.getElementById('btn-save-announcement').addEventListener('click', async () => { const text = document.getElementById('ma_announcement_text').value.trim(); if (!text) { showToast("Teks pengumuman tidak boleh kosong.", "warning"); return; } showLoader(true); try { await db.collection('appConfig').doc('announcement').set({ text: text, isActive: true, updatedBy: STATE.id, updatedAt: serverTimestamp() }, { merge: true }); showToast("Pengumuman berhasil dipublikasikan.", "success"); loadAnnouncement(); } catch (e) { showToast("Gagal menyimpan pengumuman.", "danger"); } finally { showLoader(false); } });
-  document.getElementById('btn-deactivate-announcement').addEventListener('click', async () => { showLoader(true); try { await db.collection('appConfig').doc('announcement').update({ isActive: false }); showToast("Pengumuman berhasil dinonaktifkan.", "info"); loadAnnouncement(); } catch (e) { showToast("Gagal menonaktifkan pengumuman.", "danger"); } finally { showLoader(false); } });
-  function clearUserForm() { ['mp_UID', 'mp_ID', 'mp_Nama', 'mp_Email', 'mp_Role', 'mp_BA_Jabatan', 'mp_BA_Nama'].forEach(id => document.getElementById(id).value = ''); document.getElementById('mp_ba_fields_wrapper').style.display = 'none'; }
+  async function loadAnnouncement() { try { const doc = await db.collection('appConfig').doc('announcement').get(); if (doc.exists) { const data = doc.data(); document.getElementById('ma_announcement_text').value = data.text || ''; const statusEl = document.getElementById('current-announcement-status'); if(statusEl) { statusEl.textContent = data.isActive ? 'Aktif' : 'Tidak Aktif'; statusEl.className = `text-center fw-bold ${data.isActive ? 'text-success' : 'text-danger'}`; } } } catch (e) { console.error("Gagal memuat pengumuman:", e); } }
+  async function displayGlobalAnnouncement() { const area = document.getElementById('global-announcement-area'); if (!area) return; try { const doc = await db.collection('appConfig').doc('announcement').get(); if (doc.exists && doc.data().isActive) { document.getElementById('global-announcement-text').innerText = doc.data().text; area.style.display = 'block'; } else { area.style.display = 'none'; } } catch (e) { area.style.display = 'none'; console.error("Gagal menampilkan pengumuman:", e); } }
+  safeAddClickListener('btn-save-announcement', async () => { const text = document.getElementById('ma_announcement_text').value.trim(); if (!text) { showToast("Teks pengumuman tidak boleh kosong.", "warning"); return; } showLoader(true); try { await db.collection('appConfig').doc('announcement').set({ text: text, isActive: true, updatedBy: STATE.id, updatedAt: serverTimestamp() }, { merge: true }); showToast("Pengumuman berhasil dipublikasikan.", "success"); loadAnnouncement(); } catch (e) { showToast("Gagal menyimpan pengumuman.", "danger"); } finally { showLoader(false); } });
+  safeAddClickListener('btn-deactivate-announcement', async () => { showLoader(true); try { await db.collection('appConfig').doc('announcement').update({ isActive: false }); showToast("Pengumuman berhasil dinonaktifkan.", "info"); loadAnnouncement(); } catch (e) { showToast("Gagal menonaktifkan pengumuman.", "danger"); } finally { showLoader(false); } });
+  function clearUserForm() { ['mp_UID', 'mp_ID', 'mp_Nama', 'mp_Email', 'mp_Role', 'mp_BA_Jabatan', 'mp_BA_Nama'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); const wrapper = document.getElementById('mp_ba_fields_wrapper'); if(wrapper) wrapper.style.display = 'none'; }
   function clearKelompokForm() { ['mk_ID', 'mk_Nama'].forEach(id => document.getElementById(id).value = ''); document.getElementById('mk_ID').readOnly = false; }
-  window.deleteUser = async (uid, prodiId) => { if (confirm(`Yakin ingin menghapus profil pengguna "${prodiId}"? \n\nPENTING: Aksi ini hanya menghapus profil dari database Si-Pandai. Anda HARUS menghapus pengguna dengan UID ${uid} secara manual dari Firebase Authentication Console untuk menghapus akun login sepenuhnya.`)) { showLoader(true); try { await db.collection('users').doc(uid).delete(); showToast(`Profil pengguna "${prodiId}" berhasil dihapus.`); clearUserForm(); await refreshProdiData(); } catch (error) { showToast(`Gagal menghapus profil: ${error.message}`, 'danger'); console.error(error); } finally { showLoader(false); } } };
-  window.deleteKelompok = async (id) => { if (confirm(`Yakin ingin menghapus kelompok "${id}"?`)) { showLoader(true); try { await db.collection('kelompok').doc(id).delete(); showToast(`Kelompok "${id}" berhasil dihapus.`); clearKelompokForm(); await refreshKelompokData(); } catch (error) { showToast(`Gagal menghapus kelompok: ${error.message}`, 'danger'); console.error(error); } finally { showLoader(false); } } };
-  document.getElementById('btn-add-user').addEventListener('click', async () => { const email = document.getElementById('mp_new_email').value.trim(); const password = document.getElementById('mp_new_password').value; const idProdi = document.getElementById('mp_new_id').value.trim(); const namaProdi = document.getElementById('mp_new_nama').value.trim(); const role = document.getElementById('mp_new_role').value; if (!email || !password || !idProdi || !namaProdi) { showToast('Semua field untuk pengguna baru wajib diisi.', 'warning'); return; } if (password.length < 6) { showToast('Password harus minimal 6 karakter.', 'warning'); return; } showLoader(true); let secondaryApp; try { secondaryApp = firebase.initializeApp(firebaseConfig, "secondaryAuthApp" + Date.now()); const secondaryAuth = secondaryApp.auth(); const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, password); const newUser = userCredential.user; await db.collection('users').doc(newUser.uid).set({ Email: email, ID_Prodi: idProdi, Nama_Prodi: namaProdi, Role: role, Pagu_Anggaran: 0 }); showToast(`Pengguna baru "${namaProdi}" berhasil dibuat.`, 'success'); ['mp_new_email', 'mp_new_password', 'mp_new_id', 'mp_new_nama'].forEach(id => document.getElementById(id).value = ''); await refreshProdiData(); } catch (error) { showToast(`Gagal membuat pengguna: ${error.message}`, 'danger'); console.error(error); } finally { if (secondaryApp) { await secondaryApp.delete(); } showLoader(false); } });
-  document.getElementById('btn-save-kelompok').addEventListener('click', async () => { const id = document.getElementById('mk_ID').value.trim(); const nama = document.getElementById('mk_Nama').value.trim(); if (!id || !nama) { showToast('ID dan Nama Kelompok wajib diisi.', 'warning'); return; } showLoader(true); try { await db.collection('kelompok').doc(id).set({ ID_Kelompok: id, Nama_Kelompok: nama }, { merge: true }); showToast('Kelompok berhasil disimpan.'); clearKelompokForm(); await refreshKelompokData(); } catch (error) { showToast(`Gagal menyimpan kelompok: ${error.message}`, 'danger'); } finally { showLoader(false); } });
-  document.getElementById('btn-download-template-user').addEventListener('click', () => { const data = [['ID_Prodi', 'Nama_Prodi', 'Email', 'Role'], ['D3-KEP', 'D3 Keperawatan', 'd3kep@poltekkeskupang.ac.id', 'prodi']]; const worksheet = XLSX.utils.aoa_to_sheet(data); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Template Pengguna"); XLSX.writeFile(workbook, "template_pengguna.xlsx"); showToast('Template pengguna berhasil diunduh.', 'info'); });
-  document.getElementById('input-upload-excel-user').addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; showLoader(true); const reader = new FileReader(); reader.onload = async (event) => { try { const data = new Uint8Array(event.target.result); const workbook = XLSX.read(data, { type: 'array' }); const firstSheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }); if (jsonData.length < 2 || jsonData[0][0] !== 'ID_Prodi' || jsonData[0][1] !== 'Nama_Prodi' || jsonData[0][2] !== 'Email' || jsonData[0][3] !== 'Role') { throw new Error('Format file tidak sesuai. Pastikan header adalah ID_Prodi, Nama_Prodi, Email, Role.'); } const batch = db.batch(); let count = 0; for (let i = 1; i < jsonData.length; i++) { const row = jsonData[i]; const idProdi = String(row[0] || '').trim(); const namaProdi = String(row[1] || '').trim(); const email = String(row[2] || '').trim(); const role = String(row[3] || 'prodi').trim(); if (idProdi && namaProdi && email && role) { const userRef = db.collection("users").doc(); batch.set(userRef, { ID_Prodi: idProdi, Nama_Prodi: namaProdi, Email: email, Role: role, Pagu_Anggaran: 0 }); count++; } } if (count === 0) { throw new Error("Tidak ada data pengguna yang valid untuk diunggah."); } await batch.commit(); showToast(`${count} profil pengguna berhasil diunggah dari Excel.`, 'success'); await refreshProdiData(); } catch (error) { showToast(`Gagal memproses file: ${error.message}`, 'danger'); } finally { showLoader(false); e.target.value = ''; } }; reader.readAsArrayBuffer(file); });
-  document.getElementById('btn-download-template-kelompok').addEventListener('click', () => { const data = [['ID_Kelompok', 'Nama_Kelompok'], ['51.01.01', 'Belanja Bahan Makanan'], ['52.02.03', 'Belanja Jasa Konsultan']]; const worksheet = XLSX.utils.aoa_to_sheet(data); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Template"); XLSX.writeFile(workbook, "template_kelompok.xlsx"); showToast('Template berhasil diunduh.', 'info'); });
-  document.getElementById('input-upload-excel-kelompok').addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; showLoader(true); const reader = new FileReader(); reader.onload = async (event) => { try { const data = new Uint8Array(event.target.result); const workbook = XLSX.read(data, { type: 'array' }); const firstSheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }); if (jsonData.length < 2 || jsonData[0][0] !== 'ID_Kelompok' || jsonData[0][1] !== 'Nama_Kelompok') { throw new Error('Format file tidak sesuai. Pastikan header adalah ID_Kelompok dan Nama_Kelompok.'); } const batch = db.batch(); let count = 0; for (let i = 1; i < jsonData.length; i++) { const row = jsonData[i]; const id = String(row[0] || '').trim(); const nama = String(row[1] || '').trim(); if (id && nama) { const docRef = db.collection('kelompok').doc(id); batch.set(docRef, { ID_Kelompok: id, Nama_Kelompok: nama }, { merge: true }); count++; } } if (count === 0) { throw new Error("Tidak ada data valid untuk diimport."); } await batch.commit(); showToast(`${count} data kelompok berhasil diimport/diperbarui.`, 'success'); await refreshKelompokData(); } catch (error) { showToast(`Gagal mengimpor file: ${error.message}`, 'danger'); } finally { showLoader(false); e.target.value = ''; } }; reader.readAsArrayBuffer(file); });
+  window.deleteUser = async (uid, prodiId) => { if (confirm(`Yakin ingin menghapus profil pengguna "${prodiId}"? \n\nPENTING: Aksi ini hanya menghapus profil dari database Si-Pandai. Anda HARUS menghapus pengguna dengan UID ${uid} secara manual dari Firebase Authentication Console untuk menghapus akun login sepenuhnya.`)) { showLoader(true); try { await db.collection('users').doc(uid).delete(); showToast(`Profil pengguna "${prodiId}" berhasil dihapus.`); clearUserForm(); localStorage.removeItem('cache_allProdi'); await refreshProdiData(); } catch (error) { showToast(`Gagal menghapus profil: ${error.message}`, 'danger'); console.error(error); } finally { showLoader(false); } } };
+  window.deleteKelompok = async (id) => { if (confirm(`Yakin ingin menghapus kelompok "${id}"?`)) { showLoader(true); try { await db.collection('kelompok').doc(id).delete(); showToast(`Kelompok "${id}" berhasil dihapus.`); clearKelompokForm(); localStorage.removeItem('cache_allKelompok'); await refreshKelompokData(); } catch (error) { showToast(`Gagal menghapus kelompok: ${error.message}`, 'danger'); console.error(error); } finally { showLoader(false); } } };
+  safeAddClickListener('btn-add-user', async () => { const email = document.getElementById('mp_new_email').value.trim(); const password = document.getElementById('mp_new_password').value; const idProdi = document.getElementById('mp_new_id').value.trim(); const namaProdi = document.getElementById('mp_new_nama').value.trim(); const role = document.getElementById('mp_new_role').value; if (!email || !password || !idProdi || !namaProdi) { showToast('Semua field untuk pengguna baru wajib diisi.', 'warning'); return; } if (password.length < 6) { showToast('Password harus minimal 6 karakter.', 'warning'); return; } showLoader(true); let secondaryApp; try { secondaryApp = firebase.initializeApp(firebaseConfig, "secondaryAuthApp" + Date.now()); const secondaryAuth = secondaryApp.auth(); const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, password); const newUser = userCredential.user; await db.collection('users').doc(newUser.uid).set({ Email: email, ID_Prodi: idProdi, Nama_Prodi: namaProdi, Role: role, Pagu_Anggaran: 0 }); showToast(`Pengguna baru "${namaProdi}" berhasil dibuat.`, 'success'); ['mp_new_email', 'mp_new_password', 'mp_new_id', 'mp_new_nama'].forEach(id => document.getElementById(id).value = ''); localStorage.removeItem('cache_allProdi'); await refreshProdiData(); } catch (error) { showToast(`Gagal membuat pengguna: ${error.message}`, 'danger'); console.error(error); } finally { if (secondaryApp) { await secondaryApp.delete(); } showLoader(false); } });
+  safeAddClickListener('btn-save-kelompok', async () => { const id = document.getElementById('mk_ID').value.trim(); const nama = document.getElementById('mk_Nama').value.trim(); if (!id || !nama) { showToast('ID dan Nama Kelompok wajib diisi.', 'warning'); return; } showLoader(true); try { await db.collection('kelompok').doc(id).set({ ID_Kelompok: id, Nama_Kelompok: nama }, { merge: true }); showToast('Kelompok berhasil disimpan.'); clearKelompokForm(); localStorage.removeItem('cache_allKelompok'); await refreshKelompokData(); } catch (error) { showToast(`Gagal menyimpan kelompok: ${error.message}`, 'danger'); } finally { showLoader(false); } });
+  safeAddClickListener('btn-download-template-user', () => { const data = [['ID_Prodi', 'Nama_Prodi', 'Email', 'Role'], ['D3-KEP', 'D3 Keperawatan', 'd3kep@poltekkeskupang.ac.id', 'prodi']]; const worksheet = XLSX.utils.aoa_to_sheet(data); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Template Pengguna"); XLSX.writeFile(workbook, "template_pengguna.xlsx"); showToast('Template pengguna berhasil diunduh.', 'info'); });
+  document.getElementById('input-upload-excel-user').addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; showLoader(true); const reader = new FileReader(); reader.onload = async (event) => { try { const data = new Uint8Array(event.target.result); const workbook = XLSX.read(data, { type: 'array' }); const firstSheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }); if (jsonData.length < 2 || jsonData[0][0] !== 'ID_Prodi' || jsonData[0][1] !== 'Nama_Prodi' || jsonData[0][2] !== 'Email' || jsonData[0][3] !== 'Role') { throw new Error('Format file tidak sesuai. Pastikan header adalah ID_Prodi, Nama_Prodi, Email, Role.'); } const batch = db.batch(); let count = 0; for (let i = 1; i < jsonData.length; i++) { const row = jsonData[i]; const idProdi = String(row[0] || '').trim(); const namaProdi = String(row[1] || '').trim(); const email = String(row[2] || '').trim(); const role = String(row[3] || 'prodi').trim(); if (idProdi && namaProdi && email && role) { const userRef = db.collection("users").doc(); batch.set(userRef, { ID_Prodi: idProdi, Nama_Prodi: namaProdi, Email: email, Role: role, Pagu_Anggaran: 0 }); count++; } } if (count === 0) { throw new Error("Tidak ada data pengguna yang valid untuk diunggah."); } await batch.commit(); showToast(`${count} profil pengguna berhasil diunggah dari Excel.`, 'success'); localStorage.removeItem('cache_allProdi'); await refreshProdiData(); } catch (error) { showToast(`Gagal memproses file: ${error.message}`, 'danger'); } finally { showLoader(false); e.target.value = ''; } }; reader.readAsArrayBuffer(file); });
+  safeAddClickListener('btn-download-template-kelompok', () => { const data = [['ID_Kelompok', 'Nama_Kelompok'], ['51.01.01', 'Belanja Bahan Makanan'], ['52.02.03', 'Belanja Jasa Konsultan']]; const worksheet = XLSX.utils.aoa_to_sheet(data); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Template"); XLSX.writeFile(workbook, "template_kelompok.xlsx"); showToast('Template berhasil diunduh.', 'info'); });
+  document.getElementById('input-upload-excel-kelompok').addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; showLoader(true); const reader = new FileReader(); reader.onload = async (event) => { try { const data = new Uint8Array(event.target.result); const workbook = XLSX.read(data, { type: 'array' }); const firstSheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }); if (jsonData.length < 2 || jsonData[0][0] !== 'ID_Kelompok' || jsonData[0][1] !== 'Nama_Kelompok') { throw new Error('Format file tidak sesuai. Pastikan header adalah ID_Kelompok dan Nama_Kelompok.'); } const batch = db.batch(); let count = 0; for (let i = 1; i < jsonData.length; i++) { const row = jsonData[i]; const id = String(row[0] || '').trim(); const nama = String(row[1] || '').trim(); if (id && nama) { const docRef = db.collection('kelompok').doc(id); batch.set(docRef, { ID_Kelompok: id, Nama_Kelompok: nama }, { merge: true }); count++; } } if (count === 0) { throw new Error("Tidak ada data valid untuk diimport."); } await batch.commit(); showToast(`${count} data kelompok berhasil diimport/diperbarui.`, 'success'); localStorage.removeItem('cache_allKelompok'); await refreshKelompokData(); } catch (error) { showToast(`Gagal mengimpor file: ${error.message}`, 'danger'); } finally { showLoader(false); e.target.value = ''; } }; reader.readAsArrayBuffer(file); });
   
   const COLLECTIONS_TO_BACKUP = ['ajuan', 'users', 'kelompok', 'appConfig', 'notifications'];
   async function backupAllData() {
@@ -2352,15 +2685,44 @@ document.addEventListener('DOMContentLoaded', function() {
       }
   }
 
-  document.getElementById('btn-backup-data').addEventListener('click', backupAllData);
+  safeAddClickListener('btn-backup-data', backupAllData);
   document.getElementById('input-restore-data').addEventListener('change', handleRestoreFile);
   
   function printContent(elementId, title) {
     const contentElement = document.getElementById(elementId);
-    if (!contentElement || !contentElement.innerHTML.includes('<table')) {
+    // Check if the content is a table container (standard for most print targets)
+    if (!contentElement || !contentElement.querySelector('table')) {
       showToast('Tidak ada data untuk dicetak.', 'warning');
       return;
     }
+    
+    // Create a temporary clone of the table container
+    const tempContainer = document.createElement('div');
+    tempContainer.innerHTML = contentElement.innerHTML;
+    
+    // Clean up clone: remove action columns and checkboxes before printing
+    const tables = tempContainer.querySelectorAll('table');
+    tables.forEach(table => {
+        // Find action columns and checkboxes via selectors used in rendering functions
+        const actionHeaders = table.querySelectorAll('th.action-buttons');
+        actionHeaders.forEach(th => {
+            const index = Array.from(th.parentNode.children).indexOf(th);
+            table.querySelectorAll('tr').forEach(row => {
+                if (row.cells[index]) row.cells[index].remove();
+            });
+        });
+        
+        // Remove checkbox column (assumed to be the first column if present)
+        table.querySelectorAll('th:first-child, td:first-child').forEach(cell => {
+             if (cell.querySelector('input[type=checkbox]')) {
+                const index = Array.from(cell.parentNode.children).indexOf(cell);
+                table.querySelectorAll('tr').forEach(row => {
+                    if (row.cells[index]) row.cells[index].remove();
+                });
+            }
+        });
+    });
+
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
       <html>
@@ -2374,29 +2736,39 @@ document.addEventListener('DOMContentLoaded', function() {
             th { background-color: #f8f9fa; }
             h3 { text-align: center; margin-bottom: 20px; }
             .action-buttons { display: none; }
-            input[type=number] { border: none; background: transparent; width: 100%; text-align: right; -moz-appearance: textfield; }
+            /* Styling for RPD/Realisasi inputs in print view */
+            input[type=number] { border: none; background: transparent; width: 100%; text-align: right; -moz-appearance: textfield; padding: 0 !important; margin: 0 !important; }
             input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-            tr[class^="group-header-"] td { font-weight: bold; background-color: #e9ecef; }
+            tr[class^="group-header-"] td { font-weight: bold; background-color: #e9ecef !important; }
             .prodi-indicator { border-left: none !important; }
             .blocked-row { opacity: 0.8 !important; }
+            /* Berita Acara specific styles for printing */
+            .ba-page-content { margin: 0 auto; max-width: 8.5in; page-break-after: auto; }
+            .ba-kop table { width: 100%; border: none; margin-bottom: 20px; }
+            .ba-kop table td { border: none; padding: 0; }
+            .ba-kop img { width: 80px; height: auto; }
+            .ba-kop-text h5 { margin: 0; font-size: 1.1em; text-align: center; }
+            .ba-kop-text p { margin: 5px 0 0 0; font-size: 0.8em; text-align: center; }
+            .ba-judul { text-align: center; margin: 20px 0; }
+            .ba-judul h5 { margin: 5px 0; }
+            .ba-judul p { margin: 0; font-style: italic; font-weight: normal; }
+            .ba-paragraf { margin-bottom: 15px; text-align: justify; font-size: 10pt; }
+            .ba-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            .ba-table th, .ba-table td { border: 1px solid black; padding: 5px; font-size: 9pt; vertical-align: top; }
+            .ba-table th { background-color: #ddd !important; }
+            .ba-signatures table { width: 100%; border: none; margin-top: 50px; }
+            .ba-signatures table td { width: 50%; border: none; text-align: center; }
+            .ba-signatures p { margin: 0; }
+            @page { size: A4 portrait; margin: 15mm 10mm 15mm 10mm; }
           </style>
         </head>
         <body>
           <h3>${title}</h3>
-          ${contentElement.innerHTML}
+          ${tempContainer.innerHTML}
         </body>
       </html>
     `);
-    const actionHeaders = printWindow.document.querySelectorAll('th.action-buttons');
-    actionHeaders.forEach(th => th.remove());
-    const actionCells = printWindow.document.querySelectorAll('td.action-buttons');
-    actionCells.forEach(td => td.remove());
-    const checkboxes = printWindow.document.querySelectorAll('input[type=checkbox]');
-    checkboxes.forEach(cb => {
-        if (cb.parentElement.tagName === 'TH' || cb.parentElement.tagName === 'TD') {
-            cb.parentElement.remove();
-        }
-    });
+    
     printWindow.document.close();
     setTimeout(() => {
       printWindow.focus();
@@ -2418,6 +2790,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const merges = [];
     let rowIndex = 0;
 
+    // 1. Determine Max Columns based on Headers (excluding action/checkbox columns)
     let maxCols = 0;
     Array.from(table.rows).forEach(row => {
         let currentCols = 0;
@@ -2439,21 +2812,37 @@ document.addEventListener('DOMContentLoaded', function() {
         rowIndex++;
     }
 
+    // 2. Process Rows
     for (const row of table.rows) {
       const rowData = [];
       let colIndex = 0;
       for (let i = 0; i < row.cells.length; i++) {
         const cell = row.cells[i];
+        
+        // Skip Checkbox column (assumed first column if present)
         if (i === 0 && cell.querySelector('input[type=checkbox]')) continue;
+        // Skip Action column
         if (cell.classList.contains('action-buttons')) continue;
         
         let cellValue = cell.innerText.trim();
         const input = cell.querySelector('input[type=number]');
+        
+        // Handle input fields (RPD/Realisasi tables)
         if (input) {
           cellValue = Number(input.value) || 0;
-        } else if (cell.classList.contains('text-end')) {
-            const numericValue = parseFloat(cellValue.replace(/[^0-9,-]/g, '').replace(',', '.'));
+        } 
+        // Handle numeric text (Total/Harga Satuan)
+        else if (cell.classList.contains('text-end')) {
+            // Remove Rp and thousand separators, convert comma decimal to dot
+            const rawNumericString = cellValue.replace(/Rp|\./g, '').replace(/,/g, '.');
+            const numericValue = parseFloat(rawNumericString);
             if(!isNaN(numericValue)) cellValue = numericValue;
+        }
+        
+        // Handle complex cells (like RPD/Realisasi percentage badges in Directorate Summary)
+        const badge = cell.querySelector('.badge');
+        if(badge) {
+            cellValue = badge.innerText.trim();
         }
 
         rowData.push(cellValue);
@@ -2495,40 +2884,52 @@ document.addEventListener('DOMContentLoaded', function() {
     XLSX.writeFile(wb, fileName);
   }
 
-  document.getElementById('btn-print-daftar-awal').addEventListener('click', () => printContent('tableAjuanAwal', 'Daftar Ajuan Awal'));
-  document.getElementById('btn-export-excel-awal').addEventListener('click', () => exportToExcel('tableAjuanAwal', 'Daftar_Ajuan_Awal.xlsx', 'Daftar Ajuan Awal'));
-  document.getElementById('btn-print-daftar-perubahan').addEventListener('click', () => printContent('tableAjuanPerubahan', 'Daftar Ajuan Perubahan'));
-  document.getElementById('btn-export-excel-perubahan').addEventListener('click', () => exportToExcel('tableAjuanPerubahan', 'Daftar_Ajuan_Perubahan.xlsx', 'Daftar Ajuan Perubahan'));
-  document.getElementById('btn-print-rpd-awal').addEventListener('click', () => printContent('tableRPDAwal', 'RPD Awal'));
-  document.getElementById('btn-export-excel-rpd-awal').addEventListener('click', () => exportToExcel('tableRPDAwal', 'RPD_Awal.xlsx', 'RPD Awal'));
-  document.getElementById('btn-print-rpd-perubahan').addEventListener('click', () => printContent('tableRPDPerubahan', 'RPD Perubahan'));
-  document.getElementById('btn-export-excel-rpd-perubahan').addEventListener('click', () => exportToExcel('tableRPDPerubahan', 'RPD_Perubahan.xlsx', 'RPD Perubahan'));
-  document.getElementById('btn-print-realisasi-awal').addEventListener('click', () => printContent('tableRealisasiAwal', 'Realisasi Awal'));
-  document.getElementById('btn-export-excel-realisasi-awal').addEventListener('click', () => exportToExcel('tableRealisasiAwal', 'Realisasi_Awal.xlsx', 'Realisasi Awal'));
-  document.getElementById('btn-print-realisasi-perubahan').addEventListener('click', () => printContent('tableRealisasiPerubahan', 'Realisasi Perubahan'));
-  document.getElementById('btn-export-excel-realisasi-perubahan').addEventListener('click', () => exportToExcel('tableRealisasiPerubahan', 'Realisasi_Perubahan.xlsx', 'Realisasi Perubahan'));
+  // --- START FIX: Applying safe listener wrapper to resolve startup error ---
+  safeAddClickListener('btn-print-daftar-awal', () => printContent('tableAjuanAwal', 'Daftar Ajuan Awal'));
+  safeAddClickListener('btn-export-excel-awal', () => exportToExcel('tableAjuanAwal', 'Daftar_Ajuan_Awal.xlsx', 'Daftar Ajuan Awal'));
+  safeAddClickListener('btn-print-daftar-perubahan', () => printContent('tableAjuanPerubahan', 'Daftar Ajuan Perubahan'));
+  safeAddClickListener('btn-export-excel-perubahan', () => exportToExcel('tableAjuanPerubahan', 'Daftar_Ajuan_Perubahan.xlsx', 'Daftar Ajuan Perubahan'));
+  safeAddClickListener('btn-print-rpd-awal', () => printContent('tableRPDAwal', 'RPD Awal'));
+  safeAddClickListener('btn-export-excel-rpd-awal', () => exportToExcel('tableRPDAwal', 'RPD_Awal.xlsx', 'RPD Awal'));
+  safeAddClickListener('btn-print-rpd-perubahan', () => printContent('tableRPDPerubahan', 'RPD Perubahan'));
+  safeAddClickListener('btn-export-excel-rpd-perubahan', () => exportToExcel('tableRPDPerubahan', 'RPD_Perubahan.xlsx', 'RPD Perubahan'));
+  safeAddClickListener('btn-print-realisasi-awal', () => printContent('tableRealisasiAwal', 'Realisasi Awal'));
+  safeAddClickListener('btn-export-excel-realisasi-awal', () => exportToExcel('tableRealisasiAwal', 'Realisasi_Awal.xlsx', 'Realisasi Awal'));
+  safeAddClickListener('btn-print-realisasi-perubahan', () => printContent('tableRealisasiPerubahan', 'Realisasi Perubahan'));
+  safeAddClickListener('btn-export-excel-realisasi-perubahan', () => exportToExcel('tableRealisasiPerubahan', 'Realisasi_Perubahan.xlsx', 'Realisasi Perubahan'));
+  safeAddClickListener('btn-export-excel-direktorat-dashboard', () => exportToExcel('direktorat-summary-table-container', 'Ringkasan_Anggaran_Direktorat.xlsx', 'Ringkasan Anggaran Direktorat'));
+  // --- END FIX ---
+
 
   // --- START: Log Aktivitas ---
-  document.querySelector('[data-bs-target="#tab-log"]').addEventListener('shown.bs.tab', async () => {
-    if (STATE.role === 'direktorat') {
-        const userSelect = document.getElementById('filterLogUser');
-        userSelect.innerHTML = '<option value="">Semua Pengguna</option>';
-        STATE.allProdi.forEach(user => {
-            userSelect.add(new Option(`${user.ID_Prodi} (${user.Role})`, user.ID_Prodi));
-        });
-        await refreshLogTable();
-    }
-  });
+  const tabLog = document.querySelector('[data-bs-target="#tab-log"]');
+  if (tabLog) {
+      tabLog.addEventListener('shown.bs.tab', async () => {
+        if (STATE.role === 'direktorat') {
+            const userSelect = document.getElementById('filterLogUser');
+            if (userSelect) {
+                userSelect.innerHTML = '<option value="">Semua Pengguna</option>';
+                STATE.allProdi.forEach(user => {
+                    userSelect.add(new Option(`${user.ID_Prodi} (${user.Role})`, user.ID_Prodi));
+                });
+            }
+            await refreshLogTable();
+        }
+      });
+  }
 
   async function refreshLogTable() {
     if (STATE.role !== 'direktorat') return;
     const tableContainer = document.getElementById('tableLogAktivitas');
+    if (!tableContainer) return;
+    
     tableContainer.innerHTML = `<div class="text-center text-muted p-5">Memuat log...</div>`;
     showLoader(true);
     try {
         let query = db.collection('activityLog').orderBy('timestamp', 'desc');
 
-        const userFilter = document.getElementById('filterLogUser').value;
+        const userFilterEl = document.getElementById('filterLogUser');
+        const userFilter = userFilterEl ? userFilterEl.value : null;
         if (userFilter) {
             query = query.where('userId', '==', userFilter);
         }
@@ -2559,6 +2960,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function renderLogTable(logs) {
     const container = document.getElementById('tableLogAktivitas');
+    if (!container) return;
+
     if (logs.length === 0) {
         container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada aktivitas yang tercatat untuk filter ini.</div>';
         return;
@@ -2585,10 +2988,10 @@ document.addEventListener('DOMContentLoaded', function() {
     container.innerHTML = `<table class="table table-sm table-striped table-hover">${tableHeader}<tbody>${tableRows}</tbody></table>`;
   }
 
-  document.getElementById('btn-filter-log').addEventListener('click', refreshLogTable);
-  document.getElementById('btn-refresh-log').addEventListener('click', refreshLogTable);
-  document.getElementById('btn-print-log').addEventListener('click', () => printContent('tableLogAktivitas', 'Log Aktivitas Pengguna'));
-  document.getElementById('btn-export-excel-log').addEventListener('click', () => exportToExcel('tableLogAktivitas', 'Log_Aktivitas.xlsx', 'Log Aktivitas Pengguna'));
+  safeAddClickListener('btn-filter-log', refreshLogTable);
+  safeAddClickListener('btn-refresh-log', refreshLogTable);
+  safeAddClickListener('btn-print-log', () => printContent('tableLogAktivitas', 'Log Aktivitas Pengguna'));
+  safeAddClickListener('btn-export-excel-log', () => exportToExcel('tableLogAktivitas', 'Log_Aktivitas.xlsx', 'Log Aktivitas Pengguna'));
   // --- END: Log Aktivitas ---
 
 
@@ -2638,7 +3041,7 @@ document.addEventListener('DOMContentLoaded', function() {
     listEl.scrollTop = listEl.scrollHeight; // Auto-scroll to the bottom
   }
 
-  document.getElementById('btn-submit-komentar').addEventListener('click', async () => {
+  safeAddClickListener('btn-submit-komentar', async () => {
     const ajuanId = document.getElementById('komentar-id-ajuan').value;
     const inputEl = document.getElementById('komentar-input');
     const text = inputEl.value.trim();
@@ -2647,27 +3050,22 @@ document.addEventListener('DOMContentLoaded', function() {
       showToast("Komentar tidak boleh kosong.", "warning");
       return;
     }
-
-    const newComment = {
-      author: STATE.id,
-      text: text,
-      timestamp: new Date() // Client-side timestamp for immediate display
-    };
     
     showLoader(true);
     try {
       const ajuanRef = db.collection('ajuan').doc(ajuanId);
       
       // Update Firestore
+      // FIX: Changed arrayUnion element to use firestoreTimestamp instead of nested serverTimestamp, which causes issues
       await ajuanRef.update({
         Komentar: arrayUnion({
             author: STATE.id,
             text: text,
-            timestamp: serverTimestamp()
+            timestamp: firestoreTimestamp.fromDate(new Date()) 
         })
       });
       
-      // Immediately update local UI
+      // Immediately update local UI (by fetching to ensure consistency)
       const doc = await ajuanRef.get();
       const comments = doc.data().Komentar || [];
       renderKomentarList(comments);
@@ -2697,5 +3095,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   // --- END: Fitur Komentar ---
-
 });
