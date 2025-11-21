@@ -1,3 +1,5 @@
+--- START OF FILE style.css ---
+
 /* =================================================================== */
 /* SI-PANDAI REFINED STYLESHEET                                        */
 /* =================================================================== */
@@ -17,6 +19,16 @@ body {
   transition: background-color 0.3s ease;
 }
 
+/* --- KRITIS: SCALING SELURUH TAMPILAN APP (60%) --- */
+body:not(.login-view) {
+    transform: scale(0.6);
+    transform-origin: top left;
+    /* Menghitung ukuran body agar konten yang di-scale (0.6) mengisi viewport asli */
+    width: calc(100% / 0.6); 
+    min-height: calc(100vh / 0.6);
+    overflow: auto; /* Memungkinkan scrolling untuk konten asli */
+    position: absolute; /* Membantu positioning transform */
+}
 /* -------------------------------------- */
 /* --- LOGIN PAGE --- */
 /* -------------------------------------- */
@@ -452,6 +464,11 @@ body.login-view {
   body {
     background-color: #fff;
     font-size: 10pt; /* Default print font size */
+    transform: none !important; /* Disable scale for actual printing */
+    width: auto !important;
+    height: auto !important;
+    min-height: auto !important;
+    position: static !important;
   }
   .app-header, .app-sidebar, .d-print-none {
     display: none !important;
