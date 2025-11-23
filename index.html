@@ -91,7 +91,8 @@
     <div class="d-flex">
       <nav class="app-sidebar">
         <ul class="nav nav-pills flex-column">
-          <li class="nav-item"><a class="nav-link" id="tab-dashboard-link" data-bs-toggle="tab" href="#tab-dashboard"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a></li>
+          <!-- Default active tab: Dashboard -->
+          <li class="nav-item"><a class="nav-link active" id="tab-dashboard-link" data-bs-toggle="tab" href="#tab-dashboard"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a></li>
           
           <li class="nav-item" id="nav-item-ajuan-awal"><a class="nav-link" id="link-ajuan-awal" data-bs-toggle="tab" href="#tab-form-ajuan"><i class="bi bi-file-earmark-plus"></i> Buat Ajuan Awal</a></li>
           <li class="nav-item" id="nav-item-ajuan-perubahan" style="display: none;"><a class="nav-link" id="link-ajuan-perubahan" data-bs-toggle="tab" href="#tab-form-ajuan"><i class="bi bi-pencil-square"></i> Buat Ajuan Perubahan</a></li>
@@ -117,8 +118,8 @@
       <main class="app-content">
         <div class="tab-content">
           
-          <!-- TAB: Dashboard -->
-          <div class="tab-pane fade" id="tab-dashboard">
+          <!-- TAB: Dashboard (Marked as active tab content) -->
+          <div class="tab-pane fade show active" id="tab-dashboard">
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <h4><i class="bi bi-grid-1x2-fill"></i> Dashboard</h4>
                 <div>
@@ -252,6 +253,57 @@
                   </div>
               </div>
             </div>
+
+            <div class="card shadow-sm mt-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+      <h5>Rekapan Realisasi per Unit (Filter)</h5>
+  </div>
+
+  <div class="card-body">
+      <!-- FILTER -->
+      <div class="row g-2 mb-3">
+          <div class="col-md-4">
+              <label class="form-label small">Filter Grub Belanja</label>
+              <select id="filterGrubBelanja" class="form-select form-select-sm">
+                  <option value="">Semua Grub Belanja</option>
+              </select>
+          </div>
+
+          <div class="col-md-4">
+              <label class="form-label small">Filter Kelompok Belanja</label>
+              <select id="filterKelompokBelanja" class="form-select form-select-sm">
+                  <option value="">Semua Kelompok Belanja</option>
+              </select>
+          </div>
+
+          <div class="col-md-4">
+              <label class="form-label small">&nbsp;</label>
+              <button class="btn btn-primary btn-sm w-100" id="btnFilterRealisasiUnit">
+                  <i class="bi bi-funnel-fill"></i> Terapkan Filter
+              </button>
+          </div>
+      </div>
+
+      <!-- TABLE -->
+      <div class="table-responsive">
+          <table class="table table-bordered" id="tableRekapRealisasiUnit">
+              <thead class="table-light">
+                  <tr>
+                      <th>Unit / Prodi</th>
+                      <th>Grub Belanja</th>
+                      <th>Kelompok Belanja</th>
+                      <th>Total Realisasi</th>
+                      <th>Total RPD</th>
+                      <th>Persentase</th>
+                  </tr>
+              </thead>
+              <tbody id="rekapRealisasiUnitBody">
+              </tbody>
+          </table>
+      </div>
+  </div>
+</div>
+
 
             <div class="row g-3">
               <div class="col-lg-9">
@@ -701,6 +753,43 @@
                   </div>
                 </div>
               </div>
+              <hr>
+
+<h5 class="mt-4"><i class="bi bi-file-earmark-spreadsheet"></i> Import User via CSV</h5>
+
+<div class="mb-2">
+  <small class="text-muted">
+    Format kolom CSV:
+    <strong>Email, Password, Nama_Prodi, ID_Prodi, Role, Pagu_Anggaran</strong>
+  </small>
+</div>
+
+<div class="d-flex gap-2 mb-3">
+  <input 
+    type="file" 
+    id="input-upload-user-csv" 
+    class="form-control" 
+    accept=".csv"
+  >
+
+  <button 
+    id="btn-preview-user-csv" 
+    class="btn btn-secondary"
+  >
+    <i class="bi bi-eye"></i> Preview
+  </button>
+
+  <button 
+    id="btn-upload-user-csv" 
+    class="btn btn-success"
+    disabled
+  >
+    <i class="bi bi-cloud-upload"></i> Upload
+  </button>
+</div>
+
+<div id="user-csv-preview" class="mt-3"></div>
+
 
               <!-- Grub Belanja -->
               <div class="col-md-6">
@@ -897,7 +986,13 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <input type="hidden" id="edit_user_uid">
+                <!-- START MODIFIKASI: Penambahan Grup UID dan Password -->
+                <div id="user-uid-group" class="mb-3" style="display: none;">
+                    <label for="edit_user_uid" class="form-label">UID Pengguna (Hanya Edit)</label>
+                    <input type="text" class="form-control" id="edit_user_uid" readonly>
+                </div>
+                <!-- UID input now inside the group -->
+                
                 <div class="mb-3">
                     <label for="edit_user_id" class="form-label">ID Unit (Wajib)</label>
                     <input type="text" class="form-control" id="edit_user_id" placeholder="Ex: KEP">
@@ -908,8 +1003,15 @@
                 </div>
                 <div class="mb-3">
                     <label for="edit_user_email" class="form-label">Email (Wajib)</label>
-                    <input type="email" class="form-control" id="edit_user_email" placeholder="Email terdaftar di Firebase Auth">
+                    <input type="email" class="form-control" id="edit_user_email" placeholder="Email untuk Login">
                 </div>
+
+                <div id="user-password-group" class="mb-3">
+                    <label for="edit_user_password" class="form-label">Password (Min 6 karakter)</label>
+                    <input type="password" class="form-control" id="edit_user_password" placeholder="Hanya diisi saat menambah pengguna baru">
+                </div>
+                <!-- END MODIFIKASI -->
+                
                 <div class="mb-3">
                     <label for="edit_user_role" class="form-label">Role (Wajib)</label>
                     <!-- VALUE TETAP PRODI (Hanya Role) -->
