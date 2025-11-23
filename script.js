@@ -683,117 +683,238 @@ async function logActivity(action, details = '') {
       }
   }
 
-async function loadFilterOptionsRekapan() {
+async function loadFilterOptionsRekapan() { // <-- FIX: Wrap the block in a named async function
     try {
         // Load Grub Belanja
         const { data: grubData } = await sb.from('grub_belanja').select('*').order('Nama_Grub');
         const elGrub = document.getElementById("filterGrubBelanja");
+        if (elGrub) elGrub.innerHTML = '<option value="">Semua Grub Belanja</option>';
         grubData.forEach(g => {
-            elGrub.innerHTML += `<option value="${g.ID_Grub}">${g.Nama_Grub}</option>`;
+            // FIX: Use Nama_Grub as value, matching 'ajuan' table column Grub_Belanja_Utama
+            if (elGrub) elGrub.innerHTML += `<option value="${g.Nama_Grub}">${g.Nama_Grub}</option>`;
         });
 
-        // Load Kelompok Belanja
-        const { data: kelData } = await sb.from('kelompok_belanja').select('*').order('Nama_Kelompok');
+        // Load Kelompok Belanja (FIX: table name 'kelompok')
+        const { data: kelData } = await sb.from('kelompok').select('*').order('Nama_Kelompok');
         const elKel = document.getElementById("filterKelompokBelanja");
+        if (elKel) elKel.innerHTML = '<option value="">Semua Kelompok Belanja</option>';
         kelData.forEach(k => {
-            elKel.innerHTML += `<option value="${k.ID_Kelompok}">${k.Nama_Kelompok}</option>`;
+            if (elKel) elKel.innerHTML += `<option value="${k.ID_Kelompok}">${k.ID_Kelompok} - ${k.Nama_Kelompok}</option>`;
         });
+        
+        // NEW: Load Prodi Filter (Only for Direktorat, otherwise ignored by query)
+        const elProdi = document.getElementById("filterProdiRekapan");
+        if (elProdi) {
+             if (STATE.role === 'direktorat') {
+                 elProdi.innerHTML = '<option value="">Semua Unit</option>';
+                 const prodiList = STATE.allProdi.filter(p => p.Role === 'prodi');
+                 prodiList.sort((a, b) => a.ID_Prodi.localeCompare(b.ID_Prodi)).forEach(p => {
+                     elProdi.innerHTML += `<option value="${p.ID_Prodi}">${p.ID_Prodi} - ${p.Nama_Prodi}</option>`;
+                 });
+                 // Ensure the container is visible if this runs (relevant for mobile layouts)
+                 if (elProdi.parentElement) elProdi.parentElement.style.display = 'block';
+             } else {
+                 // Hide filter for Prodi role (they only see their own data)
+                 if (elProdi.parentElement) elProdi.parentElement.style.display = 'none';
+             }
+        }
+
 
     } catch (e) {
         console.error("Gagal memuat filter Rekapan Realisasi:", e);
     }
-}
+} 
 
 async function loadRekapanRealisasi() {
     showLoader(true);
 
     try {
         // Ambil filter
-        const grub = document.getElementById("filterGrubBelanja").value;
-        const kelompok = document.getElementById("filterKelompokBelanja").value;
+        const prodiFilter = document.getElementById("filterProdiRekapan")?.value; // NEW
+        const grubFilter = document.getElementById("filterGrubBelanja")?.value;
+        const kelompokFilter = document.getElementById("filterKelompokBelanja")?.value;
+        const selectedYear = document.getElementById('filterTahunDashboard')?.value;
+        
+        // Target elemen tbody yang benar
+        const tbody = document.getElementById("rekapRealisasiUnitBody");
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Memuat data...</td></tr>`;
 
-        // Build query
+
         let query = sb
-    .from('ajuan')
-    .select(`
-        ID_Prodi,
-        Total,
-        Status,
-        Is_Blocked,
-        Grub_Belanja_Utama,
-        ID_Kelompok
-    `)
-    .filter('Status', 'eq', 'Diterima')
-    .filter('Is_Blocked', 'eq', false);
+            .from('ajuan')
+            .select(`
+                ID_Prodi,
+                Total,
+                Grub_Belanja_Utama,
+                ID_Kelompok,
+                ${RPD_SELECT_COLUMNS}
+            `)
+            .filter('Status', 'eq', 'Diterima')
+            .filter('Is_Blocked', 'eq', false);
 
+        if (STATE.role === 'prodi') {
+             // Prodi hanya melihat datanya sendiri
+             query = query.eq('ID_Prodi', STATE.id);
+        } else if (prodiFilter) { // DIREKTORAT: filter berdasarkan Unit yang dipilih
+             query = query.eq('ID_Prodi', prodiFilter);
+        }
+        
+        if (selectedYear) {
+            const start = `${selectedYear}-01-01 00:00:00`;
+            const end   = `${selectedYear}-12-31 23:59:59`;
+            query = query.gte('Timestamp', start).lte('Timestamp', end);
+        }
 
-        if (grub) query = query.filter('Grub_Belanja_Utama', 'eq', grub); // FIX: Changed ID_Grub to Grub_Belanja_Utama
-if (kelompok) query = query.filter('ID_Kelompok', 'eq', kelompok);
+        if (grubFilter) query = query.filter('Grub_Belanja_Utama', 'eq', grubFilter);
+        if (kelompokFilter) query = query.filter('ID_Kelompok', 'eq', kelompokFilter);
 
         const { data, error } = await query;
         if (error) throw error;
+        
+        // --- Aggregation Logic: Group by Prodi, Grub, and Kelompok ---
+        const aggregationKey = (d) => `${d.ID_Prodi}|${d.Grub_Belanja_Utama}|${d.ID_Kelompok}`;
+        const aggregatedData = {};
+        
+        data.forEach(ajuan => {
+            const key = aggregationKey(ajuan);
+            if (!aggregatedData[key]) {
+                aggregatedData[key] = {
+                    ID_Prodi: ajuan.ID_Prodi,
+                    Grub_Belanja_Utama: ajuan.Grub_Belanja_Utama,
+                    ID_Kelompok: ajuan.ID_Kelompok,
+                    Total_Diterima: 0,
+                    Total_RPD: 0,
+                    Total_Realisasi: 0,
+                };
+            }
+            
+            // Sum Total Diterima (Total Ajuan)
+            aggregatedData[key].Total_Diterima += Number(ajuan.Total) || 0;
 
-        // Grouping per unit
-        const summary = {};
-        data.forEach(x => {
-            if (!summary[x.ID_Prodi]) summary[x.ID_Prodi] = 0;
-            summary[x.ID_Prodi] += Number(x.Total) || 0;
+            // Sum RPD and Realisasi across all months
+            RPD_MONTHS.forEach(m => {
+                aggregatedData[key].Total_RPD += Number(ajuan[getMonthlyKey('RPD', m)]) || 0;
+                aggregatedData[key].Total_Realisasi += Number(ajuan[getMonthlyKey('Realisasi', m)]) || 0;
+            });
         });
 
-        // Convert ke array agar mudah dirender
-        const result = Object.keys(summary).map(prodi => ({
-            prodi,
-            total: summary[prodi]
-        }));
-
+        const result = Object.values(aggregatedData);
         renderRekapanRealisasi(result);
 
     } catch (e) {
-        console.error(e);
+        console.error("Gagal memuat rekapan realisasi:", e);
         showToast("Gagal memuat rekapan realisasi", "danger");
+        document.getElementById("rekapRealisasiUnitBody").innerHTML = `<tr><td colspan="6" class="text-center text-danger">Gagal memuat data.</td></tr>`;
     } finally {
         showLoader(false);
     }
 }
 
 function renderRekapanRealisasi(data) {
-    const container = document.getElementById("rekapanRealisasiTable");
-
-    if (!container) return;
+    const tbody = document.getElementById("rekapRealisasiUnitBody");
+    if (!tbody) return;
 
     if (!data.length) {
-        container.innerHTML = `<div class="alert alert-warning">Tidak ada data untuk filter ini</div>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Tidak ada data realisasi yang ditemukan untuk filter ini.</td></tr>`;
         return;
     }
 
-    let html = `
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped">
-                <thead>
-                    <tr>
-                        <th>Unit / Prodi</th>
-                        <th>Total Realisasi</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
+    // Sort by Unit, then Grub, then Kelompok
+    data.sort((a, b) => {
+        if (a.ID_Prodi !== b.ID_Prodi) return a.ID_Prodi.localeCompare(b.ID_Prodi);
+        if (a.Grub_Belanja_Utama !== b.Grub_Belanja_Utama) return a.Grub_Belanja_Utama.localeCompare(b.Grub_Belanja_Utama);
+        return a.ID_Kelompok.localeCompare(b.ID_Kelompok);
+    });
 
-    data.forEach(item => {
+    // Helper to get Prodi Name
+    const prodiNameMap = STATE.allProdi.reduce((acc, p) => {
+        acc[p.ID_Prodi] = p.Nama_Prodi;
+        return acc;
+    }, {});
+    
+    // Helper to get Kelompok Name
+    const kelompokNameMap = STATE.allKelompok.reduce((acc, k) => {
+        acc[k.ID_Kelompok] = k.Nama_Kelompok;
+        return acc;
+    }, {});
+
+    let html = '';
+    
+    // Grouping for Rowspan Calculation
+    const groupedByProdi = data.reduce((acc, item) => {
+        if (!acc[item.ID_Prodi]) acc[item.ID_Prodi] = [];
+        acc[item.ID_Prodi].push(item);
+        return acc;
+    }, {});
+    
+    // Grand Totals
+    let grandTotalRealisasi = 0;
+    let grandTotalRPD = 0;
+
+    const prodiKeys = Object.keys(groupedByProdi).sort();
+    
+    prodiKeys.forEach(prodiId => {
+        const prodiGroup = groupedByProdi[prodiId];
+        const rowSpan = prodiGroup.length;
+        const prodiName = prodiNameMap[prodiId] || prodiId;
+        
+        let subTotalRealisasi = 0;
+        let subTotalRPD = 0;
+
+        prodiGroup.forEach((item, index) => {
+            const totalRealisasi = item.Total_Realisasi;
+            const totalRPD = item.Total_RPD;
+            const percentage = totalRPD > 0 ? (totalRealisasi / totalRPD) * 100 : 0;
+            const percentageText = percentage.toFixed(1) + '%';
+            const percentageClass = percentage >= 100 ? 'bg-success' : 'bg-warning';
+            
+            subTotalRealisasi += totalRealisasi;
+            subTotalRPD += totalRPD;
+            
+            grandTotalRealisasi += totalRealisasi;
+            grandTotalRPD += totalRPD;
+
+            html += `
+                <tr>
+                    ${index === 0 ? `<td rowspan="${rowSpan}" class="align-middle fw-bold" style="border-left: 5px solid ${getColorForProdi(prodiId)};">${escapeHtml(prodiName)}</td>` : ''}
+                    <td>${escapeHtml(item.Grub_Belanja_Utama)}</td>
+                    <td>${item.ID_Kelompok} - ${escapeHtml(kelompokNameMap[item.ID_Kelompok] || item.ID_Kelompok)}</td>
+                    <td class="text-end">Rp ${totalRealisasi.toLocaleString('id-ID')}</td>
+                    <td class="text-end">Rp ${totalRPD.toLocaleString('id-ID')}</td>
+                    <td class="text-center"><span class="badge ${percentageClass}">${percentageText}</span></td>
+                </tr>
+            `;
+        });
+        
+        // Add Subtotal row for each Prodi
+        const subTotalPercentage = subTotalRPD > 0 ? (subTotalRealisasi / subTotalRPD) * 100 : 0;
+        const subTotalPercentageText = subTotalPercentage.toFixed(1) + '%';
+        const subTotalPercentageClass = subTotalPercentage >= 100 ? 'bg-success' : 'bg-warning';
+        
         html += `
-            <tr>
-                <td>${escapeHtml(getProdiName(item.prodi))}</td>
-                <td><strong>Rp ${item.total.toLocaleString('id-ID')}</strong></td>
+            <tr class="table-info">
+                <td colspan="3" class="text-end fw-bold">Subtotal Realisasi Unit ${escapeHtml(prodiName)}</td>
+                <td class="text-end fw-bold">Rp ${subTotalRealisasi.toLocaleString('id-ID')}</td>
+                <td class="text-end fw-bold">Rp ${subTotalRPD.toLocaleString('id-ID')}</td>
+                <td class="text-center fw-bold"><span class="badge ${subTotalPercentageClass}">${subTotalPercentageText}</span></td>
             </tr>
         `;
     });
-
+    
+    // Add Grand Total row
+    const grandTotalPercentage = grandTotalRPD > 0 ? (grandTotalRealisasi / grandTotalRPD) * 100 : 0;
+    const grandTotalPercentageText = grandTotalPercentage.toFixed(1) + '%';
+    
     html += `
-                </tbody>
-            </table>
-        </div>
+        <tr class="table-dark">
+            <td colspan="3" class="text-end fw-bold">GRAND TOTAL</td>
+            <td class="text-end fw-bold">Rp ${grandTotalRealisasi.toLocaleString('id-ID')}</td>
+            <td class="text-end fw-bold">Rp ${grandTotalRPD.toLocaleString('id-ID')}</td>
+            <td class="text-center fw-bold"><span class="badge bg-light text-dark">${grandTotalPercentageText}</span></td>
+        </tr>
     `;
 
-    container.innerHTML = html;
+    tbody.innerHTML = html;
 }
 
 function getProdiName(id) {
@@ -1035,16 +1156,38 @@ function getProdiName(id) {
     
     // --- FIX 2: Ensure critical initial data (like STATE.allProdi) is loaded before dashboard calculations
     await loadInitialData(); 
+    await loadFilterOptionsRekapan(); // <-- ADDED CALL to ensure Rekapan filters are populated
     await loadDashboardData();
     // ---------------------------------------------------------------------------------------------------
+    
+// --- FIX: Tombol Terapkan Filter Rekapan Realisasi ---
+const applyFilterBtn = document.getElementById("btn-apply-filter-rekapan");
+if (applyFilterBtn) {
+    applyFilterBtn.addEventListener("click", () => {
+        console.log("Filter Rekapan diterapkan");
+        loadRekapanRealisasi(); // Panggil fungsi load saat tombol diklik
+    });
+}
+
     
     setupNotificationListener();
     setupExportListeners(); // Setup listeners for export/print buttons
 
-    document.getElementById("filterGrubBelanja").addEventListener("change", loadRekapanRealisasi);
-document.getElementById("filterKelompokBelanja").addEventListener("change", loadRekapanRealisasi);
-safeAddClickListener('tab-dashboard-link', loadRekapanRealisasi);
+    // Initial load for Rekapan Realisasi
+    loadRekapanRealisasi(); 
 
+
+    // Bindings for Rekapan Realisasi
+    const filterGrubBelanjaEl = document.getElementById("filterGrubBelanja");
+    const filterKelompokBelanjaEl = document.getElementById("filterKelompokBelanja");
+    
+    if (filterGrubBelanjaEl) filterGrubBelanjaEl.addEventListener("change", loadRekapanRealisasi);
+    if (filterKelompokBelanjaEl) filterKelompokBelanjaEl.addEventListener("change", loadRekapanRealisasi);
+
+    // Initial load for Rekapan Realisasi (assuming it's displayed on dashboard)
+    // If the Rekapan view is activated via a tab, bind the load function to that tab's 'shown.bs.tab' event.
+    // For now, rely on initialization and filter change events.
+    loadRekapanRealisasi(); 
     
     // Setup listener for dashboard filters (should trigger processDataForDashboard)
     ['filterTahunDashboard', 'filterTipeDashboard'].forEach(id => {
@@ -1815,7 +1958,7 @@ EDIT_CALC_INPUTS.forEach(id => {
     } else {
         console.log("Mengambil data Kelompok dari SUPABASE.");
         try {
-            // Supabase Query
+            // Supabase Query (Table name: 'kelompok')
             const { data: kelompokData, error } = await sb.from('kelompok').select('ID_Kelompok, Nama_Kelompok');
             if (error) throw error;
             
@@ -5711,19 +5854,21 @@ safeAddClickListener('btn-open-add-user-modal', () => {
   async function loadFilterMasterData() {
     // Load Grub Belanja
     const grubSelect = document.getElementById('filterGrubBelanja');
-    grubSelect.innerHTML = `<option value="">Semua Grub Belanja</option>`;
-
-    STATE.allGrubBelanja.forEach(g => {
-        grubSelect.innerHTML += `<option value="${g.Nama_Grub}">${g.Nama_Grub}</option>`;
-    });
+    if (grubSelect) {
+        grubSelect.innerHTML = `<option value="">Semua Grub Belanja</option>`;
+        STATE.allGrubBelanja.forEach(g => {
+            grubSelect.innerHTML += `<option value="${g.Nama_Grub}">${g.Nama_Grub}</option>`;
+        });
+    }
 
     // Load Kelompok Belanja
     const kelompokSelect = document.getElementById('filterKelompokBelanja');
-    kelompokSelect.innerHTML = `<option value="">Semua Kelompok Belanja</option>`;
-
-    STATE.allKelompok.forEach(k => {
-        kelompokSelect.innerHTML += `<option value="${k.ID_Kelompok}">${k.ID_Kelompok} - ${k.Nama_Kelompok}</option>`;
-    });
+    if (kelompokSelect) {
+        kelompokSelect.innerHTML = `<option value="">Semua Kelompok Belanja</option>`;
+        STATE.allKelompok.forEach(k => {
+            kelompokSelect.innerHTML += `<option value="${k.ID_Kelompok}">${k.ID_Kelompok} - ${k.Nama_Kelompok}</option>`;
+        });
+    }
 }
 
 
