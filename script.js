@@ -31,6 +31,7 @@ const auth = firebase.auth();
 // FIREBASE ALIASES (Digunakan untuk koleksi yang tetap di Firebase: users, notifications, appConfig)
 const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp;
 const arrayUnion = firebase.firestore.FieldValue.arrayUnion;
+const deleteField = firebase.firestore.FieldValue.delete;
 const firestoreTimestamp = firebase.firestore.Timestamp; 
 
 // SUPABASE ALIASES (Digunakan untuk ajuan, kelompok, activityLog, grub_belanja, ajuan_history)
@@ -130,6 +131,8 @@ const AJUAN_IMPORT_HEADERS = [
     'Keterangan', 
     'Status_Revisi', 
     'Data_Dukung'
+    // The complex calculation fields (calcA/calcS) are ignored in bulk import for simplicity/reliability, 
+    // relying only on the final aggregated values defined by the user in the template.
 ];
 // --- END NEW IMPORT CONSTANTS ---
 
@@ -179,7 +182,7 @@ const setElChecked = (id, checked) => {
   let CHARTS = {};
   const LOADER = document.getElementById('loading-overlay');
   const TOAST_CONTAINER = document.querySelector('.toast-container');
-  const PRODI_COLORS = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac', '#3a4e5a', '#6f4e37', '#a7c957', '#9b59b6', '#3498db', '#f1c40f', '#2ecc71', '#e74c3c', '#95a5a6', '#d35400', '#c0392b', '#16a085', '#27ae60', '#2980b9', '#8e44ad', '#f39c12', '#d35400', '#c0392b', '#16a085', '#27ae60', '#2980b9', '#8e44ad', '#f39c12', '#d35400', '#c0392b', '#16a085', '#27ae60', '#2980b9', '#8e44ad', '#f39c12', '#d35400', '#c0392b', '#16a085', '#27ae60', '#2980b9', '#8e44ad', '#f39c12', '#d35400', '#c0392b', '#16a085', '#27ae60'];
+  const PRODI_COLORS = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac', '#3a4e5a', '#6f4e37', '#a7c957', '#9b59b6', '#3498db', '#f1c40f', '#2ecc71', '#e74c3c', '#95a5a6', '#d35400', '#c0392b', '#16a085', '#27ae60', '#2980b9', '#8e44ad', '#f39c12', '#d35400', '#c0392b', '#16a085', '#27ae60', '#2980b9', '#8e44ad', '#f39c12', '#d35400', '#c0392b', '#16a085', '#27ae60', '#2980b9', '#8e44ad', '#f39c12', '#d35400', '#c0392b', '#16a085', '#27ae60'];
   const RPD_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
 
   /** Helper to get the snake_case column key for monthly RPD/Realisasi data. */
@@ -680,6 +683,125 @@ async function logActivity(action, details = '') {
       }
   }
 
+async function loadFilterOptionsRekapan() {
+    try {
+        // Load Grub Belanja
+        const { data: grubData } = await sb.from('grub_belanja').select('*').order('Nama_Grub');
+        const elGrub = document.getElementById("filterGrubBelanja");
+        grubData.forEach(g => {
+            elGrub.innerHTML += `<option value="${g.ID_Grub}">${g.Nama_Grub}</option>`;
+        });
+
+        // Load Kelompok Belanja
+        const { data: kelData } = await sb.from('kelompok_belanja').select('*').order('Nama_Kelompok');
+        const elKel = document.getElementById("filterKelompokBelanja");
+        kelData.forEach(k => {
+            elKel.innerHTML += `<option value="${k.ID_Kelompok}">${k.Nama_Kelompok}</option>`;
+        });
+
+    } catch (e) {
+        console.error("Gagal memuat filter Rekapan Realisasi:", e);
+    }
+}
+
+async function loadRekapanRealisasi() {
+    showLoader(true);
+
+    try {
+        // Ambil filter
+        const grub = document.getElementById("filterGrubBelanja").value;
+        const kelompok = document.getElementById("filterKelompokBelanja").value;
+
+        // Build query
+        let query = sb
+    .from('ajuan')
+    .select(`
+        ID_Prodi,
+        Total,
+        Status,
+        Is_Blocked,
+        Grub_Belanja_Utama,
+        ID_Kelompok
+    `)
+    .filter('Status', 'eq', 'Diterima')
+    .filter('Is_Blocked', 'eq', false);
+
+
+        if (grub) query = query.filter('Grub_Belanja_Utama', 'eq', grub); // FIX: Changed ID_Grub to Grub_Belanja_Utama
+if (kelompok) query = query.filter('ID_Kelompok', 'eq', kelompok);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        // Grouping per unit
+        const summary = {};
+        data.forEach(x => {
+            if (!summary[x.ID_Prodi]) summary[x.ID_Prodi] = 0;
+            summary[x.ID_Prodi] += Number(x.Total) || 0;
+        });
+
+        // Convert ke array agar mudah dirender
+        const result = Object.keys(summary).map(prodi => ({
+            prodi,
+            total: summary[prodi]
+        }));
+
+        renderRekapanRealisasi(result);
+
+    } catch (e) {
+        console.error(e);
+        showToast("Gagal memuat rekapan realisasi", "danger");
+    } finally {
+        showLoader(false);
+    }
+}
+
+function renderRekapanRealisasi(data) {
+    const container = document.getElementById("rekapanRealisasiTable");
+
+    if (!container) return;
+
+    if (!data.length) {
+        container.innerHTML = `<div class="alert alert-warning">Tidak ada data untuk filter ini</div>`;
+        return;
+    }
+
+    let html = `
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>Unit / Prodi</th>
+                        <th>Total Realisasi</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    data.forEach(item => {
+        html += `
+            <tr>
+                <td>${escapeHtml(getProdiName(item.prodi))}</td>
+                <td><strong>Rp ${item.total.toLocaleString('id-ID')}</strong></td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+function getProdiName(id) {
+    const p = STATE.allProdi.find(x => x.ID_Prodi === id);
+    return p ? p.Nama_Prodi : id;
+}
+
+
   /**
    * Loads Berita Acara TTD settings from Firebase appConfig.
    */
@@ -918,6 +1040,11 @@ async function logActivity(action, details = '') {
     
     setupNotificationListener();
     setupExportListeners(); // Setup listeners for export/print buttons
+
+    document.getElementById("filterGrubBelanja").addEventListener("change", loadRekapanRealisasi);
+document.getElementById("filterKelompokBelanja").addEventListener("change", loadRekapanRealisasi);
+safeAddClickListener('tab-dashboard-link', loadRekapanRealisasi);
+
     
     // Setup listener for dashboard filters (should trigger processDataForDashboard)
     ['filterTahunDashboard', 'filterTipeDashboard'].forEach(id => {
@@ -1030,7 +1157,10 @@ async function logActivity(action, details = '') {
   function setupNotificationListener() {
       if (STATE.notificationListener) STATE.notificationListener();
       if (!STATE.uid) return;
-      STATE.notificationListener = db.collection('notifications').where('targetUid', '==', STATE.uid)
+      
+      // KRITIS: Pastikan Firebase Security Rules mengizinkan pengguna untuk membaca koleksi 'notifications'
+      // hanya untuk dokumen yang targetUid-nya sesuai dengan UID pengguna saat ini.
+        STATE.notificationListener = db.collection('notifications').where('targetUid', '==', STATE.uid)
           .orderBy('timestamp', 'desc')
           .limit(20)
           .onSnapshot(snapshot => {
@@ -1046,7 +1176,8 @@ async function logActivity(action, details = '') {
               }
               renderNotifications(notifications);
           }, error => {
-              console.error("Error listener notifikasi:", error);
+              // Jika ini gagal (Error 403 / Missing permissions), cek Firebase Security Rules!
+              console.error("Error listener notifikasi (Cek Firebase Security Rules):", error);
           });
   }
 
@@ -1129,25 +1260,92 @@ async function logActivity(action, details = '') {
     }
   };
 
-  function calculateTotal(prefix = '') {
-    const j = Number(document.getElementById(`${prefix}jumlah`).value || 0);
-    const h = Number(document.getElementById(`${prefix}hargaSatuan`).value || 0);
+  /**
+ * Calculates the complex volume, unit cost, and total.
+ * Assumes Volume = A1*A2*A3 and Harga Satuan = A4*A5*A6.
+ * All inputs are optional, treated as 1 for multiplication if empty/null, but 0 if zero is entered.
+ */
+function calculateTotal(prefix = '') {
+    // Collect all 6 numerical inputs. If empty, treat as 1 for multiplication chain.
+    const getVal = (id) => {
+        const value = document.getElementById(`${prefix}${id}`)?.value;
+        const num = Number(value);
+        // If input is explicitly empty/null/undefined, return 1 for multiplication chain.
+        // If input is 0 or results in 0 (e.g., failed parsing), return 0.
+        if (value === '' || value === null || value === undefined) return 1;
+        return isNaN(num) ? 0 : num;
+    };
+    
+    // Volume Calculation (A1 x A2 x A3)
+    const a1 = getVal('calcA1');
+    const a2 = getVal('calcA2');
+    const a3 = getVal('calcA3');
+    
+    // Harga Satuan Calculation (A4 x A5 x A6)
+    const a4 = getVal('calcA4');
+    const a5 = getVal('calcA5');
+    const a6 = getVal('calcA6');
+
+    // Calculate intermediate results
+    const volumeResult = (a1 * a2 * a3);
+    const hargaSatuanResult = (a4 * a5 * a6);
+    const totalResult = volumeResult * hargaSatuanResult;
+
+    // Update the output fields
+    const jumlahEl = document.getElementById(`${prefix}jumlah`);
+    const hargaSatuanEl = document.getElementById(`${prefix}hargaSatuan`);
     const totalEl = document.getElementById(`${prefix}total`);
-    if(totalEl) totalEl.value = (j * h).toLocaleString('id-ID');
-  }
-  
-  // Safely add listeners for calculateTotal
-  ['jumlah', 'hargaSatuan'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.addEventListener('input', () => calculateTotal());
-  });
-  ['edit-jumlah', 'edit-hargaSatuan'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.addEventListener('input', () => calculateTotal('edit-'));
-  });
+
+    // Ensure we handle the scenario where the result might be NaN if text was entered
+    const finalVolume = totalResult > 0 ? volumeResult : 0; // If total is 0, reset volume/hargaSatuan to 0 to prevent displaying 1
+    const finalHargaSatuan = totalResult > 0 ? hargaSatuanResult : 0;
+    const finalTotal = totalResult > 0 ? totalResult : 0;
+
+    if (jumlahEl) jumlahEl.value = finalVolume.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+    if (hargaSatuanEl) hargaSatuanEl.value = finalHargaSatuan.toLocaleString('id-ID', { maximumFractionDigits: 0 });
+    if (totalEl) totalEl.value = finalTotal.toLocaleString('id-ID', { maximumFractionDigits: 0 });
+    
+    // Return the calculated values as numbers (used for staging/saving)
+    return {
+        Jumlah: finalVolume,
+        Harga_Satuan: finalHargaSatuan,
+        Total: finalTotal
+    };
+}
+
+// --- Replacement for the old simple calculation listeners ---
+// List of all 6 Angka inputs
+const CALC_INPUTS = ['calcA1', 'calcA2', 'calcA3', 'calcA4', 'calcA5', 'calcA6'];
+const EDIT_CALC_INPUTS = CALC_INPUTS.map(id => `edit-${id}`);
+
+// Set up listeners for the main form
+CALC_INPUTS.forEach(id => {
+    const el = document.getElementById(id);
+    // Listen to changes on all 6 numerical inputs for real-time total update
+    if (el) el.addEventListener('input', () => calculateTotal()); 
+});
+
+// Set up listeners for the edit modal
+EDIT_CALC_INPUTS.forEach(id => {
+    const el = document.getElementById(id);
+    // Listen to changes on all 6 numerical inputs for real-time total update
+    if (el) el.addEventListener('input', () => calculateTotal('edit-'));
+});
+// ---------------------------------------------------------------------------------------------------
 
   function clearRincianForm() {
-      ['namaAjuan', 'jumlah', 'satuan', 'hargaSatuan', 'total', 'keterangan', 'dataDukung'].forEach(id => setElValue(id, ''));
+      // Clear standard fields
+      ['namaAjuan', 'satuan', 'keterangan', 'dataDukung'].forEach(id => setElValue(id, ''));
+      
+      // Clear calculated result fields (now read-only)
+      ['jumlah', 'hargaSatuan', 'total'].forEach(id => setElValue(id, '')); 
+      
+      // Clear the 6 calculation inputs and their units
+      for (let i = 1; i <= 6; i++) {
+          setElValue(`calcA${i}`, '');
+          setElValue(`calcS${i}`, '');
+      }
+
       setElValue('selectGrub', '');
       setElValue('selectKelompok', '');
       setElValue('selectRevisi', 'Ajuan Baru');
@@ -1169,8 +1367,8 @@ async function logActivity(action, details = '') {
     stagingArea.style.display = 'block';
     let totalStaging = 0;
     const tableRows = STATE.stagingList.map((item, index) => {
-      const itemTotal = (item.Jumlah || 0) * (item.Harga_Satuan || 0); totalStaging += itemTotal;
-      return `<tr><td>${index + 1}</td><td>${escapeHtml(item.Grub_Belanja_Utama)}</td><td>${escapeHtml(item.Judul_Kegiatan)}</td><td>${escapeHtml(item.Nama_Ajuan)}</td><td>${escapeHtml(item.ID_Kelompok)}</td><td class="text-end">${Number(item.Jumlah).toLocaleString('id-ID')}</td><td>${escapeHtml(item.Satuan)}</td><td class="text-end">${Number(item.Harga_Satuan).toLocaleString('id-ID')}</td><td class="text-end fw-bold">${itemTotal.toLocaleString('id-ID')}</td><td><button class="btn btn-sm btn-outline-danger" onclick="window.removeFromStaging(${index})" title="Hapus"><i class="bi bi-trash"></i></button></td></td></tr>`;
+      const itemTotal = Number(item.Total) || 0; totalStaging += itemTotal;
+      return `<tr><td>${index + 1}</td><td>${escapeHtml(item.Grub_Belanja_Utama)}</td><td>${escapeHtml(item.Judul_Kegiatan)}</td><td>${escapeHtml(item.Nama_Ajuan)}</td><td>${escapeHtml(item.ID_Kelompok)}</td><td class="text-end">${Number(item.Jumlah).toLocaleString('id-ID', { maximumFractionDigits: 2 })}</td><td>${escapeHtml(item.Satuan)}</td><td class="text-end">${Number(item.Harga_Satuan).toLocaleString('id-ID')}</td><td class="text-end fw-bold">${itemTotal.toLocaleString('id-ID')}</td><td><button class="btn btn-sm btn-outline-danger" onclick="window.removeFromStaging(${index})" title="Hapus"><i class="bi bi-trash"></i></button></td></td></tr>`;
     }).join('');
     container.innerHTML = `<table class="table table-sm table-striped"><thead class="table-light"><tr><th>No.</th><th>Grub Belanja</th><th>Judul Kegiatan</th><th>Rincian Ajuan</th><th>Kelompok</th><th class="text-end">Jumlah</th><th>Satuan</th><th class="text-end">Harga Satuan</th><th class="text-end">Total</th><th>Aksi</th></tr></thead><tbody>${tableRows}</tbody></table>`;
     summaryEl.innerHTML = `Total Ajuan: ${STATE.stagingList.length} Rincian | Grand Total: Rp ${totalStaging.toLocaleString('id-ID')}`;
@@ -1179,15 +1377,54 @@ async function logActivity(action, details = '') {
   
   document.getElementById('btn-add-to-staging').addEventListener('click', () => {
     if (STATE.role !== 'prodi') { showToast('Hanya role prodi yang dapat mengajukan.', 'danger'); return; }
+    
+    // 1. Perform calculation and get results
+    const calcResults = calculateTotal();
+    
     const judulKegiatan = document.getElementById('judulKegiatan').value.trim();
+    const namaAjuan = document.getElementById('namaAjuan').value.trim();
+    const satuan = document.getElementById('satuan').value.trim();
+    
     if (!judulKegiatan) { showToast('Judul Kegiatan wajib diisi.', 'warning'); document.getElementById('judulKegiatan').focus(); return; }
-    const jumlah = Number(document.getElementById('jumlah').value || 0);
-    const hargaSatuan = Number(document.getElementById('hargaSatuan').value || 0);
+    if (!namaAjuan || calcResults.Total <= 0 || !satuan || !document.getElementById('selectKelompok').value || !document.getElementById('selectGrub').value){ 
+        showToast('Harap lengkapi Judul, Rincian, Satuan Akhir, Kelompok, Grub, dan pastikan Total > 0.', 'warning'); return; 
+    }
+    
+    // 2. Prepare payload including new calculation fields (calcA1..calcS6)
     const payload = {
-      Grub_Belanja_Utama: document.getElementById('selectGrub').value, Judul_Kegiatan: judulKegiatan, ID_Prodi: STATE.id, ID_Kelompok: document.getElementById('selectKelompok').value, Nama_Ajuan: document.getElementById('namaAjuan').value, Jumlah: jumlah, Satuan: document.getElementById('satuan').value, Harga_Satuan: hargaSatuan, Total: jumlah * hargaSatuan, Keterangan: document.getElementById('keterangan').value, Status_Revisi: document.getElementById('selectRevisi').value, Data_Dukung: document.getElementById('dataDukung').value,
+      Grub_Belanja_Utama: document.getElementById('selectGrub').value, 
+      Judul_Kegiatan: judulKegiatan, 
+      ID_Prodi: STATE.id, 
+      ID_Kelompok: document.getElementById('selectKelompok').value, 
+      Nama_Ajuan: namaAjuan, 
+      // Use calculated results for DB fields:
+      Jumlah: calcResults.Jumlah, 
+      Satuan: satuan, 
+      Harga_Satuan: calcResults.Harga_Satuan, 
+      Total: calcResults.Total, 
+      Keterangan: document.getElementById('keterangan').value, 
+      Status_Revisi: document.getElementById('selectRevisi').value, 
+      Data_Dukung: document.getElementById('dataDukung').value,
+      
+      // NEW: Store calculation breakdown (safe numeric conversion)
+      calcA1: Number(document.getElementById('calcA1').value) || null,
+      calcS1: document.getElementById('calcS1').value || null,
+      calcA2: Number(document.getElementById('calcA2').value) || null,
+      calcS2: document.getElementById('calcS2').value || null,
+      calcA3: Number(document.getElementById('calcA3').value) || null,
+      calcS3: document.getElementById('calcS3').value || null,
+      calcA4: Number(document.getElementById('calcA4').value) || null,
+      calcS4: document.getElementById('calcS4').value || null,
+      calcA5: Number(document.getElementById('calcA5').value) || null,
+      calcS5: document.getElementById('calcS5').value || null,
+      calcA6: Number(document.getElementById('calcA6').value) || null,
+      calcS6: document.getElementById('calcS6').value || null,
     };
-    if(!payload.Nama_Ajuan || payload.Jumlah <= 0 || !payload.Satuan || payload.Harga_Satuan < 0 || !payload.ID_Kelompok || !payload.Grub_Belanja_Utama){ showToast('Harap lengkapi semua field rincian.', 'warning'); return; }
-    STATE.stagingList.push(payload); showToast(`Rincian "${payload.Nama_Ajuan}" telah ditambahkan.`, 'info'); renderStagingTable(); clearRincianForm();
+    
+    STATE.stagingList.push(payload); 
+    showToast(`Rincian "${payload.Nama_Ajuan}" telah ditambahkan.`, 'info'); 
+    renderStagingTable(); 
+    clearRincianForm();
   });
   document.getElementById('btn-clear-staging').addEventListener('click', () => {
     if (confirm('Yakin ingin menghapus semua rincian?')) { STATE.stagingList = []; renderStagingTable(); clearAjuanForm(); showToast('Daftar ajuan dibersihkan.', 'info'); }
@@ -1763,6 +2000,42 @@ async function logActivity(action, details = '') {
   // --- END RENDER ACTIONS HELPER ---
   // ------------------------------------------------------------------
   
+  // Helper function to format the calculation breakdown for display
+  function formatBreakdown(r) {
+      // Check if the new calculation fields exist (for compatibility with old data)
+      if (r.calcA1 === undefined) {
+          // Fallback to old format if breakdown data is missing 
+          const jumlah = Number(r.Jumlah || 0);
+          const harga = Number(r.Harga_Satuan || 0);
+          const satuan = escapeHtml(r.Satuan || '');
+          return `<div class="small text-nowrap">${jumlah.toLocaleString('id-ID', { maximumFractionDigits: 2 })} ${satuan} X Rp ${harga.toLocaleString('id-ID')}</div>`;
+      }
+      
+      let volumeBreakdown = [];
+      for (let i = 1; i <= 3; i++) {
+          const a = Number(r[`calcA${i}`]);
+          const s = escapeHtml(r[`calcS${i}`] || '');
+          if (a > 0) volumeBreakdown.push(`${a.toLocaleString('id-ID', { maximumFractionDigits: 2 })} ${s}`);
+      }
+      
+      let costBreakdown = [];
+      for (let i = 4; i <= 6; i++) {
+          const a = Number(r[`calcA${i}`]);
+          const s = escapeHtml(r[`calcS${i}`] || '');
+          if (a > 0) costBreakdown.push(`${a.toLocaleString('id-ID', { maximumFractionDigits: 2 })} ${s}`);
+      }
+      
+      const jumlah = Number(r.Jumlah || 0);
+      const harga = Number(r.Harga_Satuan || 0);
+      const satuan = escapeHtml(r.Satuan || '');
+      
+      return `
+          <div class="small text-muted mb-1" title="Volume Breakdown">${volumeBreakdown.join(' x ') || '1'}</div>
+          <div class="small text-muted mb-1" title="Harga Satuan Breakdown">${costBreakdown.join(' x ') || '1'}</div>
+          <strong class="text-nowrap">${jumlah.toLocaleString('id-ID', { maximumFractionDigits: 2 })} ${satuan} X Rp ${harga.toLocaleString('id-ID')}</strong>
+      `;
+  }
+  
   // --- MIGRATED TO SUPABASE: refreshAjuanTable (Ajuan Fetching) ---
    function refreshAjuanTable(tipe) {
     const isPerubahan = tipe.startsWith('Perubahan');
@@ -2118,10 +2391,10 @@ async function logActivity(action, details = '') {
                       html += `<tr class="prodi-indicator ${rowClass}" style="border-left-color: ${prodiColor};">
                                   <td><input type="checkbox" class="ajuan-checkbox-${sanitizedTipe}" data-id="${ajuanIdString}"></td>
                                   <td class="bg-secondary-subtle"><small>${escapeHtml(original.Nama_Ajuan || 'N/A')}</small></td>
-                                  <td class="bg-secondary-subtle"><small class="text-nowrap">${Number(original.Jumlah || 0).toLocaleString('id-ID')} ${escapeHtml(original.Satuan || '')} X Rp ${Number(original.Harga_Satuan || 0).toLocaleString('id-ID')}</small></td>
+                                  <td class="bg-secondary-subtle">${formatBreakdown(original)}</td>
                                   <td class="text-end bg-secondary-subtle"><small>Rp ${totalLama.toLocaleString('id-ID')}</small></td>
                                   <td><div class="d-flex justify-content-between align-items-start"><strong class="me-2">${escapeHtml(r.Nama_Ajuan)}</strong><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal text-nowrap">${ajuanIdString.substring(0, 6)}..</span></div>${prodiInfoHtml}<div class="mt-1"><span class="badge bg-info-subtle text-info-emphasis fw-normal">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</span> ${idAjuanAsal}</div></td>
-                                  <td><div class="small text-nowrap">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)} X Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div></td>
+                                  <td>${formatBreakdown(r)}</td>
                                   <td class="text-end text-nowrap"><strong>Rp ${totalBaru.toLocaleString('id-ID')}</strong></td>
                                   <td class="text-end text-nowrap fw-bold ${selisihClass}">${selisihText}</td>
                                   <td class="text-center action-buttons">${dataDukungLink}</td>
@@ -2166,7 +2439,7 @@ async function logActivity(action, details = '') {
                       const rowClass = isBlocked ? 'blocked-row' : ''; 
                       const statusBadgeText = isBlocked && r.Status === 'Diterima' ? `Diterima (BLOKIR)` : (isBlocked ? `${r.Status} (BLOKIR)` : r.Status);
 
-                      html += `<tr class="prodi-indicator ${rowClass}" style="border-left-color: ${prodiColor};"><td><input type="checkbox" class="ajuan-checkbox-${sanitizedTipe}" data-id="${ajuanIdString}"></td><td><div class="d-flex justify-content-between align-items-start"><strong class="me-2">${escapeHtml(r.Nama_Ajuan)}</strong><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal text-nowrap">${ajuanIdString.substring(0, 6)}..</span></div>${prodiInfoHtml}<div class="mt-1"><span class="badge bg-info-subtle text-info-emphasis fw-normal">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</span> ${idAjuanAsal}</div></td><td><div class="small text-nowrap">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)} X Rp ${Number(r.Harga_Satuan).toLocaleString('id-ID')}</div></td><td class="text-end text-nowrap"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td><td class="text-center action-buttons">${dataDukungLink}</td><td><span class="badge rounded-pill status-badge ${statusClassMap[statusKey] || statusClassMap[r.Status] || 'bg-secondary'}">${statusBadgeText}</span></td><td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td><td class="text-end action-buttons">${renderActionsForRow(r, tipe)}</td></tr>`;
+                      html += `<tr class="prodi-indicator ${rowClass}" style="border-left-color: ${prodiColor};"><td><input type="checkbox" class="ajuan-checkbox-${sanitizedTipe}" data-id="${ajuanIdString}"></td><td><div class="d-flex justify-content-between align-items-start"><strong class="me-2">${escapeHtml(r.Nama_Ajuan)}</strong><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal text-nowrap">${ajuanIdString.substring(0, 6)}..</span></div>${prodiInfoHtml}<div class="mt-1"><span class="badge bg-info-subtle text-info-emphasis fw-normal">${escapeHtml(r.Status_Revisi || 'Ajuan Baru')}</span> ${idAjuanAsal}</div></td><td>${formatBreakdown(r)}</td><td class="text-end text-nowrap"><strong>Rp ${Number(r.Total).toLocaleString('id-ID')}</strong></td><td class="text-center action-buttons">${dataDukungLink}</td><td><span class="badge rounded-pill status-badge ${statusClassMap[statusKey] || statusClassMap[r.Status] || 'bg-secondary'}">${statusBadgeText}</span></td><td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td><td class="text-end action-buttons">${renderActionsForRow(r, tipe)}</td></tr>`;
                   });
               });
           });
@@ -2194,11 +2467,27 @@ async function logActivity(action, details = '') {
         setElValue('edit-selectKelompok', r.ID_Kelompok);
         setElValue('edit-selectRevisi', r.Status_Revisi || 'Ajuan Baru'); 
         setElValue('edit-dataDukung', r.Data_Dukung || ''); 
+        
+        // --- NEW: Populate Calculation Inputs ---
+        for (let i = 1; i <= 6; i++) {
+            // Populate numerical fields (A)
+            const a_value = (r[`calcA${i}`] === null || r[`calcA${i}`] === undefined) ? '' : r[`calcA${i}`];
+            setElValue(`edit-calcA${i}`, a_value); 
+            // Populate unit fields (S)
+            setElValue(`edit-calcS${i}`, r[`calcS${i}`] || '');
+        }
+        
+        // Set final fields (which are currently read-only, but should display the final stored value from DB)
+        // We set these values directly from DB, then recalculate below.
         setElValue('edit-jumlah', r.Jumlah); 
         setElValue('edit-satuan', r.Satuan); 
         setElValue('edit-hargaSatuan', r.Harga_Satuan); 
-        setElValue('edit-keterangan', r.Keterangan); 
+        
+        // Call calculation function to ensure the read-only result fields display correctly
         calculateTotal('edit-'); 
+        // ------------------------------------------
+
+        setElValue('edit-keterangan', r.Keterangan); 
         
         const editModalEl = document.getElementById('editAjuanModal');
         if (editModalEl) {
@@ -2217,30 +2506,55 @@ async function logActivity(action, details = '') {
     let prodiId = null;
 
     try {
-        // 1. Fetch current data for Pagu check and Change tracking
+        // 1. Perform calculation and get results
+        const calcResults = calculateTotal('edit-');
+        const newTotal = calcResults.Total;
+        
+        const newSatuan = getElValue('edit-satuan').trim();
+        
+        if (!newSatuan || newTotal <= 0 || !getElValue('edit-namaAjuan') || !getElValue('edit-judulKegiatan')) {
+            throw new Error('Harap lengkapi Judul, Rincian, Satuan Akhir, dan pastikan Total > 0.');
+        }
+
+        // 2. Fetch current data for Pagu check and Change tracking
         const { data: dataBefore, error: fetchError } = await sb.from('ajuan').select('*').eq('ID_Ajuan', idAjuan).single();
         if (fetchError || !dataBefore) throw new Error("Item ajuan tidak ditemukan.");
         prodiId = dataBefore.ID_Prodi;
 
-        const jumlah = Number(getElValue('edit-jumlah'));
-        const hargaSatuan = Number(getElValue('edit-hargaSatuan'));
-        const newTotal = jumlah * hargaSatuan;
-        
         // Prepare data to update
         const dataAfter = { 
             Grub_Belanja_Utama: getElValue('edit-selectGrub'),
             Judul_Kegiatan: getElValue('edit-judulKegiatan'),
             Nama_Ajuan: getElValue('edit-namaAjuan'),
             ID_Kelompok: getElValue('edit-selectKelompok'),
-            Jumlah: jumlah, Satuan: getElValue('edit-satuan'),
-            Harga_Satuan: hargaSatuan, Total: newTotal,
+            
+            // Use calculated results for DB fields:
+            Jumlah: calcResults.Jumlah, 
+            Satuan: newSatuan, 
+            Harga_Satuan: calcResults.Harga_Satuan, 
+            Total: newTotal,
+            
             Catatan_Reviewer: dataBefore.Catatan_Reviewer, // Preserve existing reviewer note
             Keterangan: getElValue('edit-keterangan'),
             Status_Revisi: getElValue('edit-selectRevisi'),
-            Data_Dukung: getElValue('edit-dataDukung')
+            Data_Dukung: getElValue('edit-dataDukung'),
+            
+            // NEW: Store calculation breakdown (safe numeric conversion, null if empty)
+            calcA1: document.getElementById('edit-calcA1').value ? Number(document.getElementById('edit-calcA1').value) : null,
+            calcS1: document.getElementById('edit-calcS1').value || null,
+            calcA2: document.getElementById('edit-calcA2').value ? Number(document.getElementById('edit-calcA2').value) : null,
+            calcS2: document.getElementById('edit-calcS2').value || null,
+            calcA3: document.getElementById('edit-calcA3').value ? Number(document.getElementById('edit-calcA3').value) : null,
+            calcS3: document.getElementById('edit-calcS3').value || null,
+            calcA4: document.getElementById('edit-calcA4').value ? Number(document.getElementById('edit-calcA4').value) : null,
+            calcS4: document.getElementById('edit-calcS4').value || null,
+            calcA5: document.getElementById('edit-calcA5').value ? Number(document.getElementById('edit-calcA5').value) : null,
+            calcS5: document.getElementById('edit-calcS5').value || null,
+            calcA6: document.getElementById('edit-calcA6').value ? Number(document.getElementById('edit-calcA6').value) : null,
+            calcS6: document.getElementById('edit-calcS6').value || null,
         };
 
-        // 2. Pagu Check (Supabase Query)
+        // 3. Pagu Check (existing logic remains)
         if (STATE.role === 'prodi') {
             const paguAnggaran = STATE.currentUserData.Pagu_Anggaran || 0;
             if (tipeAjuan === 'Awal' && paguAnggaran > 0) {
@@ -2268,11 +2582,16 @@ async function logActivity(action, details = '') {
             }
         }
         
-        // 3. Change tracking and History logging
+        // 4. Change tracking and History logging (existing logic remains)
         let changes = [];
-        for (const key in dataAfter) {
-            if (String(dataAfter[key]) !== String(dataBefore[key]) && key !== 'Catatan_Reviewer') {
-                changes.push(`'${key}' dari '${dataBefore[key]}' menjadi '${dataAfter[key]}'`);
+        const allKeys = Object.keys(dataAfter);
+        for (const key of allKeys) {
+            // Robust comparison needed for potential null vs 0 vs empty string changes in calc fields
+            const valBefore = dataBefore[key] === null ? '' : String(dataBefore[key]);
+            const valAfter = dataAfter[key] === null ? '' : String(dataAfter[key]);
+            
+            if (valAfter !== valBefore && key !== 'Catatan_Reviewer') {
+                changes.push(`'${key}' dari '${valBefore}' menjadi '${valAfter}'`);
             }
         }
         
@@ -2282,7 +2601,7 @@ async function logActivity(action, details = '') {
             await logActivity('Update Ajuan', `Mengedit ajuan ID: ${idAjuan}. Perubahan: ${historyDetails}`);
         }
         
-        // 4. Supabase Update
+        // 5. Supabase Update
         const { error: updateError } = await sb.from('ajuan')
             .update(dataAfter)
             .eq('ID_Ajuan', idAjuan);
@@ -2513,6 +2832,309 @@ async function logActivity(action, details = '') {
     });
     // --- End Bulk Review Handlers ---
 
+    safeAddClickListener("btn-download-user-template", () => {
+    const headers = [
+        "Email",
+        "Password",
+        "Nama_Prodi",
+        "ID_Prodi",
+        "Role",
+        "Pagu_Anggaran"
+    ];
+
+    const contoh = [
+        "unit1@example.com",
+        "password123",
+        "Keperawatan",
+        "KEP",
+        "prodi",
+        500000000
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, contoh]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Users");
+
+    XLSX.writeFile(wb, "Template_Import_Users.xlsx");
+});
+
+
+safeAddClickListener("input-upload-user-excel", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+        const data = new Uint8Array(evt.target.result);
+        const wb = XLSX.read(data, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws);
+
+        if (!rows.length) {
+            showToast("File kosong!", "warning");
+            return;
+        }
+
+        // === PREVIEW TABLE ===
+        let html = `
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    Preview Data (${rows.length} baris)
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Email</th>
+                                <th>Password</th>
+                                <th>Nama Prodi</th>
+                                <th>ID Prodi</th>
+                                <th>Role</th>
+                                <th>Pagu Anggaran</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+
+        rows.forEach(r => {
+            html += `
+                <tr>
+                    <td>${r.Email}</td>
+                    <td>${r.Password}</td>
+                    <td>${r.Nama_Prodi}</td>
+                    <td>${r.ID_Prodi}</td>
+                    <td>${r.Role}</td>
+                    <td>${r.Pagu_Anggaran}</td>
+                </tr>
+            `;
+        });
+
+        html += `
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer text-end">
+                    <button class="btn btn-success" id="btn-confirm-import">
+                        <i class="bi bi-check-circle"></i> Import Sekarang
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById("user-import-preview").innerHTML = html;
+
+        // === IMPORT SAAT KONFIRMASI ===
+        document.getElementById("btn-confirm-import").addEventListener("click", async () => {
+            let sukses = 0, gagal = 0;
+            showLoader(true);
+
+            for (const row of rows) {
+                try {
+                    // Buat akun di Firebase Auth
+                    const userCred = await auth.createUserWithEmailAndPassword(
+                        row.Email,
+                        row.Password
+                    );
+
+                    const uid = userCred.user.uid;
+
+                    // Simpan ke Firestore
+                    await db.collection("users").doc(uid).set({
+                        Email: row.Email,
+                        Nama_Prodi: row.Nama_Prodi,
+                        ID_Prodi: row.ID_Prodi,
+                        Role: row.Role,
+                        Pagu_Anggaran: Number(row.Pagu_Anggaran || 0),
+                        uid: uid
+                    });
+
+                    sukses++;
+                } catch (err) {
+                    console.error(err);
+                    gagal++;
+                }
+            }
+
+            showLoader(false);
+
+            document.getElementById("user-import-preview").innerHTML = `
+                <div class="alert alert-success">
+                    Import selesai:<br>
+                    ✔️ Berhasil: <strong>${sukses}</strong><br>
+                    ❌ Gagal: <strong>${gagal}</strong>
+                </div>
+            `;
+        });
+    };
+
+    reader.readAsArrayBuffer(file);
+});
+
+// ================================
+// IMPORT USER VIA CSV
+// ================================
+
+let csvUsersData = [];
+
+// Fungsi parse CSV ke array object
+function parseCSV(text) {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const headers = lines[0].split(',').map(h => h.trim());
+
+    return lines.slice(1).map(line => {
+        const values = line.split(',').map(v => v.trim());
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = values[i]);
+        return obj;
+    });
+}
+
+// PREVIEW CSV
+safeAddClickListener("btn-preview-user-csv", () => {
+    const input = document.getElementById("input-upload-user-csv");
+
+    if (!input.files.length) {
+        showToast("Pilih file CSV dulu!", "warning");
+        return;
+    }
+
+    const file = input.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        try {
+            csvUsersData = parseCSV(e.target.result);
+
+            if (!csvUsersData.length) {
+                showToast("CSV kosong atau format salah", "danger");
+                return;
+            }
+
+            let html = `
+            <div class="card shadow-sm">
+              <div class="card-header bg-primary text-white">
+                Preview Data (${csvUsersData.length} user)
+              </div>
+              <div class="table-responsive" style="max-height:300px; overflow:auto;">
+                <table class="table table-sm table-bordered">
+                  <thead>
+                    <tr>
+                      <th>Email</th>
+                      <th>Password</th>
+                      <th>Nama Prodi</th>
+                      <th>ID Prodi</th>
+                      <th>Role</th>
+                      <th>Pagu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+            `;
+
+            csvUsersData.forEach(u => {
+                html += `
+                <tr>
+                  <td>${u.Email}</td>
+                  <td>${u.Password}</td>
+                  <td>${u.Nama_Prodi}</td>
+                  <td>${u.ID_Prodi}</td>
+                  <td>${u.Role}</td>
+                  <td>${u.Pagu_Anggaran}</td>
+                </tr>
+                `;
+            });
+
+            html += `
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            `;
+
+            document.getElementById("user-csv-preview").innerHTML = html;
+            document.getElementById("btn-upload-user-csv").disabled = false;
+
+            showToast("Preview berhasil ditampilkan", "success");
+
+        } catch (err) {
+            console.error(err);
+            showToast("Error membaca CSV", "danger");
+        }
+    };
+
+    reader.readAsText(file);
+});
+
+
+// UPLOAD / IMPORT CSV KE FIREBASE
+safeAddClickListener("btn-upload-user-csv", async () => {
+    if (!csvUsersData.length) {
+        showToast("Preview dulu sebelum upload", "warning");
+        return;
+    }
+
+    if (!confirm(`Import ${csvUsersData.length} user ke sistem?`)) return;
+
+    let sukses = 0;
+    let gagal = 0;
+
+    showLoader(true);
+
+    for (let row of csvUsersData) {
+        try {
+            const email = row.Email;
+            const password = row.Password;
+            const nama = row.Nama_Prodi;
+            const idProdi = row.ID_Prodi;
+            const role = row.Role;
+            const pagu = Number(row.Pagu_Anggaran || 0);
+
+            if (!email || !password || !idProdi) {
+                gagal++;
+                continue;
+            }
+
+            // Buat akun Firebase Auth
+            const userCred = await auth.createUserWithEmailAndPassword(email, password);
+            const uid = userCred.user.uid;
+
+            // Simpan ke Firestore
+            await db.collection("users").doc(uid).set({
+                uid,
+                Email: email,
+                Nama_Prodi: nama,
+                ID_Prodi: idProdi,
+                Role: role,
+                Pagu_Anggaran: pagu,
+                created_at: new Date()
+            });
+
+            sukses++;
+        } catch (err) {
+            console.error("Gagal import:", row.Email, err.message);
+            gagal++;
+        }
+    }
+
+    showLoader(false);
+
+    document.getElementById("user-csv-preview").innerHTML = `
+        <div class="alert alert-success">
+            ✅ Import selesai <br>
+            Berhasil: <b>${sukses}</b> <br>
+            Gagal: <b>${gagal}</b>
+        </div>
+    `;
+
+    csvUsersData = [];
+    document.getElementById("btn-upload-user-csv").disabled = true;
+
+    await refreshProdiData();
+});
+
+
+
+
+
     // --- MIGRATED TO SUPABASE: Bulk Delete (MODIFIED) ---
     safeAddClickListener(`bulk-delete-${lowerTipe}`, async () => {
         // PERBAIKAN: Pastikan ID adalah string untuk Supabase IN clause
@@ -2640,7 +3262,19 @@ async function logActivity(action, details = '') {
             if (!sourceIdsCurrentlyCopied.has(data.ID_Ajuan)) {
                 
                 const newData = {
-                    Grub_Belanja_Utama: data.Grub_Belanja_Utama || '', Judul_Kegiatan: data.Judul_Kegiatan || '', ID_Prodi: data.ID_Prodi, ID_Kelompok: data.ID_Kelompok || '', Nama_Ajuan: data.Nama_Ajuan || 'Salinan', Jumlah: data.Jumlah || 0, Satuan: data.Satuan || '', Harga_Satuan: data.Harga_Satuan || 0, Total: data.Total || 0, Keterangan: data.Keterangan || '', Status_Revisi: data.Status_Revisi || 'Ajuan Baru', Data_Dukung: data.Data_Dukung || '',
+                    Grub_Belanja_Utama: data.Grub_Belanja_Utama || '', Judul_Kegiatan: data.Judul_Kegiatan || '', ID_Prodi: data.ID_Prodi, ID_Kelompok: data.ID_Kelompok || '', Nama_Ajuan: data.Nama_Ajuan || 'Salinan', 
+                    // Copy calculated fields
+                    Jumlah: data.Jumlah || 0, Satuan: data.Satuan || '', Harga_Satuan: data.Harga_Satuan || 0, Total: data.Total || 0, 
+                    Keterangan: data.Keterangan || '', Status_Revisi: data.Status_Revisi || 'Ajuan Baru', Data_Dukung: data.Data_Dukung || '',
+                    
+                    // Copy breakdown calculations if they exist (important for re-editing the item)
+                    calcA1: data.calcA1 || null, calcS1: data.calcS1 || null,
+                    calcA2: data.calcA2 || null, calcS2: data.calcS2 || null,
+                    calcA3: data.calcA3 || null, calcS3: data.calcS3 || null,
+                    calcA4: data.calcA4 || null, calcS4: data.calcS4 || null,
+                    calcA5: data.calcA5 || null, calcS5: data.calcS5 || null,
+                    calcA6: data.calcA6 || null, calcS6: data.calcS6 || null,
+                    
                     Tipe_Ajuan: destinationType, Status: 'Menunggu Review', Komentar: [], ID_Ajuan_Asal: data.ID_Ajuan, Is_Blocked: false, Timestamp: sbTimestamp()
                 };
                 
@@ -2750,8 +3384,8 @@ async function logActivity(action, details = '') {
     const readOnlyAttr = isDirektorat ? 'readonly' : ''; 
     const disabledBtnClass = isDirektorat ? 'disabled' : ''; 
     
-    // HEADER TABLE CHANGED "Prodi" -> "Unit"
-    let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Unit</th><th rowspan="2" class="align-middle">Rincian</th><th rowspan="2" class="align-middle text-end">Total Diterima</th><th colspan="12" class="text-center">Rencana Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end">Total RPD</th><th rowspan="2" class="align-middle text-end">Sisa</th><th rowspan="2" class="align-middle text-center action-buttons">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}</tr>`; 
+    // ADJUSTED HEADER MIN-WIDTHS FOR BETTER SCALING
+    let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Unit</th><th rowspan="2" class="align-middle" style="min-width: 200px;">Rincian</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Total Diterima</th><th colspan="12" class="text-center">Rencana Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Total RPD</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Sisa</th><th rowspan="2" class="align-middle text-center action-buttons" style="min-width: 70px;">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 75px;">${m}</th>`).join('')}</tr>`; 
     
     const tableRows = data.map(r => { 
         // PERBAIKAN: Memastikan ajuanId adalah string sebelum menggunakan substring
@@ -2833,15 +3467,17 @@ async function logActivity(action, details = '') {
     }
   };
 
-  function renderRealisasiTable(data, tipe) { 
+   function renderRealisasiTable(data, tipe) { 
     const container = document.getElementById(`tableRealisasi${tipe}`); 
     if (!container) return;
     if (data.length === 0) { container.innerHTML = '<div class="text-center text-muted p-5">Tidak ada ajuan diterima dan tidak diblokir.</div>'; return; } 
     const isDirektorat = STATE.role === 'direktorat'; 
     const readOnlyAttr = isDirektorat ? 'readonly' : ''; 
     const disabledBtnClass = isDirektorat ? 'disabled' : ''; 
-    let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Rincian</th><th rowspan="2" class="align-middle text-end">Total RPD</th><th colspan="12" class="text-center">Realisasi Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end">Total Realisasi</th><th rowspan="2" class="align-middle text-center action-buttons">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 110px;">${m}</th>`).join('')}</tr>`; 
-    const tableRows = data.map(r => { 
+    
+    // ADJUSTED HEADER MIN-WIDTHS FOR BETTER SCALING
+    let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle" style="min-width: 200px;">Rincian</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Total RPD</th><th colspan="12" class="text-center">Realisasi Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Total Realisasi</th><th rowspan="2" class="align-middle text-center action-buttons" style="min-width: 70px;">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 75px;">${m}</th>`).join('')}</tr>`; 
+    const tableRows = data.map(r => {  
         // PERBAIKAN: Memastikan ajuanId adalah string sebelum menggunakan substring
         const ajuanId = String(r.ID_Ajuan); 
         let totalRealisasi = 0; 
@@ -3117,7 +3753,7 @@ async function logActivity(action, details = '') {
                     tableRowsHtml += `<tr><td colspan="5" style="background-color: #f2f2f2;"><strong>${escapeHtml(grubKey)}</strong></td></tr>`;
                     groupedData[grubKey].forEach(r => {
                         grandTotal += Number(r.Total) || 0;
-                        tableRowsHtml += `<tr><td style="text-align: center;">${no++}</td><td>${escapeHtml(r.Nama_Ajuan)}</td><td style="text-align: center;">${Number(r.Jumlah).toLocaleString('id-ID')} ${escapeHtml(r.Satuan)}</td><td style="text-align: right;">${Number(r.Harga_Satuan).toLocaleString('id-ID')}</td><td style="text-align: right;">${Number(r.Total).toLocaleString('id-ID')}</td></tr>`;
+                        tableRowsHtml += `<tr><td style="text-align: center;">${no++}</td><td>${escapeHtml(r.Nama_Ajuan)}</td><td style="text-align: center;">${Number(r.Jumlah).toLocaleString('id-ID', { maximumFractionDigits: 2 })} ${escapeHtml(r.Satuan)}</td><td style="text-align: right;">${Number(r.Harga_Satuan).toLocaleString('id-ID')}</td><td style="text-align: right;">${Number(r.Total).toLocaleString('id-ID')}</td></tr>`;
                     });
                 });
 
@@ -3262,14 +3898,14 @@ async function logActivity(action, details = '') {
                     <tr>
                         <td rowspan="2" style="text-align: center; vertical-align: middle;">${index + 1}</td>
                         <td class="bg-light-subtle">${namaLama}</td>
-                        <td style="text-align: center;">${volLama.toLocaleString('id-ID')} ${escapeHtml(original.Satuan || '')}</td>
+                        <td style="text-align: center;">${volLama.toLocaleString('id-ID', { maximumFractionDigits: 2 })} ${escapeHtml(original.Satuan || '')}</td>
                         <td style="text-align: right;">${hrgLama.toLocaleString('id-ID')}</td>
                         <td style="text-align: right;">${totalLama.toLocaleString('id-ID')}</td>
                         <td rowspan="2" style="text-align: right; vertical-align: middle; font-weight: bold; ${selisihColor === 'text-danger' ? 'color: red;' : selisihColor === 'text-success' ? 'color: green;' : ''}">${selisih > 0 ? '+' : ''}${selisih.toLocaleString('id-ID')}</td>
                     </tr>
                     <tr>
                         <td style="font-weight: bold;">${namaBaru}</td>
-                        <td style="text-align: center;">${volBaru.toLocaleString('id-ID')} ${escapeHtml(r.Satuan)}</td>
+                        <td style="text-align: center;">${volBaru.toLocaleString('id-ID', { maximumFractionDigits: 2 })} ${escapeHtml(r.Satuan)}</td>
                         <td style="text-align: right;">${hrgBaru.toLocaleString('id-ID')}</td>
                         <td style="text-align: right; font-weight: bold;">${totalBaru.toLocaleString('id-ID')}</td>
                     </tr>
@@ -4634,6 +5270,15 @@ function renderProdiStatusCards(summaryData) {
 
   safeAddClickListener('btn-filter-log', () => refreshLogTable('reset'));
   safeAddClickListener('btn-refresh-log', () => refreshLogTable('reset'));
+  const tabLogAktivitas = document.querySelector('[data-bs-target="#tab-log"]');
+if (tabLogAktivitas) {
+    tabLogAktivitas.addEventListener('shown.bs.tab', async () => {
+        if (STATE.role === 'direktorat') {
+            await populateLogUserFilter(); // Pastikan filter user terisi
+            refreshLogTable('reset'); // Panggil fungsi untuk memuat data log
+        }
+    });
+}
   // --- END: Log Aktivitas ---
 
 
@@ -4792,144 +5437,237 @@ function renderProdiStatusCards(summaryData) {
       }
   };
 
-  // Fill Edit Prodi Modal (Firebase)
-  // FIX: Using setElValue to prevent Uncaught TypeError if modal inputs are temporarily null
-  window.fillEditProdi = (uid, id, nama, email, role, ttdJabatan = '', ttdNama = '') => {
-      setElValue('edit_user_uid', uid);
-      setElValue('edit_user_id', id);
-      setElValue('edit_user_nama', nama);
-      setElValue('edit_user_email', email);
-      setElValue('edit_user_role', role);
-      setElValue('edit_user_ttd_jabatan', ttdJabatan);
-      setElValue('edit_user_ttd_nama', ttdNama);
+  // ------------------------------------------------------------------
+// --- START FIREBASE USER/CONFIG MANAGEMENT HANDLERS (MODIFIED) ---
+// ------------------------------------------------------------------
 
-      // Show TTD settings only for Prodi
-      const ttdGroup = document.getElementById('edit-ttd-settings-group');
-      if (ttdGroup) ttdGroup.style.display = (role === 'prodi') ? 'block' : 'none';
+// Fill Edit Prodi Modal (Firebase) (MODIFIED)
+window.fillEditProdi = (uid, id, nama, email, role, ttdJabatan = '', ttdNama = '') => {
+    // Sembunyikan field password saat mengedit
+    const passwordGroup = document.getElementById('user-password-group');
+    if (passwordGroup) passwordGroup.style.display = 'none';
 
-      const modalTitle = document.getElementById('userModalTitle');
-      if (modalTitle) modalTitle.textContent = `Edit Pengguna: ${id}`;
-      
-      const btnAdd = document.getElementById('btn-add-user');
-      const btnUpdate = document.getElementById('btn-update-user');
-      if (btnAdd) btnAdd.style.display = 'none';
-      if (btnUpdate) btnUpdate.style.display = 'block';
+    // Tampilkan UID field
+    const uidGroup = document.getElementById('user-uid-group');
+    if (uidGroup) uidGroup.style.display = 'block';
 
-      const userModalEl = document.getElementById('userModal');
-      if (userModalEl) {
-          const modal = bootstrap.Modal.getOrCreateInstance(userModalEl);
-          modal.show();
-      }
-  };
+    setElValue('edit_user_uid', uid);
+    setElValue('edit_user_id', id);
+    setElValue('edit_user_nama', nama);
+    setElValue('edit_user_email', email);
+    setElValue('edit_user_role', role);
+    setElValue('edit_user_ttd_jabatan', ttdJabatan);
+    setElValue('edit_user_ttd_nama', ttdNama);
 
-  // Delete User (Firebase)
-  window.deleteUser = async (uid, prodiId) => {
-      if (confirm(`PERINGATAN! Menghapus pengguna "${prodiId}" akan menghapus profilnya. Anda mungkin perlu menghapus akun AUTH Firebase secara manual.\n\nYakin ingin melanjutkan?`)) {
-          showLoader(true);
-          try {
-              await db.collection('users').doc(uid).delete();
-              
-              // Also delete summary data in Supabase (if exists)
-              await sb.from(PRODI_SUMMARY_TABLE).delete().eq('id_prodi', prodiId);
+    // Show TTD settings only for Prodi
+    const ttdGroup = document.getElementById('edit-ttd-settings-group');
+    if (ttdGroup) ttdGroup.style.display = (role === 'prodi') ? 'block' : 'none';
 
+    const modalTitle = document.getElementById('userModalTitle');
+    if (modalTitle) modalTitle.textContent = `Edit Pengguna: ${id}`;
+    
+    const btnAdd = document.getElementById('btn-add-user');
+    const btnUpdate = document.getElementById('btn-update-user');
+    if (btnAdd) btnAdd.style.display = 'none';
+    if (btnUpdate) btnUpdate.style.display = 'block';
 
-              showToast(`Pengguna ${prodiId} berhasil dihapus dari database.`);
-              await logActivity('Delete User', `Menghapus user: ${prodiId}.`);
-              localStorage.removeItem('cache_allProdi');
-              await refreshProdiData();
-          } catch (error) {
-              showToast(`Gagal menghapus pengguna: ${error.message}`, 'danger');
-          } finally {
-              showLoader(false);
-          }
-      }
-  };
+    const userModalEl = document.getElementById('userModal');
+    if (userModalEl) {
+        const modal = bootstrap.Modal.getOrCreateInstance(userModalEl);
+        modal.show();
+    }
+};
 
-  // Save User (Add or Update) (Firebase)
-  async function saveUser(isNew) {
-      const uid = getElValue('edit_user_uid');
-      const prodiId = getElValue('edit_user_id').trim();
-      const namaProdi = getElValue('edit_user_nama').trim();
-      const email = getElValue('edit_user_email').trim();
-      const role = getElValue('edit_user_role');
-      const ttdJabatan = getElValue('edit_user_ttd_jabatan').trim();
-      const ttdNama = getElValue('edit_user_ttd_nama').trim();
+// Clear User Form (for new user functionality, if enabled) (MODIFIED)
+function clearUserForm() {
+    // Tampilkan field password untuk pendaftaran baru
+    const passwordGroup = document.getElementById('user-password-group');
+    if (passwordGroup) {
+        passwordGroup.style.display = 'block';
+        setElValue('edit_user_password', '');
+    }
 
-      if (!prodiId || !namaProdi || !email || !role) { showToast('Semua field wajib diisi.', 'warning'); return; }
+    // Sembunyikan field UID karena akan di-generate oleh Auth
+    const uidGroup = document.getElementById('user-uid-group');
+    if (uidGroup) uidGroup.style.display = 'none';
 
-      showLoader(true);
-      try {
-          if (isNew) {
-              // Note: Creating user in Firebase Auth must be done manually by admin OR via Cloud Functions.
-              throw new Error("Pendaftaran user baru harus dilakukan melalui console Firebase Auth terlebih dahulu.");
-          } else {
-              // Update existing user profile
-              const updateData = {
-                  ID_Prodi: prodiId,
-                  Nama_Prodi: namaProdi,
-                  Email: email,
-                  Role: role
-              };
+    setElValue('edit_user_uid', ''); // Pastikan UID dikosongkan
+    setElValue('edit_user_id', '');
+    setElValue('edit_user_nama', '');
+    setElValue('edit_user_email', '');
+    setElValue('edit_user_role', 'prodi');
+    setElValue('edit_user_ttd_jabatan', '');
+    setElValue('edit_user_ttd_nama', '');
+    
+    const ttdGroup = document.getElementById('edit-ttd-settings-group');
+    if (ttdGroup) ttdGroup.style.display = 'block';
+    
+    const modalTitle = document.getElementById('userModalTitle');
+    const btnAdd = document.getElementById('btn-add-user');
+    const btnUpdate = document.getElementById('btn-update-user');
 
-              // Update TTD settings if role is prodi
-              if (role === 'prodi') {
-                  updateData.beritaAcaraSettings = {
-                      TTD_Jabatan: ttdJabatan,
-                      TTD_Nama: ttdNama
-                  };
-              }
+    if (modalTitle) modalTitle.textContent = 'Tambah Pengguna Baru';
+    if (btnAdd) btnAdd.style.display = 'block';
+    if (btnUpdate) btnUpdate.style.display = 'none';
+}
 
-              await db.collection('users').doc(uid).update(updateData);
-              showToast(`Profil ${prodiId} berhasil diperbarui.`);
-              await logActivity('Update Profile', `Mengubah profil user: ${prodiId}.`);
-              
-              // If the current user updated their own data, refresh session
-              if (uid === STATE.uid) {
-                  const updatedDoc = await db.collection('users').doc(uid).get();
-                  if (updatedDoc.exists) {
-                      const sessionData = { ...updatedDoc.data(), uid: uid };
-                      saveSession(sessionData);
-                      STATE.currentUserData = sessionData;
-                  }
-              }
+// Save User (Add or Update) (Firebase) (MODIFIED)
+async function saveUser(isNew) {
+    const uid = getElValue('edit_user_uid');
+    const prodiId = getElValue('edit_user_id').trim();
+    const namaProdi = getElValue('edit_user_nama').trim();
+    const email = getElValue('edit_user_email').trim();
+    const role = getElValue('edit_user_role');
+    const ttdJabatan = getElValue('edit_user_ttd_jabatan').trim();
+    const ttdNama = getElValue('edit_user_ttd_nama').trim();
 
-          }
-          localStorage.removeItem('cache_allProdi');
-          await refreshProdiData();
-          
-          const userModalEl = document.getElementById('userModal');
-          if(userModalEl) bootstrap.Modal.getOrCreateInstance(userModalEl).hide();
+    if (!prodiId || !namaProdi || !email || !role) { showToast('Semua field wajib diisi.', 'warning'); return; }
 
-      } catch (error) {
-          showToast(`Gagal menyimpan pengguna: ${error.message}`, 'danger');
-          console.error("Save user error:", error);
-      } finally {
-          showLoader(false);
-      }
-  }
+    let finalUid = uid;
+    let password = '';
 
-  // Clear User Form (for new user functionality, if enabled)
-  // FIX: Using setElValue and checking for element existence (safer than direct DOM access)
-  function clearUserForm() {
-      setElValue('edit_user_uid', '');
-      setElValue('edit_user_id', '');
-      setElValue('edit_user_nama', '');
-      setElValue('edit_user_email', '');
-      setElValue('edit_user_role', 'prodi');
-      setElValue('edit_user_ttd_jabatan', '');
-      setElValue('edit_user_ttd_nama', '');
-      
-      const ttdGroup = document.getElementById('edit-ttd-settings-group');
-      if (ttdGroup) ttdGroup.style.display = 'block';
-      
-      const modalTitle = document.getElementById('userModalTitle');
-      const btnAdd = document.getElementById('btn-add-user');
-      const btnUpdate = document.getElementById('btn-update-user');
+    if (isNew) {
+        try {
+            // Ambil password dari input
+            password = getElValue('edit_user_password').trim();
+            if (!password || password.length < 6) {
+                 showToast('Password harus diisi dan minimal 6 karakter.', 'warning');
+                 return;
+            }
+        } catch (e) {
+            showToast('Password harus diisi.', 'warning');
+            return;
+        }
+    }
 
-      if (modalTitle) modalTitle.textContent = 'Tambah Pengguna Baru';
-      if (btnAdd) btnAdd.style.display = 'block';
-      if (btnUpdate) btnUpdate.style.display = 'none';
-  }
+    showLoader(true);
+    try {
+        if (isNew) {
+            // --- FIREBASE AUTH: CREATE USER & FIRESTORE PROFILE ---
+            // KRITIS: Aksi ini memerlukan izin Auth yang terbuka atau harus dijalankan
+            // oleh Admin SDK (Cloud Functions) jika Auth Security Rules ketat.
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);           
+            finalUid = userCredential.user.uid;
+            
+            // Data untuk Firestore
+            const initialData = { 
+                ID_Prodi: prodiId,
+                Nama_Prodi: namaProdi,
+                Email: email,
+                Role: role,
+                Pagu_Anggaran: 0, 
+                beritaAcaraSettings: (role === 'prodi') ? { TTD_Jabatan: ttdJabatan, TTD_Nama: ttdNama } : {}
+            };
+            
+            // Simpan profil ke Firestore (MEMERLUKAN IZIN FIREBASE RULES)
+            await db.collection('users').doc(finalUid).set(initialData);
+
+            showToast(`Pengguna baru ${prodiId} berhasil didaftarkan dan profil dibuat.`);
+            await logActivity('Create User', `Mendaftarkan user baru: ${prodiId}.`);
+
+        } else {
+            // Update existing user profile
+            if (!uid) {
+                throw new Error("UID pengguna tidak ditemukan untuk diupdate.");
+            }
+            
+            const updateData = {
+                ID_Prodi: prodiId,
+                Nama_Prodi: namaProdi,
+                Email: email,
+                Role: role
+            };
+
+            // Update TTD settings if role is prodi
+            if (role === 'prodi') {
+                updateData.beritaAcaraSettings = {
+                    TTD_Jabatan: ttdJabatan,
+                    TTD_Nama: ttdNama
+                };
+            } else {
+                 // Clear TTD settings if role is changed to non-prodi
+                 updateData.beritaAcaraSettings = deleteField(); // Menggunakan alias deleteField
+            }
+
+            // KRITIS: Memerlukan izin tulis di Firebase Firestore Rules untuk koleksi 'users'.
+            await db.collection('users').doc(uid).update(updateData);
+            showToast(`Profil ${prodiId} berhasil diperbarui.`);
+            await logActivity('Update Profile', `Mengubah profil user: ${prodiId}.`);
+            
+            // If the current user updated their own data, refresh session
+            if (uid === STATE.uid) {
+                const updatedDoc = await db.collection('users').doc(uid).get();
+                if (updatedDoc.exists) {
+                    const sessionData = { ...updatedDoc.data(), uid: uid };
+                    saveSession(sessionData);
+                    STATE.currentUserData = sessionData;
+                }
+            }
+        }
+        
+        // Refresh data dan tutup modal
+        localStorage.removeItem('cache_allProdi');
+        await refreshProdiData();
+        
+        const userModalEl = document.getElementById('userModal');
+        if(userModalEl) bootstrap.Modal.getOrCreateInstance(userModalEl).hide();
+
+    } catch (error) {
+        // Handle Firebase Auth errors (misalnya, email sudah terdaftar)
+        let displayMessage;
+        if (error.code && error.code.includes('auth/permission-denied')) {
+             // Ini adalah error yang sering terjadi jika rules Firebase salah
+             displayMessage = `Izin ditolak. Pastikan Firebase Security Rules mengizinkan peran DIREKTORAT untuk menulis ke koleksi 'users'.`;
+        } else if (error.code && error.code.includes('auth/')) {
+            displayMessage = `Otentikasi Gagal: ${error.message}`;
+        } else if (error.message) {
+            displayMessage = error.message;
+        } else {
+            displayMessage = 'Terjadi kesalahan saat menyimpan pengguna.';
+        }
+
+        showToast(`Gagal menyimpan pengguna: ${displayMessage}`, 'danger');
+        console.error("Save user error:", error);
+    } finally {
+        showLoader(false);
+    }
+}
+
+// Tambahkan fungsi deleteUser (jika belum ada)
+window.deleteUser = async (uid, prodiId) => {
+    if (confirm(`Yakin ingin menghapus profil pengguna Firestore untuk ${prodiId}? (Akun Firebase Auth harus dihapus manual atau melalui Admin SDK)`)) {
+        showLoader(true);
+        try {
+            // Hapus profil Firestore
+            // KRITIS: Memerlukan izin hapus di Firebase Firestore Rules untuk koleksi 'users'.
+            await db.collection('users').doc(uid).delete();
+
+            // PENTING: Penghapusan akun Auth HARUS dilakukan menggunakan Admin SDK/Cloud Functions.
+            // Jika tidak, akun Auth akan tetap ada.
+
+            showToast(`Profil Firestore untuk ${prodiId} berhasil dihapus. Harap hapus akun Auth secara manual.`);
+            await logActivity('Delete User Profile', `Menghapus profil Firestore user: ${prodiId}.`);
+
+            localStorage.removeItem('cache_allProdi');
+            await refreshProdiData();
+        } catch (error) {
+            showToast(`Gagal menghapus pengguna: ${error.message}`, 'danger');
+            console.error("Delete user error:", error);
+        } finally {
+            showLoader(false);
+        }
+    }
+};
+
+// Pastikan btn-update-user memanggil saveUser(false)
+safeAddClickListener('btn-update-user', () => saveUser(false));
+
+// Pastikan btn-open-add-user-modal tetap memanggil clearUserForm
+safeAddClickListener('btn-open-add-user-modal', () => {
+    clearUserForm();
+    const userModalEl = document.getElementById('userModal');
+    if (userModalEl) bootstrap.Modal.getOrCreateInstance(userModalEl).show();
+});
 
   // Update Prodi TTD settings in Account Settings tab (for Prodi only)
   async function updateProdiTtdSettings() {
@@ -4951,6 +5689,7 @@ function renderProdiStatusCards(summaryData) {
       try {
           const settings = { TTD_Jabatan: jabatan, TTD_Nama: nama };
           
+          // KRITIS: Memerlukan izin tulis di Firebase Firestore Rules untuk koleksi 'users'
           await db.collection('users').doc(STATE.uid).update({
               beritaAcaraSettings: settings
           });
@@ -4968,6 +5707,25 @@ function renderProdiStatusCards(summaryData) {
           showLoader(false);
       }
   }
+
+  async function loadFilterMasterData() {
+    // Load Grub Belanja
+    const grubSelect = document.getElementById('filterGrubBelanja');
+    grubSelect.innerHTML = `<option value="">Semua Grub Belanja</option>`;
+
+    STATE.allGrubBelanja.forEach(g => {
+        grubSelect.innerHTML += `<option value="${g.Nama_Grub}">${g.Nama_Grub}</option>`;
+    });
+
+    // Load Kelompok Belanja
+    const kelompokSelect = document.getElementById('filterKelompokBelanja');
+    kelompokSelect.innerHTML = `<option value="">Semua Kelompok Belanja</option>`;
+
+    STATE.allKelompok.forEach(k => {
+        kelompokSelect.innerHTML += `<option value="${k.ID_Kelompok}">${k.ID_Kelompok} - ${k.Nama_Kelompok}</option>`;
+    });
+}
+
 
   // Global Settings Management (Direktorat only)
   async function saveGlobalSettings() {
@@ -5014,6 +5772,7 @@ function renderProdiStatusCards(summaryData) {
 
       showLoader(true);
       try {
+          // KRITIS: Memerlukan izin tulis di Firebase Firestore Rules untuk koleksi 'appConfig'.
           await db.collection('appConfig').doc('globalSettings').set(settings);
           STATE.globalSettings = settings;
           updatePerubahanUI(settings);
@@ -5046,6 +5805,7 @@ function renderProdiStatusCards(summaryData) {
       
       showLoader(true);
       try {
+          // KRITIS: Memerlukan izin tulis di Firebase Firestore Rules untuk koleksi 'appConfig'.
           await db.collection('appConfig').doc('beritaAcaraSettings').set(settings);
           STATE.beritaAcaraSettings = settings;
           showToast("Pengaturan TTD Berita Acara global berhasil disimpan.");
@@ -5064,7 +5824,8 @@ function renderProdiStatusCards(summaryData) {
   // ------------------------------------------------------------------
 
   safeAddClickListener('btn-update-user', () => saveUser(false));
-  safeAddClickListener('btn-add-user', () => { showToast("Pendaftaran user baru harus dilakukan melalui console Firebase Auth terlebih dahulu. Silakan masukkan UID user yang sudah terdaftar di form edit.", "warning"); });
+  // FIX: Mengikat btn-add-user ke fungsi saveUser(true) untuk penambahan user baru
+  safeAddClickListener('btn-add-user', () => saveUser(true)); 
   safeAddClickListener('btn-open-add-user-modal', () => {
       clearUserForm();
       const userModalEl = document.getElementById('userModal');
@@ -5163,7 +5924,4 @@ function renderProdiStatusCards(summaryData) {
   // --- END MANAGEMENT TAB EVENT LISTENERS ---
   // ------------------------------------------------------------------
 });
-// The following function was the original end of the file when the error was reported.
-// The primary issue seems to be a database trigger on the Supabase side related to inserting into a view, 
-// not an issue in the client-side JavaScript code itself.
-// Gagal menyimpan ajuan: cannot insert into view "rekap_prodi"
+// --- END OF FILE script.js ---
