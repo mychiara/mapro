@@ -262,25 +262,38 @@
   <div class="card-body">
       <!-- FILTER -->
       <div class="row g-2 mb-3">
-          <div class="col-md-4">
+          <!-- NEW FILTER: Unit/Prodi -->
+          <div class="col-md-3">
+              <label class="form-label small">Filter Unit/Prodi</label>
+              <select id="filterProdiRekapan" class="form-select form-select-sm">
+                  <option value="">Semua Unit</option>
+              </select>
+          </div>
+
+          <!-- Filter Grub Belanja (Adjusted to col-md-3) -->
+          <div class="col-md-3">
               <label class="form-label small">Filter Grub Belanja</label>
               <select id="filterGrubBelanja" class="form-select form-select-sm">
                   <option value="">Semua Grub Belanja</option>
               </select>
           </div>
 
-          <div class="col-md-4">
+          <!-- Filter Kelompok Belanja (Adjusted to col-md-3) -->
+          <div class="col-md-3">
               <label class="form-label small">Filter Kelompok Belanja</label>
               <select id="filterKelompokBelanja" class="form-select form-select-sm">
                   <option value="">Semua Kelompok Belanja</option>
               </select>
           </div>
 
-          <div class="col-md-4">
-              <label class="form-label small">&nbsp;</label>
-              <button class="btn btn-primary btn-sm w-100" id="btnFilterRealisasiUnit">
-                  <i class="bi bi-funnel-fill"></i> Terapkan Filter
+          <!-- Tombol Terapkan (Adjusted to col-md-3 and aligned to end) -->
+          <div class="col-md-3 d-flex align-items-end">
+              <button id="btn-apply-filter-rekapan" class="btn btn-primary w-100">
+                  Terapkan Filter
               </button>
+          </div>
+      </div>
+
           </div>
       </div>
 
