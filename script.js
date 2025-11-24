@@ -12,14 +12,10 @@ const firebaseConfig = {
 const SUPABASE_URL = 'https://uiqgqsratjxfowbgzkln.supabase.co'; // GANTI DENGAN URL SUPABASE ANDA
 const SUPABASE_ANON_KEY = 'sb_publishable_kC8Im2BwrQKaR13n7IoXzw_GJMa8bla';       // GANTI DENGAN ANON KEY SUPABASE ANDA
 /*
- * CATATAN PENTING: Jika Anda melihat error 401 (Unauthorized) saat memanggil logActivity
- * atau saat INSERT/UPDATE data, ini kemungkinan besar disebabkan oleh kebijakan Row Level Security (RLS)
- * di Supabase. Pastikan RLS diizinkan atau kebijakan INSERT/UPDATE yang sesuai telah 
- * didefinisikan untuk Public role (Anon Key).
- * 
- * KRITIS: Jika Anda mendapatkan error "cannot insert into view XXXX",
- * itu berarti ada Trigger di database Supabase yang mencoba menulis ke view,
- * yang merupakan konfigurasi database yang salah. Harap periksa trigger pada tabel 'ajuan'.
+ * CATATAN PENTING: Implementasi ini mengasumsikan Anda telah membuat tabel:
+ * - ajuan (untuk Ajuan Awal)
+ * - ajuanrev1 (untuk Ajuan Perubahan 1)
+ * ... hingga ajuanrev30 (jika diperlukan)
  */
 // --- END SUPABASE CONFIGURATION ---
 
@@ -131,10 +127,43 @@ const AJUAN_IMPORT_HEADERS = [
     'Keterangan', 
     'Status_Revisi', 
     'Data_Dukung'
-    // The complex calculation fields (calcA/calcS) are ignored in bulk import for simplicity/reliability, 
-    // relying only on the final aggregated values defined by the user in the template.
 ];
 // --- END NEW IMPORT CONSTANTS ---
+
+// --- NEW HELPER FUNCTION: GET AJUAN TABLE NAME ---
+/**
+ * Maps the Ajuan type string ("Awal", "Perubahan X") to the corresponding Supabase table name.
+ * @param {string} tipe Ajuan type string (e.g., "Awal", "Perubahan 1").
+ * @returns {string} Supabase table name (e.g., "ajuan", "ajuanrev1").
+ */
+function getAjuanTableName(tipe) {
+    if (!tipe) return 'ajuan'; // Safety default
+    
+    // Case 1: Ajuan Awal
+    if (tipe === 'Awal') return 'ajuan';
+
+    // Case 2: Specific Revision (e.g., "Perubahan 1", "Perubahan 2")
+    const match = tipe.match(/Perubahan (\d+)/);
+    if (match) {
+        const rev = parseInt(match[1], 10);
+        if (rev >= 1 && rev <= 30) return `ajuanrev${rev}`;
+    }
+
+    // Case 3: Generic "Perubahan" (Fallback to active stage)
+    if (tipe.trim() === 'Perubahan') {
+        const activeStage = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
+        return `ajuanrev${activeStage}`;
+    }
+
+    console.warn(`[getAjuanTableName] Unrecognized Tipe: ${tipe}. Defaulting to 'ajuan'.`);
+    return 'ajuan';
+}
+// --- END NEW HELPER FUNCTION ---
+
+
+document.querySelector('a[href="#tab-matrix-semula-menjadi"]').addEventListener("click", () => {
+    loadMatrixSemulaMenjadi();
+});
 
 // --- NEW SAFETY HELPERS FOR CONFIG MANAGEMENT (MODIFIED TO ADD SETTERS) ---
 const getElValue = (id) => {
@@ -157,6 +186,11 @@ const setElChecked = (id, checked) => {
 };
 // --- END NEW SAFETY HELPERS ---
 
+// --- NEW SAFE GETTER TO PREVENT ERROR (Fix for missing elements) ---
+/** Helper function to safely get element value, returning '' if element is missing. */
+const getSafeValue = (id) => document.getElementById(id)?.value || '';
+// --- END SAFE GETTER ---
+
 
   let STATE = { 
     role: null, id: null, uid: null, currentUserData: null, 
@@ -165,7 +199,8 @@ const setElChecked = (id, checked) => {
     currentAjuanDataAwal: [], 
     currentAjuanDataPerubahan: [], 
     stagingList: [], 
-    selectedAjuanIdsAwal: new Set(), selectedAjuanIdsPerubahan: new Set(),
+    selectedAjuanIdsAwal: new Set(), 
+    selectedAjuanIdsPerubahan: new Set(),
     allDashboardData: [], // Raw data for Prodi role filtering
     cachedDashboardData: [], // Tambahkan inisialisasi ini untuk mencegah TypeError
     direktoratSummaryData: [], // Cache for Direktorat summary data
@@ -182,7 +217,7 @@ const setElChecked = (id, checked) => {
   let CHARTS = {};
   const LOADER = document.getElementById('loading-overlay');
   const TOAST_CONTAINER = document.querySelector('.toast-container');
-  const PRODI_COLORS = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac', '#3a4e5a', '#6f4e37', '#a7c957', '#9b59b6', '#3498db', '#f1c40f', '#2ecc71', '#e74c3c', '#95a5a6', '#d35400', '#c0392b', '#16a085', '#27ae60', '#2980b9', '#8e44ad', '#f39c12', '#d35400', '#c0392b', '#16a085', '#27ae60', '#2980b9', '#8e44ad', '#f39c12', '#d35400', '#c0392b', '#16a085', '#27ae60', '#2980b9', '#8e44ad', '#f39c12', '#d35400', '#c0392b', '#16a085', '#27ae60'];
+  const PRODI_COLORS = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac', '#3a4e5a', '#6f4e37', '#a7c957', '#9b59b6', '#3498db', '#f1c40f', '#2ecc71', '#e74c3c', '#95a5a6', '#d35400', '#c0392b', '#16a085', '#27ae60', '#2980b9', '#8e44ad', '#f39c12', '#d35400', '#c0392b', '#16a085', '#27ae60', '#2980b9', '#8e44ad', '#f39c12', '#d35400', '#c0392b', '#16a085', '#27ae60', '#2980b9', '#8e44ad', '#f39c12'];
   const RPD_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
 
   /** Helper to get the snake_case column key for monthly RPD/Realisasi data. */
@@ -450,6 +485,55 @@ const setElChecked = (id, checked) => {
       showToast(`Template berhasil diunduh: ${filename}`, 'success');
   }
 
+// === AUTO CALCULATE TOTAL (Jumlah × Harga Satuan) ===
+/**
+ * Menghitung Total (Jumlah * Harga Satuan) untuk formulir atau modal edit.
+ * @param {string} prefix Prefix ID elemen ('' untuk form utama, 'edit-' untuk modal edit)
+ */
+function hitungTotalAjuan(prefix = '') {
+    const jumlahInput = document.getElementById(`${prefix}jumlah`);
+    const hargaInput  = document.getElementById(`${prefix}hargaSatuan`);
+    const totalInput  = document.getElementById(`${prefix}total`);
+
+    if (!jumlahInput || !hargaInput || !totalInput) return;
+
+    // Bersihkan format angka (hapus . ribuan, ubah , ke .)
+    const jumlah = Number(
+        (jumlahInput.value || "0").replace(/\./g, "").replace(",", ".")
+    ) || 0;
+
+    const harga = Number(
+        (hargaInput.value || "0").replace(/\./g, "").replace(",", ".")
+    ) || 0;
+
+    // Hitung total
+    const total = jumlah * harga;
+
+    // Tampilkan dalam format Rupiah tanpa desimal
+    totalInput.value = total.toLocaleString("id-ID");
+
+    // Kembalikan nilai numerik murni untuk proses simpan
+    return {
+        jumlah,
+        harga,
+        total
+    };
+}
+
+
+// === BINDING AUTO CALC ON INPUT ===
+window.addEventListener("load", () => {
+    // Binding untuk formulir Ajuan Baru
+    document.getElementById("jumlah")?.addEventListener("input", () => hitungTotalAjuan(''));
+    document.getElementById("hargaSatuan")?.addEventListener("input", () => hitungTotalAjuan(''));
+    
+    // Binding untuk modal Edit Ajuan
+    document.getElementById("edit-jumlah")?.addEventListener("input", () => hitungTotalAjuan('edit-'));
+    document.getElementById("edit-hargaSatuan")?.addEventListener("input", () => hitungTotalAjuan('edit-'));
+});
+
+
+
 
   /**
    * Sets up event listeners for all export and print buttons across the application.
@@ -532,30 +616,27 @@ const setElChecked = (id, checked) => {
      * Recalculates all dashboard metrics for a single Prodi/Unit and updates the prodi_summary table.
      * @param {string} prodiId 
      */
-    async function recalculateProdiSummary(prodiId) {
+     async function recalculateProdiSummary(prodiId) {
         if (!prodiId) return;
-
-        console.log(`[SUMMARY] Recalculating summary for ${prodiId}`);
+        // console.log(`[SUMMARY] Recalculating summary for ${prodiId}`);
         
         try {
-            // 1. Fetch all Ajuan (Accepted, Not Blocked) and all Ajuan (Overall) for aggregation
+            const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 0;
             
-            const { data: allAjuanData, error: ajuanError } = await sb.from('ajuan')
-                .select(`
-                    ID_Ajuan, Total, Status, Tipe_Ajuan, Is_Blocked,
-                    ${RPD_SELECT_COLUMNS}
-                `)
-                .eq('ID_Prodi', prodiId);
-                
-            if (ajuanError) throw ajuanError;
+            // We only need to look at Awal and the LATEST active revision table.
+            // Previous revisions are historically relevant but the "Budget Ceiling" is determined by the latest state.
+            let tablesToQuery = ['ajuan']; 
+            if (tahapAktif > 0) {
+                 tablesToQuery.push(getAjuanTableName(`Perubahan ${tahapAktif}`));
+            }
 
             let totalDiajukanOverall = 0;
-            let totalDiterimaAwalBersih = 0;
-            let totalDiterimaFinalBersih = 0;
+            let totalDiterimaAwalBersih = 0; // Specifically from 'ajuan' table
+            let totalDiterimaFinalBersih = 0; // Awal + Changes in Perubahan
             let totalRpdCommitment = 0;
             let totalRealisasiOverall = 0;
-            
-            // Initialize monthly sums (for JSONB storage)
+
+            // Initialize monthly sums
             const rpdMonthly = {};
             const realisasiMonthly = {};
             RPD_MONTHS.forEach(m => {
@@ -563,35 +644,53 @@ const setElChecked = (id, checked) => {
                 realisasiMonthly[getMonthlyKey('Realisasi', m)] = 0;
             });
 
+            // Iterate through relevant tables
+            for (const tableName of tablesToQuery) {
+                 const isAwalTable = tableName === 'ajuan';
 
-            allAjuanData.forEach(ajuan => {
-                const total = Number(ajuan.Total) || 0;
-                const isAwal = ajuan.Tipe_Ajuan === 'Awal' || !ajuan.Tipe_Ajuan;
-                const isBlocked = !!ajuan.Is_Blocked;
+                 const { data: rawData, error } = await sb.from(tableName)
+                    .select(`Total, Status, Tipe_Ajuan, Is_Blocked, ${RPD_SELECT_COLUMNS}`)
+                    .eq('ID_Prodi', prodiId);
+                
+                 if (error) {
+                    console.error(`[SUMMARY] Failed to query ${tableName}:`, error);
+                    continue;
+                 }
 
-                totalDiajukanOverall += total;
+                 rawData.forEach(ajuan => {
+                    const total = Number(ajuan.Total) || 0;
+                    const isBlocked = !!ajuan.Is_Blocked;
 
-                if (ajuan.Status === 'Diterima' && !isBlocked) {
-                    totalDiterimaFinalBersih += total;
-                    if (isAwal) {
-                        totalDiterimaAwalBersih += total;
-                    }
+                    totalDiajukanOverall += total;
 
-                    RPD_MONTHS.forEach(m => {
-                        const rpdVal = Number(ajuan[getMonthlyKey('RPD', m)]) || 0;
-                        const realVal = Number(ajuan[getMonthlyKey('Realisasi', m)]) || 0;
+                    if (ajuan.Status === 'Diterima' && !isBlocked) {
+                        // If we are in the Awal table, add to Awal total
+                        if (isAwalTable) {
+                            totalDiterimaAwalBersih += total;
+                        } 
                         
-                        totalRpdCommitment += rpdVal;
-                        totalRealisasiOverall += realVal;
+                        // logic for Final Budget:
+                        // Note: If 'Perubahan' entries represent the *difference* (+/-), simply summing them is correct.
+                        // If 'Perubahan' entries represent the *new full value* of a specific item, logic depends on ID tracking.
+                        // Assuming standard SiPandai logic: All 'Diterima' items in active tables constitute the budget.
+                        totalDiterimaFinalBersih += total;
 
-                        // Aggregate monthly values
-                        rpdMonthly[getMonthlyKey('RPD', m)] += rpdVal;
-                        realisasiMonthly[getMonthlyKey('Realisasi', m)] += realVal;
-                    });
-                }
-            });
+                        // RPD & Realisasi aggregation
+                        RPD_MONTHS.forEach(m => {
+                            const rpdVal = Number(ajuan[getMonthlyKey('RPD', m)]) || 0;
+                            const realVal = Number(ajuan[getMonthlyKey('Realisasi', m)]) || 0;
+                            
+                            totalRpdCommitment += rpdVal;
+                            totalRealisasiOverall += realVal;
+
+                            rpdMonthly[getMonthlyKey('RPD', m)] += rpdVal;
+                            realisasiMonthly[getMonthlyKey('Realisasi', m)] += realVal;
+                        });
+                    }
+                 });
+            }
             
-            // Get Pagu Awal from Firebase User Data (needed for calculation)
+            // Get Pagu Awal from Firebase State
             const prodiUserData = STATE.allProdi.find(p => p.ID_Prodi === prodiId);
             const paguAwal = Number(prodiUserData?.Pagu_Anggaran) || 0;
 
@@ -600,7 +699,7 @@ const setElChecked = (id, checked) => {
                 pagu_awal_ceiling: paguAwal,
                 total_diajukan_overall: totalDiajukanOverall,
                 total_diterima_awal_bersih: totalDiterimaAwalBersih,
-                total_diterima_final_bersih: totalDiterimaFinalBersih,
+                total_diterima_final_bersih: totalDiterimaFinalBersih, 
                 total_rpd_commitment: totalRpdCommitment,
                 total_realisasi_overall: totalRealisasiOverall,
                 realisasi_monthly: realisasiMonthly,
@@ -608,20 +707,18 @@ const setElChecked = (id, checked) => {
                 last_updated: sbTimestamp()
             };
 
-            // 2. Upsert (Insert or Update) the summary data
             const { error: upsertError } = await sb.from(PRODI_SUMMARY_TABLE)
                 .upsert(summaryData, { onConflict: 'id_prodi' });
 
             if (upsertError) throw upsertError;
 
-            console.log(`[SUMMARY] Summary for ${prodiId} updated successfully.`);
-            STATE.direktoratSummaryData = []; // Clear cache so directorate dashboard reloads
+            // Clear cache to ensure UI updates immediately
+            STATE.direktoratSummaryData = []; 
             
         } catch (error) {
-            console.error(`[SUMMARY] Failed to recalculate summary for ${prodiId}:`, error);
+            console.error(`[SUMMARY] Failed to update summary for ${prodiId}:`, error);
         }
     }
-
     // --- END: RECALCULATE PRODI SUMMARY TABLE ---
 
   
@@ -651,7 +748,6 @@ async function logActivity(action, details = '') {
   } catch (e) {
       // Ini akan menangkap kegagalan koneksi atau RLS yang masih bandel
       console.error("Gagal mencatat aktivitas (Supabase). Cek RLS INSERT pada activityLog.", e); 
-      // Tampilkan toast hanya jika ini adalah operasi yang KRITIS
       // showToast("Gagal mencatat log aktivitas.", 'warning'); 
   }
 }
@@ -714,7 +810,7 @@ async function loadFilterOptionsRekapan() { // <-- FIX: Wrap the block in a name
                  // Ensure the container is visible if this runs (relevant for mobile layouts)
                  if (elProdi.parentElement) elProdi.parentElement.style.display = 'block';
              } else {
-                 // Hide filter for Prodi role (they only see their own data)
+                 // Hide filter for Prodi role (他們只看自己的數據)
                  if (elProdi.parentElement) elProdi.parentElement.style.display = 'none';
              }
         }
@@ -729,19 +825,30 @@ async function loadRekapanRealisasi() {
     showLoader(true);
 
     try {
-        // Ambil filter
-        const prodiFilter = document.getElementById("filterProdiRekapan")?.value; // NEW
-        const grubFilter = document.getElementById("filterGrubBelanja")?.value;
-        const kelompokFilter = document.getElementById("filterKelompokBelanja")?.value;
-        const selectedYear = document.getElementById('filterTahunDashboard')?.value;
-        
-        // Target elemen tbody yang benar
+        // Ambil filter (Use getSafeValue for non-critical dashboard filters)
+        const prodiFilter = getSafeValue("filterProdiRekapan"); 
+        const grubFilter = getSafeValue("filterGrubBelanja");
+        const kelompokFilter = getSafeValue("filterKelompokBelanja");
+        const selectedYear = getSafeValue('filterTahunDashboard');
+        const selectedTipe = getSafeValue('filterTipeDashboard'); // Get Tipe filter
+
         const tbody = document.getElementById("rekapRealisasiUnitBody");
         if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Memuat data...</td></tr>`;
+        
+        // KRITIS: Tentukan tabel target berdasarkan filter tipe ajuan di dashboard
+        // Jika filter tipe tidak dipilih, kita perlu memilih tabel Tahap Aktif
+        const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
+        let targetTipe = selectedTipe;
 
+        // Jika filter tipe kosong, gunakan tipe ajuan dari tahap aktif
+        if (!targetTipe) {
+             targetTipe = tahapAktif === 1 ? 'Awal' : `Perubahan ${tahapAktif}`;
+        }
+        
+        const targetTableName = getAjuanTableName(targetTipe);
 
         let query = sb
-            .from('ajuan')
+            .from(targetTableName) // <-- REF ACT: Query dari tabel yang benar
             .select(`
                 ID_Prodi,
                 Total,
@@ -809,6 +916,383 @@ async function loadRekapanRealisasi() {
         showLoader(false);
     }
 }
+
+// ======================================================
+// PINDAHKAN SELURUH AJUAN DITERIMA → AJUAN PERUBAHAN
+// ======================================================
+
+
+// Extracted perform function for moving accepted ajuan (used by backend and generate buttons)
+async function performPindahkanAjuan() {
+    // Aksi ini hanya boleh dijalankan oleh prodi atau direktorat (jika tombolnya terlihat)
+    if (STATE.role !== 'prodi' && STATE.role !== 'direktorat') {
+         showToast("Anda tidak memiliki izin untuk melakukan aksi ini.", "danger");
+         return;
+    }
+    
+    try {
+        showLoader(true);
+
+        const tahapAktif = STATE.globalSettings?.Tahap_Perubahan_Aktif || 1;
+        const tahapSebelumnya = tahapAktif - 1;
+
+        if (tahapAktif <= 1) {
+            // Jika tahapAktif = 1, artinya kita menyalin dari 'Awal' ke 'Perubahan 1'. Ini diperbolehkan.
+            // Namun, jika dijalankan di tahap 0 (belum ada tahap aktif), kita blok.
+            if (tahapAktif === 0) {
+                 showToast("Tahap Perubahan belum diaktifkan.", "warning");
+                 showLoader(false);
+                 return;
+            }
+        }
+
+        const sourceType = tahapSebelumnya === 0 ? "Awal" : `Perubahan ${tahapSebelumnya}`;
+        const destinationType = `Perubahan ${tahapAktif}`;
+
+        // KRITIS: Tentukan nama tabel sumber dan tujuan berdasarkan tipe ajuan
+        const sourceTableName = getAjuanTableName(sourceType);
+        const destinationTableName = getAjuanTableName(destinationType);
+
+        if (sourceTableName === destinationTableName) {
+             showToast(`Tabel sumber (${sourceTableName}) sama dengan tabel tujuan. Proses dibatalkan.`, "danger");
+             showLoader(false);
+             return;
+        }
+
+        // 1. Ambil daftar ID_Ajuan_Asal yang sudah ada di tabel tujuan (untuk Prodi yang login)
+        let existingQuery = sb.from(destinationTableName).select("ID_Ajuan_Asal");
+        
+        if (STATE.role === 'prodi') {
+             existingQuery = existingQuery.eq('ID_Prodi', STATE.id);
+        }
+
+        const { data: existing, error: errExisting } = await existingQuery;
+        if (errExisting) throw errExisting;
+
+        const existingSet = new Set(existing.map(e => String(e.ID_Ajuan_Asal)).filter(Boolean));
+
+        // 2. Ambil seluruh ajuan diterima pada tahap sebelumnya dari TABEL SUMBER
+        let acceptedQuery = sb
+            .from(sourceTableName)
+            .select("*")
+            .eq("Status", "Diterima")
+            .eq("Is_Blocked", false);
+
+        if (STATE.role === 'prodi') {
+             acceptedQuery = acceptedQuery.eq('ID_Prodi', STATE.id); // <--- FILTER KRITIS UNTUK PRODI
+        }
+
+        const { data: diterima, error: errDiterima } = await acceptedQuery;
+
+        if (errDiterima) throw errDiterima;
+
+        if (!diterima.length) {
+            showToast(`Tidak ada ajuan diterima dari tahap ${sourceType} yang memenuhi syarat untuk disalin.`, "info");
+            showLoader(false);
+            return;
+        }
+
+        // 3. Filter ajuan yang belum pernah dipindahkan dan siapkan data baru
+        const toInsert = diterima
+    .filter(a => !existingSet.has(String(a.ID_Ajuan))) 
+    .map(a => {
+        // Hapus ID lama dan buat objek baru yang bersih untuk insert
+        // Kita tidak bisa menggunakan spread {...a} karena mungkin ada properti yang tidak valid
+        
+        const newA = {
+            // Kolom utama
+            "ID_Prodi": a.ID_Prodi,
+            "Grub_Belanja_Utama": a.Grub_Belanja_Utama,
+            "ID_Kelompok": a.ID_Kelompok,
+            "Judul_Kegiatan": a.Judul_Kegiatan,
+            "Nama_Ajuan": a.Nama_Ajuan,
+            "Jumlah": a.Jumlah,
+            "Satuan": a.Satuan,
+            "Harga_Satuan": a.Harga_Satuan,
+            "Total": a.Total,
+            "Keterangan": a.Keterangan,
+            "Status_Revisi": a.Status_Revisi,
+            "Data_Dukung": a.Data_Dukung,
+            
+            // Kolom Sistem Baru
+            "Status": 'Menunggu Review',
+            "Tipe_Ajuan": destinationType,
+            "Timestamp": new Date().toISOString(),
+            "Komentar": a.Komentar || [], // Carry over existing comments if any
+            "Is_Blocked": false,
+            "Catatan_Reviewer": null,
+            "ID_Ajuan_Asal": String(a.ID_Ajuan), 
+
+            // Kolom RPD (Pastikan case sensitivity cocok dengan Supabase: rpd_jan, etc.)
+            // Kita ambil langsung dari objek 'a'
+            "rpd_jan": a.rpd_jan || 0, "rpd_feb": a.rpd_feb || 0, "rpd_mar": a.rpd_mar || 0, "rpd_apr": a.rpd_apr || 0, 
+            "rpd_mei": a.rpd_mei || 0, "rpd_jun": a.rpd_jun || 0, "rpd_jul": a.rpd_jul || 0, "rpd_ags": a.rpd_ags || 0, 
+            "rpd_sep": a.rpd_sep || 0, "rpd_okt": a.rpd_okt || 0, "rpd_nov": a.rpd_nov || 0, "rpd_des": a.rpd_des || 0,
+
+            // Kolom Realisasi
+            "realisasi_jan": a.realisasi_jan || 0, "realisasi_feb": a.realisasi_feb || 0, "realisasi_mar": a.realisasi_mar || 0, "realisasi_apr": a.realisasi_apr || 0, 
+            "realisasi_mei": a.realisasi_mei || 0, "realisasi_jun": a.realisasi_jun || 0, "realisasi_jul": a.realisasi_jul || 0, "realisasi_ags": a.realisasi_ags || 0, 
+            "realisasi_sep": a.realisasi_sep || 0, "realisasi_okt": a.realisasi_okt || 0, "realisasi_nov": a.realisasi_nov || 0, "realisasi_des": a.realisasi_des || 0,
+
+            // Kolom Kalkulasi 
+            "calcA1": a.calcA1 || null, "calcS1": a.calcS1 || null,
+            "calcA2": a.calcA2 || null, "calcS2": a.calcS2 || null,
+            "calcA3": a.calcA3 || null, "calcS3": a.calcS3 || null,
+            "calcA4": a.calcA4 || null, "calcS4": a.calcS4 || null,
+            "calcA5": a.calcA5 || null, "calcS5": a.calcS5 || null,
+            "calcA6": a.calcA6 || null, "calcS6": a.calcS6 || null,
+            
+        };
+
+        // Hapus properti yang mungkin undefined dari objek sumber
+        Object.keys(newA).forEach(key => {
+            if (newA[key] === undefined) {
+                delete newA[key];
+            }
+        });
+        
+        return newA;
+    });
+
+        // 4. Insert batch ke Supabase (TABEL TUJUAN)
+        const { error: errInsert } = await sb.from(destinationTableName).insert(toInsert); 
+        if (errInsert) throw errInsert;
+
+        const successMessage = (STATE.role === 'prodi') 
+            ? `${toInsert.length} ajuan Anda berhasil disalin dari tahap ${sourceType} ke ${destinationType}. Silakan cek tab Daftar Ajuan Perubahan.`
+            : `${toInsert.length} ajuan berhasil dipindahkan (Direktorat).`;
+
+        showToast(successMessage, "success");
+
+        logActivity(
+            "Pindahkan Ajuan Diterima",
+            `Menyalin ${toInsert.length} ajuan dari tabel ${sourceTableName} ke tabel ${destinationTableName}`
+        );
+
+        // 5. Reload tampilan daftar perubahan
+        if (typeof refreshAjuanTablePerubahan === "function") {
+            refreshAjuanTablePerubahan(true); 
+        }
+
+    } catch (e) {
+        console.error("Gagal memindahkan ajuan:", e);
+        // START FIX: Improved RLS error handling
+        let errorMessage = "Gagal memindahkan ajuan. Pastikan tabel revisi sudah dibuat dan skemanya benar.";
+        if (e.code === '42501') {
+             errorMessage = "Gagal memindahkan ajuan: Pelanggaran RLS Supabase (42501). Pastikan kebijakan INSERT di Supabase mengizinkan Unit/Direktorat yang bersangkutan.";
+        } else if (e.message && e.message.includes('401')) {
+             errorMessage = "Gagal memindahkan ajuan: Tidak terautentikasi (401). Pastikan Anon Key Supabase Anda valid dan RLS disiapkan.";
+        } else if (e.message && e.message.includes('column "id_ajuan" does not exist')) {
+             errorMessage = "Gagal memindahkan ajuan: Skema tabel tujuan mungkin tidak sinkron atau ID_Ajuan belum dikonfigurasi sebagai PK auto-increment.";
+        }
+        showToast(errorMessage, "danger");
+        // END FIX
+    } finally {
+        showLoader(false);
+    }
+}
+
+safeAddClickListener("btn-pindahkan-ajuan-backend", async () => { await performPindahkanAjuan(); });
+safeAddClickListener("btn-copy-accepted", async () => { await performPindahkanAjuan(); });
+
+
+// --- FIXED/MODIFIED loadMatrixSemulaMenjadi ---
+async function loadMatrixSemulaMenjadi() {
+    showLoader(true);
+    document.getElementById("matrix-loading").style.display = "block";
+
+    try {
+        const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
+        
+        let semulaTipe;
+        if (tahapAktif === 1) {
+            semulaTipe = "Awal";
+        } else {
+            semulaTipe = `Perubahan ${tahapAktif - 1}`;
+        }
+        const menjadiTipe = `Perubahan ${tahapAktif}`;
+        
+        if (tahapAktif === 0) {
+            throw new Error("Tahap Perubahan belum diaktifkan (Tahap_Perubahan_Aktif = 0).");
+        }
+        
+        // KRITIS: Tentukan nama tabel
+        const semulaTableName = getAjuanTableName(semulaTipe);
+        const menjadiTableName = getAjuanTableName(menjadiTipe);
+
+        console.log(`[Matrix] Memuat perbandingan: ${semulaTipe} (Tabel: ${semulaTableName}) vs ${menjadiTipe} (Tabel: ${menjadiTableName})`);
+
+        // 1. Ambil data MENJADI (Tahap Aktif, Diterima, Tidak Diblokir)
+        const { data: menjadiRaw, error: errMenjadi } = await sb
+            .from(menjadiTableName) // <-- REF ACT
+            .select("ID_Prodi, Nama_Ajuan, Total")
+            .eq("Status", "Diterima")
+            .eq("Is_Blocked", false);
+        if (errMenjadi) throw errMenjadi;
+
+        // 2. Ambil data SEMULA (Tahap Sebelumnya, Diterima, Tidak Diblokir)
+        const { data: semulaRaw, error: errSemula } = await sb
+            .from(semulaTableName) // <-- REF ACT
+            .select("ID_Prodi, Nama_Ajuan, Total")
+            .eq("Status", "Diterima")
+            .eq("Is_Blocked", false);
+        if (errSemula) throw errSemula;
+        
+        // Helper function to aggregate data (by Prodi + Ajuan Name)
+        const aggregateData = (data) => {
+            const map = new Map(); // Key: ID_Prodi|Nama_Ajuan
+            data.forEach(item => {
+                const key = `${item.ID_Prodi}|${item.Nama_Ajuan}`;
+                const total = Number(item.Total) || 0;
+                map.set(key, (map.get(key) || 0) + total);
+            });
+            return map;
+        };
+
+        const semulaMap = aggregateData(semulaRaw);
+        const menjadiMap = aggregateData(menjadiRaw);
+        
+        const allKeys = new Set([...semulaMap.keys(), ...menjadiMap.keys()]);
+
+        const matrix = [];
+        allKeys.forEach(key => {
+            const [ID_Prodi, Nama_Ajuan] = key.split('|');
+            const Semula = semulaMap.get(key) || 0;
+            const Menjadi = menjadiMap.get(key) || 0;
+            const Selisih = Menjadi - Semula;
+            
+            // Only include items where the total amount changed OR the item is entirely new (Menjadi > 0 and Semula = 0)
+            if (Semula !== Menjadi || (Menjadi > 0 && Semula === 0)) {
+                 matrix.push({
+                    ID_Prodi: ID_Prodi,
+                    Nama_Ajuan: Nama_Ajuan,
+                    Semula: Semula,
+                    Menjadi: Menjadi,
+                    Selisih: Selisih
+                });
+            }
+        });
+        
+        // Sort the matrix for better readability
+        matrix.sort((a, b) => {
+            if (a.ID_Prodi !== b.ID_Prodi) return a.ID_Prodi.localeCompare(b.ID_Prodi);
+            return a.Nama_Ajuan.localeCompare(b.Nama_Ajuan);
+        });
+
+
+        renderMatrixSemulaMenjadi(matrix, semulaTipe, menjadiTipe);
+
+    } catch(e) {
+        console.error("Matrix error:", e);
+        showToast(`Gagal memuat Matrix Semula–Menjadi: ${e.message}`, "danger");
+    } finally {
+        document.getElementById("matrix-loading").style.display = "none";
+    }
+}
+
+
+// --- FIXED/MODIFIED renderMatrixSemulaMenjadi ---
+function renderMatrixSemulaMenjadi(rows, semulaTipe, menjadiTipe) {
+    const tbody = document.getElementById("matrixBody");
+    const headerTitle = document.getElementById("matrixHeaderTitle");
+    
+    // Update main title if the element exists
+    if (headerTitle) {
+        headerTitle.textContent = `Matrix Perbandingan Anggaran: ${semulaTipe} vs ${menjadiTipe}`;
+    }
+
+    // Attempt to update table column headers dynamically
+    const headerSemula = document.getElementById("matrixHeaderSemula");
+    const headerMenjadi = document.getElementById("matrixHeaderMenjadi");
+    if(headerSemula) headerSemula.textContent = `Total Biaya (${semulaTipe})`;
+    if(headerMenjadi) headerMenjadi.textContent = `Total Biaya (${menjadiTipe})`;
+
+
+    tbody.innerHTML = "";
+
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Tidak ada data ajuan diterima yang berubah dari tahap ${semulaTipe} ke ${menjadiTipe}.</td></tr>`;
+        return;
+    }
+
+    let no = 1;
+    let currentProdi = null;
+    let subTotalSemula = 0;
+    let subTotalMenjadi = 0;
+    let subTotalSelisih = 0;
+    
+    // Helper to get Prodi Name
+    const prodiNameMap = STATE.allProdi.reduce((acc, p) => {
+        acc[p.ID_Prodi] = p.Nama_Prodi;
+        return acc;
+    }, {});
+
+    rows.forEach(r => {
+        // Aggregation logic for subtotals per Prodi
+        if (currentProdi !== r.ID_Prodi) {
+            // Render subtotal for previous Prodi if applicable
+            if (currentProdi !== null) {
+                tbody.innerHTML += `
+                    <tr class="table-info fw-bold">
+                        <td colspan="3" class="text-end">Subtotal ${currentProdi}</td>
+                        <td class="text-end">Rp ${subTotalSemula.toLocaleString('id-ID')}</td>
+                        <td class="text-end">Rp ${subTotalMenjadi.toLocaleString('id-ID')}</td>
+                        <td class="${subTotalSelisih < 0 ? "text-danger" : "text-success"}">
+                            Rp ${subTotalSelisih.toLocaleString('id-ID')}
+                        </td>
+                    </tr>
+                `;
+            }
+            // Start new Prodi group
+            currentProdi = r.ID_Prodi;
+            subTotalSemula = 0;
+            subTotalMenjadi = 0;
+            subTotalSelisih = 0;
+            no = 1;
+            
+            const prodiName = prodiNameMap[currentProdi] || currentProdi;
+            const prodiColor = getColorForProdi(currentProdi);
+
+            tbody.innerHTML += `
+                <tr class="table-secondary fw-bold" style="border-left: 5px solid ${prodiColor};">
+                    <td colspan="6">${currentProdi} - ${escapeHtml(prodiName)}</td>
+                </tr>
+            `;
+        }
+        
+        subTotalSemula += r.Semula;
+        subTotalMenjadi += r.Menjadi;
+        subTotalSelisih += r.Selisih;
+
+        tbody.innerHTML += `
+            <tr>
+                <td>${no++}</td>
+                <td>${r.ID_Prodi}</td>
+                <td>${escapeHtml(r.Nama_Ajuan)}</td>
+                <td>Rp ${r.Semula.toLocaleString('id-ID')}</td>
+                <td>Rp ${r.Menjadi.toLocaleString('id-ID')}</td>
+                <td class="${r.Selisih < 0 ? "text-danger" : "text-success"}">
+                    Rp ${r.Selisih > 0 ? '+' : ''}${r.Selisih.toLocaleString('id-ID')}
+                </td>
+            </tr>
+        `;
+    });
+    
+    // Render final subtotal
+    if (currentProdi !== null) {
+        tbody.innerHTML += `
+            <tr class="table-info fw-bold">
+                <td colspan="3" class="text-end">Subtotal ${currentProdi}</td>
+                <td class="text-end">Rp ${subTotalSemula.toLocaleString('id-ID')}</td>
+                <td class="text-end">Rp ${subTotalMenjadi.toLocaleString('id-ID')}</td>
+                <td class="${subTotalSelisih < 0 ? "text-danger" : "text-success"}">
+                    Rp ${subTotalSelisih.toLocaleString('id-ID')}
+                </td>
+            </tr>
+        `;
+    }
+}
+
 
 function renderRekapanRealisasi(data) {
     const tbody = document.getElementById("rekapRealisasiUnitBody");
@@ -1002,21 +1486,19 @@ function getProdiName(id) {
     if(realisasiPerubahanTitle) realisasiPerubahanTitle.innerHTML = `<i class="bi bi-graph-up-arrow"></i> Realisasi ${tahapStr}`;
     
     const copyBtn = document.getElementById('btn-copy-accepted');
+    // KRITIS: HANYA tampilkan untuk PRODI saat tahap perubahan aktif
     if (copyBtn) {
-        if (isTahapPerubahanOpen && STATE.role === 'prodi') {
+        if (isTahapPerubahanOpen && STATE.role === 'prodi') { // <--- KRITIS: DIUBAH MENJADI 'prodi'
              copyBtn.style.display = 'block';
-             if (tahapAktif == 1) {
-                copyBtn.innerHTML = `<i class="bi bi-files"></i> Pindahkan Ajuan Awal Diterima`;
-                copyBtn.title = "Salin semua ajuan awal yang diterima dan tidak diblokir ke daftar ini untuk diedit ulang";
-              } else {
-                copyBtn.innerHTML = `<i class="bi bi-files"></i> Pindahkan dari Perubahan ${tahapAktif - 1}`;
-                copyBtn.title = `Salin semua ajuan dari Tahap Perubahan ${tahapAktif - 1} yang diterima dan tidak diblokir ke daftar ini`;
-              }
+             const sourceStr = tahapAktif == 1 ? "Awal" : `Perubahan ${tahapAktif - 1}`;
+             const destinationStr = tahapAktif == 1 ? `Perubahan ${tahapAktif}` : `Perubahan ${tahapAktif}`;
+             copyBtn.innerHTML = `<i class="bi bi-files"></i> Pindahkan Ajuan Diterima (${sourceStr} -> ${destinationStr})`; // <-- Disesuaikan teksnya
+             copyBtn.title = `Salin semua ajuan dari tahap ${sourceStr} yang diterima dan tidak diblokir ke daftar ${destinationStr}`;
         } else {
              copyBtn.style.display = 'none';
         }
     }
-  }
+}
 
   async function updateProdiPaguInfo(userData) {
     if (!userData || STATE.role !== 'prodi') return;
@@ -1026,8 +1508,11 @@ function getProdiName(id) {
     try {
         const paguAnggaran = Number(userData.Pagu_Anggaran) || 0;
         
+        // Ajuan Awal selalu di tabel 'ajuan'
+        const ajuanAwalTableName = getAjuanTableName('Awal'); 
+
         // 1. Calculate Total Ajuan Awal (Active Statuses) (Supabase Query)
-        const { data: activeAjuanAwalData, error: awalError } = await sb.from('ajuan')
+        const { data: activeAjuanAwalData, error: awalError } = await sb.from(ajuanAwalTableName)
             .select('Total')
             .eq('ID_Prodi', STATE.id)
             .eq('Tipe_Ajuan', 'Awal')
@@ -1041,7 +1526,10 @@ function getProdiName(id) {
         });
         
         // 2. Calculate Total Ajuan Overall (Active Statuses) (Supabase Query)
-        const { data: activeAjuanOverallData, error: overallError } = await sb.from('ajuan')
+        // NOTE: Ini mengasumsikan STATE.currentAjuanType di tab Form Ajuan (bisa Awal atau Perubahan X)
+        const activeTableName = getAjuanTableName(STATE.currentAjuanType); 
+        
+        const { data: activeAjuanOverallData, error: overallError } = await sb.from(activeTableName)
             .select('Total')
             .eq('ID_Prodi', STATE.id)
             .in('Status', ['Menunggu Review', 'Diterima', 'Revisi']);
@@ -1058,12 +1546,11 @@ function getProdiName(id) {
         const sisaPaguClass = sisaPaguAwal < 0 ? 'text-danger fw-bold' : 'text-success';
 
         let extraInfo = '';
-        if (totalDiajukanOverall > totalDiajukanAwal) {
+        if (STATE.currentAjuanType !== 'Awal') {
             extraInfo = `
                 <div class="mt-2 pt-2 border-top w-100">
-                    <span class="text-muted">Total Ajuan Aktif Keseluruhan (Awal + Perubahan):</span>
+                    <span class="text-muted">Total Ajuan Aktif di tahap ${STATE.currentAjuanType}:</span>
                     <strong class="d-block fs-6">Rp ${totalDiajukanOverall.toLocaleString('id-ID')}</strong>
-                    <span class="text-muted small">Anggaran Perubahan tidak dibatasi oleh Pagu Awal.</span>
                 </div>`;
         }
 
@@ -1105,11 +1592,12 @@ function getProdiName(id) {
     document.getElementById('app-area').style.display = 'block';
     document.getElementById('welcome').innerHTML = `<span class="badge bg-secondary me-2">${STATE.role.toUpperCase()}</span> <strong>${STATE.id} - ${userData.Nama_Prodi}</strong>`;
     
-    await loadGlobalSettings(); 
+    await loadGlobalSettings(); // 1. Load settings FIRST
     await loadBeritaAcaraSettings();
-    updatePerubahanUI(STATE.globalSettings);
+    updatePerubahanUI(STATE.globalSettings); // 2. Update UI based on settings
     
     const navItemAjuanAwal = document.getElementById('nav-item-ajuan-awal');
+    // Ajuan Awal disembunyikan jika Ajuan Perubahan dibuka
     if (navItemAjuanAwal) navItemAjuanAwal.style.display = (STATE.globalSettings.Status_Ajuan_Perubahan === 'Dibuka') ? 'none' : 'block';
     
     // Role-based UI visibility
@@ -1121,7 +1609,14 @@ function getProdiName(id) {
     if (accountTabLink) accountTabLink.style.display = STATE.role === 'prodi' ? 'block' : 'none';
 
     if (STATE.role === 'prodi') {
+      // Set current ajuan type to the active phase if Perubahan is open
+      if (STATE.globalSettings.Status_Ajuan_Perubahan === 'Dibuka') {
+          STATE.currentAjuanType = `Perubahan ${STATE.globalSettings.Tahap_Perubahan_Aktif || 1}`;
+      } else {
+          STATE.currentAjuanType = 'Awal';
+      }
       await updateProdiPaguInfo(userData);
+
       // Hide filters for Prodi
       ['filterProdiAwal', 'filterProdiPerubahan', 'filterProdiRPDAwal', 'filterProdiRPDPerubahan', 'filterProdiRealisasiAwal', 'filterProdiRealisasiPerubahan', 'filterProdiBA'].forEach(id => {
           const el = document.getElementById(id);
@@ -1129,7 +1624,7 @@ function getProdiName(id) {
       });
       const direktoratCharts = document.getElementById('direktorat-charts');
       if(direktoratCharts) direktoratCharts.style.display = 'none';
-      // Hide BA filter for prodi (they only see their own)
+      // Hide BA filter for prodi (they only see their own data)
       const baFilterGroup = document.getElementById('ba-filter-group-prodi');
       if(baFilterGroup) baFilterGroup.style.display = 'none';
 
@@ -1155,8 +1650,10 @@ function getProdiName(id) {
     }
     
     // --- FIX 2: Ensure critical initial data (like STATE.allProdi) is loaded before dashboard calculations
-    await loadInitialData(); 
-    await loadFilterOptionsRekapan(); // <-- ADDED CALL to ensure Rekapan filters are populated
+     await loadInitialData(); 
+    await loadFilterOptionsRekapan();
+    
+    // 4. Finally load dashboard
     await loadDashboardData();
     // ---------------------------------------------------------------------------------------------------
     
@@ -1192,7 +1689,11 @@ if (applyFilterBtn) {
     // Setup listener for dashboard filters (should trigger processDataForDashboard)
     ['filterTahunDashboard', 'filterTipeDashboard'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.addEventListener('change', processDataForDashboard);
+        if (el) el.addEventListener('change', () => {
+            // Clear cache when filters change in the UI
+            STATE.cachedDashboardData = []; 
+            loadDashboardData(true);
+        });
     });
   }
 
@@ -1362,7 +1863,7 @@ if (applyFilterBtn) {
     document.getElementById('historyModalAjuanId').innerText = ajuanId.substring(0, 6) + '...';
     document.getElementById('historyModalAjuanNama').innerText = nama;
     const logListEl = document.getElementById('history-log-list');
-    logListEl.innerHTML = `<div class="text-center text-muted p-3">Memuat riwayat...</div>`;
+    if(logListEl) logListEl.innerHTML = `<div class="text-center text-muted p-3">Memuat riwayat...</div>`;
     
     const historyModalEl = document.getElementById('historyModal');
     if (historyModalEl) {
@@ -1371,7 +1872,7 @@ if (applyFilterBtn) {
     }
 
     try {
-        // Supabase Query
+        // Supabase Query (History is stored centrally, identified by ajuan_id)
         const { data: historyLogs, error } = await sb.from('ajuan_history')
             .select('*')
             .eq('ajuan_id', ajuanId)
@@ -1380,11 +1881,11 @@ if (applyFilterBtn) {
         if (error) throw error;
 
         if (historyLogs.length === 0) {
-            logListEl.innerHTML = `<div class="text-center text-muted p-3">Belum ada riwayat perubahan.</div>`;
+            if(logListEl) logListEl.innerHTML = `<div class="text-center text-muted p-3">Belum ada riwayat perubahan.</div>`;
             return;
         }
         
-        logListEl.innerHTML = historyLogs.map(log => {
+        if(logListEl) logListEl.innerHTML = historyLogs.map(log => {
             // Convert ISO string to Date object
             const timestamp = log.timestamp ? new Date(log.timestamp) : null;
             const time = timestamp ? timestamp.toLocaleString('id-ID') : '';
@@ -1398,92 +1899,19 @@ if (applyFilterBtn) {
                     </div>`;
         }).join('');
     } catch (error) {
-        logListEl.innerHTML = `<div class="text-center text-danger p-3">Gagal memuat riwayat.</div>`;
+        if(logListEl) logListEl.innerHTML = `<div class="text-center text-danger p-3">Gagal memuat riwayat.</div>`;
         console.error("History fetch error (Supabase):", error);
     }
   };
-
-  /**
- * Calculates the complex volume, unit cost, and total.
- * Assumes Volume = A1*A2*A3 and Harga Satuan = A4*A5*A6.
- * All inputs are optional, treated as 1 for multiplication if empty/null, but 0 if zero is entered.
- */
-function calculateTotal(prefix = '') {
-    // Collect all 6 numerical inputs. If empty, treat as 1 for multiplication chain.
-    const getVal = (id) => {
-        const value = document.getElementById(`${prefix}${id}`)?.value;
-        const num = Number(value);
-        // If input is explicitly empty/null/undefined, return 1 for multiplication chain.
-        // If input is 0 or results in 0 (e.g., failed parsing), return 0.
-        if (value === '' || value === null || value === undefined) return 1;
-        return isNaN(num) ? 0 : num;
-    };
-    
-    // Volume Calculation (A1 x A2 x A3)
-    const a1 = getVal('calcA1');
-    const a2 = getVal('calcA2');
-    const a3 = getVal('calcA3');
-    
-    // Harga Satuan Calculation (A4 x A5 x A6)
-    const a4 = getVal('calcA4');
-    const a5 = getVal('calcA5');
-    const a6 = getVal('calcA6');
-
-    // Calculate intermediate results
-    const volumeResult = (a1 * a2 * a3);
-    const hargaSatuanResult = (a4 * a5 * a6);
-    const totalResult = volumeResult * hargaSatuanResult;
-
-    // Update the output fields
-    const jumlahEl = document.getElementById(`${prefix}jumlah`);
-    const hargaSatuanEl = document.getElementById(`${prefix}hargaSatuan`);
-    const totalEl = document.getElementById(`${prefix}total`);
-
-    // Ensure we handle the scenario where the result might be NaN if text was entered
-    const finalVolume = totalResult > 0 ? volumeResult : 0; // If total is 0, reset volume/hargaSatuan to 0 to prevent displaying 1
-    const finalHargaSatuan = totalResult > 0 ? hargaSatuanResult : 0;
-    const finalTotal = totalResult > 0 ? totalResult : 0;
-
-    if (jumlahEl) jumlahEl.value = finalVolume.toLocaleString('id-ID', { maximumFractionDigits: 2 });
-    if (hargaSatuanEl) hargaSatuanEl.value = finalHargaSatuan.toLocaleString('id-ID', { maximumFractionDigits: 0 });
-    if (totalEl) totalEl.value = finalTotal.toLocaleString('id-ID', { maximumFractionDigits: 0 });
-    
-    // Return the calculated values as numbers (used for staging/saving)
-    return {
-        Jumlah: finalVolume,
-        Harga_Satuan: finalHargaSatuan,
-        Total: finalTotal
-    };
-}
-
-// --- Replacement for the old simple calculation listeners ---
-// List of all 6 Angka inputs
-const CALC_INPUTS = ['calcA1', 'calcA2', 'calcA3', 'calcA4', 'calcA5', 'calcA6'];
-const EDIT_CALC_INPUTS = CALC_INPUTS.map(id => `edit-${id}`);
-
-// Set up listeners for the main form
-CALC_INPUTS.forEach(id => {
-    const el = document.getElementById(id);
-    // Listen to changes on all 6 numerical inputs for real-time total update
-    if (el) el.addEventListener('input', () => calculateTotal()); 
-});
-
-// Set up listeners for the edit modal
-EDIT_CALC_INPUTS.forEach(id => {
-    const el = document.getElementById(id);
-    // Listen to changes on all 6 numerical inputs for real-time total update
-    if (el) el.addEventListener('input', () => calculateTotal('edit-'));
-});
-// ---------------------------------------------------------------------------------------------------
 
   function clearRincianForm() {
       // Clear standard fields
       ['namaAjuan', 'satuan', 'keterangan', 'dataDukung'].forEach(id => setElValue(id, ''));
       
-      // Clear calculated result fields (now read-only)
+      // Clear calculated result fields (now outputs of manual calculation)
       ['jumlah', 'hargaSatuan', 'total'].forEach(id => setElValue(id, '')); 
       
-      // Clear the 6 calculation inputs and their units
+      // Clear the 6 calculation inputs and their units (kept for safety/schema)
       for (let i = 1; i <= 6; i++) {
           setElValue(`calcA${i}`, '');
           setElValue(`calcS${i}`, '');
@@ -1521,47 +1949,47 @@ EDIT_CALC_INPUTS.forEach(id => {
   document.getElementById('btn-add-to-staging').addEventListener('click', () => {
     if (STATE.role !== 'prodi') { showToast('Hanya role prodi yang dapat mengajukan.', 'danger'); return; }
     
-    // 1. Perform calculation and get results
-    const calcResults = calculateTotal();
+    // 1. Perform calculation and get results from manual inputs
+    const calcResults = hitungTotalAjuan();
     
-    const judulKegiatan = document.getElementById('judulKegiatan').value.trim();
-    const namaAjuan = document.getElementById('namaAjuan').value.trim();
-    const satuan = document.getElementById('satuan').value.trim();
+    const judulKegiatan = getSafeValue('judulKegiatan').trim();
+    const namaAjuan = getSafeValue('namaAjuan').trim();
+    const satuan = getSafeValue('satuan').trim();
     
+    // Check if the calculated total is valid (must be > 0)
+    if (calcResults.total <= 0) {
+        showToast('Total biaya harus lebih besar dari 0. Periksa rincian Jumlah dan Harga Satuan.', 'warning'); 
+        return;
+    }
+
     if (!judulKegiatan) { showToast('Judul Kegiatan wajib diisi.', 'warning'); document.getElementById('judulKegiatan').focus(); return; }
-    if (!namaAjuan || calcResults.Total <= 0 || !satuan || !document.getElementById('selectKelompok').value || !document.getElementById('selectGrub').value){ 
-        showToast('Harap lengkapi Judul, Rincian, Satuan Akhir, Kelompok, Grub, dan pastikan Total > 0.', 'warning'); return; 
+    if (!namaAjuan || !satuan || !getSafeValue('selectKelompok') || !getSafeValue('selectGrub')){ 
+        showToast('Harap lengkapi Judul, Rincian, Satuan Akhir, Kelompok, Grub.', 'warning'); return; 
     }
     
-    // 2. Prepare payload including new calculation fields (calcA1..calcS6)
+    // 2. Prepare payload
     const payload = {
-      Grub_Belanja_Utama: document.getElementById('selectGrub').value, 
+      Grub_Belanja_Utama: getSafeValue('selectGrub'), 
       Judul_Kegiatan: judulKegiatan, 
       ID_Prodi: STATE.id, 
-      ID_Kelompok: document.getElementById('selectKelompok').value, 
+      ID_Kelompok: getSafeValue('selectKelompok'), 
       Nama_Ajuan: namaAjuan, 
       // Use calculated results for DB fields:
-      Jumlah: calcResults.Jumlah, 
+      Jumlah: calcResults.jumlah, 
       Satuan: satuan, 
-      Harga_Satuan: calcResults.Harga_Satuan, 
-      Total: calcResults.Total, 
-      Keterangan: document.getElementById('keterangan').value, 
-      Status_Revisi: document.getElementById('selectRevisi').value, 
-      Data_Dukung: document.getElementById('dataDukung').value,
+      Harga_Satuan: calcResults.harga, 
+      Total: calcResults.total, 
+      Keterangan: getSafeValue('keterangan'), 
+      Status_Revisi: getSafeValue('selectRevisi'), 
+      Data_Dukung: getSafeValue('dataDukung'),
       
-      // NEW: Store calculation breakdown (safe numeric conversion)
-      calcA1: Number(document.getElementById('calcA1').value) || null,
-      calcS1: document.getElementById('calcS1').value || null,
-      calcA2: Number(document.getElementById('calcA2').value) || null,
-      calcS2: document.getElementById('calcS2').value || null,
-      calcA3: Number(document.getElementById('calcA3').value) || null,
-      calcS3: document.getElementById('calcS3').value || null,
-      calcA4: Number(document.getElementById('calcA4').value) || null,
-      calcS4: document.getElementById('calcS4').value || null,
-      calcA5: Number(document.getElementById('calcA5').value) || null,
-      calcS5: document.getElementById('calcS5').value || null,
-      calcA6: Number(document.getElementById('calcA6').value) || null,
-      calcS6: document.getElementById('calcS6').value || null,
+      // NEW: Set calculation breakdown to null/empty as it is not used in this mode
+      calcA1: null, calcS1: null,
+      calcA2: null, calcS2: null,
+      calcA3: null, calcS3: null,
+      calcA4: null, calcS4: null,
+      calcA5: null, calcS5: null,
+      calcA6: null, calcS6: null,
     };
     
     STATE.stagingList.push(payload); 
@@ -1582,11 +2010,11 @@ EDIT_CALC_INPUTS.forEach(id => {
     try {
         let deadlineTimestamp = null;
         let deadlineType = STATE.currentAjuanType;
+        const targetTableName = getAjuanTableName(deadlineType); // <-- REF ACT: Dapatkan nama tabel tujuan
 
         if (STATE.currentAjuanType === 'Awal') {
             deadlineTimestamp = STATE.globalSettings.Batas_Tanggal_Pengajuan;
         } else {
-            // Menggunakan Batas_Tanggal_Pengajuan_Perubahan untuk Ajuan Perubahan
             deadlineTimestamp = STATE.globalSettings.Batas_Tanggal_Pengajuan_Perubahan;
         }
 
@@ -1606,7 +2034,9 @@ EDIT_CALC_INPUTS.forEach(id => {
         // --- START Pagu Check Modification (Supabase Query) ---
         if (STATE.currentAjuanType === 'Awal' && paguAnggaran > 0) {
             
-            const { data: activeAjuanData, error: ajuanQueryError } = await sb.from('ajuan')
+            const ajuanAwalTableName = getAjuanTableName('Awal'); // Ajuan Awal selalu di tabel 'ajuan'
+
+            const { data: activeAjuanData, error: ajuanQueryError } = await sb.from(ajuanAwalTableName)
                 .select('Total')
                 .eq('ID_Prodi', STATE.id)
                 .eq('Tipe_Ajuan', 'Awal') 
@@ -1637,35 +2067,41 @@ EDIT_CALC_INPUTS.forEach(id => {
             Komentar: [], 
             Is_Blocked: false, 
             Timestamp: sbTimestamp()
-            // ID_Ajuan is auto-generated by Supabase
         }));
         
-        // Assuming ID_Ajuan is the primary key returned by select()
-        const { data: insertedRows, error: insertError } = await sb.from('ajuan')
+        // Insert ke tabel yang benar (ajuan atau ajuanrevX)
+        const { data: insertedRows, error: insertError } = await sb.from(targetTableName) 
             .insert(ajuanToInsert)
             .select('ID_Ajuan, Total'); 
             
         if (insertError) {
-             // CRITICAL NOTE FOR USER: The error "cannot insert into view rekap_prodi" comes from here
              console.error("Supabase Insert Error:", insertError);
-             throw new Error("Gagal menyimpan ajuan: " + insertError.message + 
-                             ". Harap periksa Trigger atau RLS pada tabel 'ajuan' di Supabase.");
+             let msg = insertError.message;
+             if (insertError.code === '42501') {
+                  msg = `Pelanggaran RLS: Supabase menolak operasi INSERT. Cek RLS policy pada tabel ${targetTableName}.`;
+             }
+             if (msg.includes("'calcA1' column")) {
+                 msg += ". KRITIS: Anda harus menambahkan 12 kolom kalkulasi (calcA1...calcS6) ke tabel 'ajuan' di Supabase.";
+             } else if (msg.includes("cannot insert into view")) {
+                 msg += ". Harap periksa Trigger atau RLS pada tabel 'ajuan' di Supabase.";
+             }
+             throw new Error("Gagal menyimpan ajuan: " + msg);
         }
 
         // Log History individually 
         for (const ajuan of insertedRows) {
             await logHistory(
-                String(ajuan.ID_Ajuan), // Ensure logging with string ID
-                "Ajuan Dibuat",
+                String(ajuan.ID_Ajuan), 
+                `Ajuan Dibuat (${targetTableName})`,
                 `Ajuan baru ditambahkan dengan total Rp ${Number(ajuan.Total).toLocaleString('id-ID')}.`
             );
         }
         // --- END SUPABASE BULK INSERT ---
         
-        await logActivity('Create Ajuan', `Mengirim ${STATE.stagingList.length} ajuan baru (${STATE.currentAjuanType}).`);
+        await logActivity('Create Ajuan', `Mengirim ${STATE.stagingList.length} ajuan baru (${STATE.currentAjuanType}) ke tabel ${targetTableName}.`);
 
         STATE.allDirektoratUids.forEach(uid => {
-            createNotification(uid, `${STATE.id} telah mengirim ${STATE.stagingList.length} ajuan baru untuk direview.`);
+            createNotification(uid, `${STATE.id} telah mengirim ${STATE.stagingList.length} ajuan baru untuk direview di tahap ${STATE.currentAjuanType}.`);
         });
 
         showToast(`${STATE.stagingList.length} ajuan berhasil dikirim.`);
@@ -1734,6 +2170,7 @@ EDIT_CALC_INPUTS.forEach(id => {
               
               let importData = [];
               const ajuanType = STATE.currentAjuanType; 
+              const targetTableName = getAjuanTableName(ajuanType);
               let totalImportedAmount = 0;
               
               for (let i = 1; i < jsonData.length; i++) {
@@ -1789,7 +2226,9 @@ EDIT_CALC_INPUTS.forEach(id => {
               // --- Pagu Check (Same logic as manual submission) ---
               const paguAnggaran = STATE.currentUserData.Pagu_Anggaran || 0;
               if (ajuanType === 'Awal' && paguAnggaran > 0) {
-                  const { data: activeAjuanData, error: ajuanQueryError } = await sb.from('ajuan')
+                  const ajuanAwalTableName = getAjuanTableName('Awal');
+
+                  const { data: activeAjuanData, error: ajuanQueryError } = await sb.from(ajuanAwalTableName)
                       .select('Total')
                       .eq('ID_Prodi', STATE.id)
                       .eq('Tipe_Ajuan', 'Awal') 
@@ -1812,14 +2251,22 @@ EDIT_CALC_INPUTS.forEach(id => {
 
 
               // --- SUPABASE BULK INSERT ---
-              const { data: insertedRows, error: insertError } = await sb.from('ajuan')
+              const { data: insertedRows, error: insertError } = await sb.from(targetTableName) // <-- REF ACT: Insert ke tabel yang benar
                   .insert(importData)
                   .select('ID_Ajuan, Total'); 
                   
               if (insertError) {
                    console.error("Supabase Import Insert Error:", insertError);
-                   throw new Error("Gagal menyimpan ajuan massal: " + insertError.message + 
-                                   ". Harap periksa Trigger atau RLS pada tabel 'ajuan' di Supabase.");
+                   let msg = insertError.message;
+                   if (insertError.code === '42501') {
+                       msg = `Pelanggaran RLS: Supabase menolak operasi INSERT. Cek RLS policy pada tabel ${targetTableName}.`;
+                   }
+                   if (msg.includes("'calcA1' column")) {
+                       msg += ". KRITIS: Anda harus menambahkan 12 kolom kalkulasi (calcA1...calcS6) ke tabel 'ajuan' di Supabase.";
+                   } else if (msg.includes("cannot insert into view")) {
+                       msg += ". Harap periksa Trigger atau RLS pada tabel 'ajuan' di Supabase.";
+                   }
+                   throw new Error("Gagal menyimpan ajuan massal: " + msg);
               }
 
               // Log History for inserted items
@@ -1828,12 +2275,12 @@ EDIT_CALC_INPUTS.forEach(id => {
                   const ajuan = insertedRows[j];
                   await logHistory(
                       String(ajuan.ID_Ajuan), 
-                      "Ajuan Dibuat (Import Excel)",
+                      `Ajuan Dibuat (Import Excel, ${targetTableName})`,
                       `Ajuan import ditambahkan (total ${insertedRows.length} item).`
                   );
               }
               
-              await logActivity('Import Ajuan', `Mengimport ${insertedRows.length} ajuan dari Excel (${ajuanType}). Total: Rp ${totalImportedAmount.toLocaleString('id-ID')}.`);
+              await logActivity('Import Ajuan', `Mengimport ${insertedRows.length} ajuan dari Excel (${ajuanType}) ke tabel ${targetTableName}. Total: Rp ${totalImportedAmount.toLocaleString('id-ID')}.`);
 
               STATE.allDirektoratUids.forEach(uid => {
                   createNotification(uid, `${STATE.id} telah mengimport ${insertedRows.length} ajuan baru (${ajuanType}) untuk direview.`);
@@ -1873,12 +2320,14 @@ EDIT_CALC_INPUTS.forEach(id => {
     STATE.currentAjuanType = 'Awal';
     const titleEl = document.getElementById('ajuan-form-title');
     if(titleEl) titleEl.innerHTML = `<i class="bi bi-file-earmark-plus"></i> Formulir Ajuan Awal`;
+    updateProdiPaguInfo(STATE.currentUserData);
   });
   document.getElementById('link-ajuan-perubahan').addEventListener('click', () => {
     const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
     STATE.currentAjuanType = `Perubahan ${tahapAktif}`;
     const titleEl = document.getElementById('ajuan-form-title');
     if(titleEl) titleEl.innerHTML = `<i class="bi bi-pencil-square"></i> Formulir Ajuan Perubahan ${tahapAktif}`;
+    updateProdiPaguInfo(STATE.currentUserData);
   });
   
   function populateGrubBelanja(selectId, isFilter = false) {
@@ -2075,7 +2524,7 @@ EDIT_CALC_INPUTS.forEach(id => {
   }
 
   // ------------------------------------------------------------------
-  // --- START RENDER ACTIONS HELPER ---
+  // --- START RENDER ACTIONS HELPER (FIXED FOR REFERENCE ERROR) ---
   // ------------------------------------------------------------------
 
   /**
@@ -2102,7 +2551,8 @@ EDIT_CALC_INPUTS.forEach(id => {
 
       // --- PRODI Actions ---
       if (isProdi) {
-          if (status === 'Menunggu Review' || status === 'Revisi') {
+          // PRODI can edit/delete if status is Review, Revisi, or Ditolak (to fix and resubmit)
+          if (status === 'Menunggu Review' || status === 'Revisi' || status === 'Ditolak') {
               // Edit/Delete for pending or revised items
               html += `<button class="btn btn-outline-primary" onclick="window.openEditModal('${ajuanId}')" title="Edit"><i class="bi bi-pencil"></i></button>`;
               html += `<button class="btn btn-outline-danger" onclick="window.deleteAjuan('${ajuanId}', '${tipe}')" title="Hapus"><i class="bi bi-trash"></i></button>`;
@@ -2146,8 +2596,8 @@ EDIT_CALC_INPUTS.forEach(id => {
   // Helper function to format the calculation breakdown for display
   function formatBreakdown(r) {
       // Check if the new calculation fields exist (for compatibility with old data)
-      if (r.calcA1 === undefined) {
-          // Fallback to old format if breakdown data is missing 
+      if (r.calcA1 === undefined || r.calcA1 === null) {
+          // Fallback to old format (or standard single Quantity x Price display)
           const jumlah = Number(r.Jumlah || 0);
           const harga = Number(r.Harga_Satuan || 0);
           const satuan = escapeHtml(r.Satuan || '');
@@ -2173,8 +2623,9 @@ EDIT_CALC_INPUTS.forEach(id => {
       const satuan = escapeHtml(r.Satuan || '');
       
       return `
-          <div class="small text-muted mb-1" title="Volume Breakdown">${volumeBreakdown.join(' x ') || '1'}</div>
-          <div class="small text-muted mb-1" title="Harga Satuan Breakdown">${costBreakdown.join(' x ') || '1'}</div>
+<div class="small text-muted mb-1" style="display:none" title="Volume Breakdown"> ${volumeBreakdown.join(' x ') || '1'} </div>
+<div class="small text-muted mb-1" style="display:none" title="Harga Satuan Breakdown"> ${costBreakdown.join(' x ') || '1'} </div>
+
           <strong class="text-nowrap">${jumlah.toLocaleString('id-ID', { maximumFractionDigits: 2 })} ${satuan} X Rp ${harga.toLocaleString('id-ID')}</strong>
       `;
   }
@@ -2184,6 +2635,16 @@ EDIT_CALC_INPUTS.forEach(id => {
     const isPerubahan = tipe.startsWith('Perubahan');
     const tableId = isPerubahan ? `tableAjuanPerubahan` : `tableAjuanAwal`;
     const summaryId = isPerubahan ? `summary-display-perubahan` : `summary-display-awal`;
+
+    // Ambil Tahap Perubahan Aktif dari global settings
+    const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
+    const currentTipe = isPerubahan ? `Perubahan ${tahapAktif}` : 'Awal';
+    
+    // KRITIS: Tentukan nama tabel yang akan di-query
+    const targetTableName = getAjuanTableName(currentTipe);
+    
+    // Perbarui STATE.currentAjuanType
+    STATE.currentAjuanType = currentTipe;
     
     const tableContainer = document.getElementById(tableId);
     if (!tableContainer) return;
@@ -2203,23 +2664,24 @@ EDIT_CALC_INPUTS.forEach(id => {
     }
     
     try {
-        let query = sb.from('ajuan').select('*').eq('Tipe_Ajuan', tipe);
+        let query = sb.from(targetTableName).select('*').eq('Tipe_Ajuan', currentTipe); // <-- REF ACT
 
-        const prodiFilterEl = document.getElementById(isPerubahan ? 'filterProdiPerubahan' : 'filterProdiAwal');
+        // Use getSafeValue for filter elements in case they are hidden/missing
+        const prodiFilter = getSafeValue(isPerubahan ? 'filterProdiPerubahan' : 'filterProdiAwal');
         if (STATE.role === 'prodi') {
             query = query.eq('ID_Prodi', STATE.id);
-        } else if (prodiFilterEl && prodiFilterEl.value) {
-            query = query.eq('ID_Prodi', prodiFilterEl.value);
+        } else if (prodiFilter) {
+            query = query.eq('ID_Prodi', prodiFilter);
         }
         
-        const grubFilterEl = document.getElementById(isPerubahan ? `filterGrubPerubahan` : `filterGrubAwal`);
-        if (grubFilterEl && grubFilterEl.value) query = query.eq('Grub_Belanja_Utama', grubFilterEl.value);
+        const grubFilter = getSafeValue(isPerubahan ? `filterGrubPerubahan` : `filterGrubAwal`);
+        if (grubFilter) query = query.eq('Grub_Belanja_Utama', grubFilter);
         
-        const kelompokFilterEl = document.getElementById(isPerubahan ? `filterKelompokPerubahan` : `filterKelompokAwal`);
-        if(kelompokFilterEl && kelompokFilterEl.value) query = query.eq('ID_Kelompok', kelompokFilterEl.value);
+        const kelompokFilter = getSafeValue(isPerubahan ? `filterKelompokPerubahan` : `filterKelompokAwal`);
+        if(kelompokFilter) query = query.eq('ID_Kelompok', kelompokFilter);
 
-        const statusFilterEl = document.getElementById(isPerubahan ? `filterStatusPerubahan` : `filterStatusAwal`);
-        if (statusFilterEl && statusFilterEl.value) query = query.eq('Status', statusFilterEl.value);
+        const statusFilter = getSafeValue(isPerubahan ? `filterStatusPerubahan` : `filterStatusAwal`);
+        if (statusFilter) query = query.eq('Status', statusFilter);
         
         // Execute the query
         query.order('Timestamp', { ascending: false }).then(async ({ data: ajuanDataRaw, error }) => {
@@ -2234,6 +2696,9 @@ EDIT_CALC_INPUTS.forEach(id => {
                 data.ID_Ajuan = String(data.ID_Ajuan || data.id);
                 if (data.ID_Ajuan_Asal) data.ID_Ajuan_Asal = String(data.ID_Ajuan_Asal);
                 
+                // PENTING: Pastikan Total selalu ada sebagai angka, meskipun 0
+                data.Total = Number(data.Total) || 0; 
+                
                 return data;
             });
             
@@ -2244,33 +2709,38 @@ EDIT_CALC_INPUTS.forEach(id => {
                 const asalIds = [...new Set(ajuanData.map(d => d.ID_Ajuan_Asal).filter(Boolean))];
                 const originalDataMap = new Map();
 
+                // KRITIS: Tentukan nama tabel asal (Awal atau Perubahan sebelumnya)
+                const tahapSebelumnya = tahapAktif - 1;
+                const originalTipe = tahapSebelumnya === 0 ? 'Awal' : `Perubahan ${tahapSebelumnya}`;
+                const originalTableName = getAjuanTableName(originalTipe);
+
                 if (asalIds.length > 0) {
-                    // Fetch all original documents using IN clause (Supabase supports this easily)
-                    const { data: originalData, error: originalError } = await sb.from('ajuan')
+                    // Fetch all original documents from the correct previous table
+                    const { data: originalData, error: originalError } = await sb.from(originalTableName) // <-- REF ACT
                         .select('*')
                         .in('ID_Ajuan', asalIds);
                     
-                    if (originalError) console.error("Error fetching original ajuan:", originalError);
+                    if (originalError) console.warn('Error fetching original ajuan:', originalError);
 
                     (originalData || []).forEach(doc => {
                         // Ensure original IDs are also treated as strings in the map keys
                         originalDataMap.set(String(doc.ID_Ajuan || doc.id), doc);
                     });
                     
-                    renderAjuanTable(ajuanData, tipe, originalDataMap);
+                    renderAjuanTable(ajuanData, currentTipe, originalDataMap);
                     showLoader(false);
                     
                 } else {
-                    renderAjuanTable(ajuanData, tipe);
+                    renderAjuanTable(ajuanData, currentTipe);
                     showLoader(false);
                 }
             } else { // 'Awal'
                 STATE.currentAjuanDataAwal = ajuanData; 
-                renderAjuanTable(ajuanData, tipe);
+                renderAjuanTable(ajuanData, currentTipe);
                 showLoader(false);
             }
         }).catch(error => {
-            console.error(`Error getting ajuan ${tipe} (Supabase):`, error);
+            console.error(`Error getting ajuan ${tipe} (Supabase, Table: ${targetTableName}):`, error);
             showToast(`Gagal memuat data ajuan ${tipe.toLowerCase()}.`, "danger");
             if (tableContainer) tableContainer.innerHTML = '<div class="text-center text-danger p-5">Gagal memuat data. Periksa konsol untuk detail error.</div>';
             showLoader(false);
@@ -2286,7 +2756,7 @@ EDIT_CALC_INPUTS.forEach(id => {
   
   // --- OPTIMIZATION START: Fungsi "controller" baru untuk mengelola pemanggilan data ---
   const refreshAjuanTableAwal = (forceRefresh = false) => {
-    // Jika tidak dipaksa refresh DAN data sudah ada di state, gunakan data yang ada
+    // Jika tidak dipaksa refresh DAN data sudah ada di cache state, gunakan data yang ada
     if (!forceRefresh && STATE.currentAjuanDataAwal && STATE.currentAjuanDataAwal.length > 0) {
         console.log("Menampilkan data Ajuan Awal dari cache state.");
         renderAjuanTable(STATE.currentAjuanDataAwal, 'Awal');
@@ -2298,17 +2768,18 @@ EDIT_CALC_INPUTS.forEach(id => {
   };
   
   const refreshAjuanTablePerubahan = (forceRefresh = false) => {
-    // Jika tidak dipaksa refresh DAN data sudah ada di state, gunakan data yang ada
-    if (!forceRefresh && STATE.currentAjuanDataPerubahan && STATE.currentAjuanDataPerubahan.length > 0) {
+    const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
+    const tipe = `Perubahan ${tahapAktif}`;
+    
+    // Jika tidak dipaksa refresh DAN data sudah ada di cache state, gunakan data yang ada
+    if (!forceRefresh && STATE.currentAjuanDataPerubahan && STATE.currentAjuanDataPerubahan.length > 0 && STATE.currentAjuanType === tipe) {
         console.log("Menampilkan data Ajuan Perubahan dari cache state.");
-        const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
-        renderAjuanTable(STATE.currentAjuanDataPerubahan, `Perubahan ${tahapAktif}`);
+        renderAjuanTable(STATE.currentAjuanDataPerubahan, tipe);
         return;
     }
     // Jika dipaksa atau data belum ada, panggil fungsi fetch
     console.log("Mengambil data Ajuan Perubahan dari Supabase.");
-    const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
-    refreshAjuanTable(`Perubahan ${tahapAktif}`);
+    refreshAjuanTable(tipe);
   };
 
   safeAddClickListener('btn-refresh-awal', () => refreshAjuanTableAwal(true));
@@ -2346,23 +2817,25 @@ EDIT_CALC_INPUTS.forEach(id => {
       if (!confirm(`Yakin ingin ${actionText.toLowerCase()} ajuan ID: ${ajuanId}? Ajuan yang diblokir tidak akan dimasukkan dalam perhitungan RPD dan Realisasi, meskipun statusnya Diterima.`)) {
           return;
       }
+      
+      const targetTableName = getAjuanTableName(tipe); // <-- REF ACT: Tentukan tabel tujuan
 
       showLoader(true);
       try {
           // 1. Fetch current ajuan data to get Prodi ID
-          const { data: ajuan, error: fetchError } = await sb.from('ajuan').select('ID_Prodi').eq('ID_Ajuan', ajuanId).single();
+          const { data: ajuan, error: fetchError } = await sb.from(targetTableName).select('ID_Prodi').eq('ID_Ajuan', ajuanId).maybeSingle(); // <-- REF ACT
           if (fetchError || !ajuan) throw new Error("Ajuan tidak ditemukan.");
           const prodiId = ajuan.ID_Prodi;
 
           // 2. Supabase Update
-          const { error } = await sb.from('ajuan')
+          const { error } = await sb.from(targetTableName) // <-- REF ACT
               .update({ Is_Blocked: blockStatus })
               .eq('ID_Ajuan', ajuanId);
 
           if (error) throw error;
           
-          await logActivity('Toggle Block Ajuan', `${actionText} ajuan ID: ${ajuanId} (${tipe}).`);
-          logHistory(ajuanId, `Ajuan ${blockStatus ? 'Diblokir' : 'Dibuka Blokir'}`, `Status blokir diubah menjadi ${blockStatus}.`);
+          await logActivity('Toggle Block Ajuan', `${actionText} ajuan ID: ${ajuanId} (${tipe}) di tabel ${targetTableName}.`);
+          logHistory(ajuanId, `Ajuan ${blockStatus ? 'Diblokir' : 'Dibuka Blokir'}`, `Status blokir diubah menjadi ${blockStatus} di tabel ${targetTableName}.`);
 
           showToast(`Ajuan ${ajuanId.substring(0,6)}.. berhasil di${blockStatus ? 'blokir' : 'buka blokir'}.`);
           
@@ -2370,8 +2843,8 @@ EDIT_CALC_INPUTS.forEach(id => {
           await recalculateProdiSummary(prodiId);
           // --- End Trigger ---
 
-          if(tipe === 'Awal') refreshAjuanTableAwal(true); else refreshAjuanTablePerubahan(true);
-          loadDashboardData(); 
+          if(tipe.startsWith('Awal')) refreshAjuanTableAwal(true); else refreshAjuanTablePerubahan(true);
+          loadDashboardData(true); 
 
       } catch(error) { 
           showToast(`Gagal ${actionText.toLowerCase()}: ${error.message}`, 'danger'); 
@@ -2384,7 +2857,7 @@ EDIT_CALC_INPUTS.forEach(id => {
   function renderAjuanTable(rows, tipe, originalDataMap = null) {
     const isPerubahan = tipe.startsWith('Perubahan');
     const tableId = isPerubahan ? `tableAjuanPerubahan` : `tableAjuanAwal`;
-    const summaryContainerId = isPerubahan ? `summary-display-perubahan` : `summary-display-awal`;
+    const summaryId = isPerubahan ? `summary-display-perubahan` : `summary-display-awal`;
 
     const container = document.getElementById(tableId);
 
@@ -2394,7 +2867,7 @@ EDIT_CALC_INPUTS.forEach(id => {
 
     if (rows.length === 0) { 
         container.innerHTML = '<div class="text-center text-muted p-5">Belum ada ajuan.</div>'; 
-        const summaryEl = document.getElementById(summaryContainerId);
+        const summaryEl = document.getElementById(summaryId);
         if (summaryEl) summaryEl.style.display = 'none'; 
         return; 
     }
@@ -2429,7 +2902,7 @@ EDIT_CALC_INPUTS.forEach(id => {
         });
     }
 
-    const summaryContainer = document.getElementById(summaryContainerId);
+    const summaryContainer = document.getElementById(summaryId);
     if(summaryContainer) {
         let summaryHtml = `<div><strong>Total Diajukan:</strong> Rp ${grandTotal.toLocaleString('id-ID')}</div><div><strong class="text-success">Total Diterima (Bersih):</strong> Rp ${acceptedTotal.toLocaleString('id-ID')}</div><div><strong class="text-danger">Total Ditolak:</strong> Rp ${rejectedTotal.toLocaleString('id-ID')}</div>`;
         
@@ -2451,7 +2924,7 @@ EDIT_CALC_INPUTS.forEach(id => {
                 const prodiSelisihHtml = Object.keys(selisihByProdi).map(prodiId => {
                     const selisihVal = selisihByProdi[prodiId];
                     const cls = selisihVal >= 0 ? 'text-success' : 'text-danger';
-                    return `<span class="me-2"><span class="badge bg-light text-dark">${prodiId}</span> <strong class="${cls}">Rp ${selisihVal.toLocaleString('id-ID')}</strong></span>`;
+                    return `<span class="me-2"><span class="badge bg-light text-dark fw-normal">${prodiId}</span> <strong class="${cls}">Rp ${selisihVal.toLocaleString('id-ID')}</strong></span>`;
                 }).join('');
                 
                 summaryHtml += `<div class="mt-2 pt-2 border-top w-100"><strong class="d-block small text-muted">Selisih Per Unit:</strong> ${prodiSelisihHtml}</div>`;
@@ -2515,16 +2988,17 @@ EDIT_CALC_INPUTS.forEach(id => {
                   groupedData[grubKey][kelompokKey][kegiatanKey].forEach(r => {
                       const ajuanIdString = String(r.ID_Ajuan);
                       const original = originalDataMap && r.ID_Ajuan_Asal && originalDataMap.has(r.ID_Ajuan_Asal) ? originalDataMap.get(r.ID_Ajuan_Asal) : {};
-                      const totalLama = Number(original.Total) || 0;
-                      const totalBaru = Number(r.Total) || 0;
-                      const selisih = totalBaru - totalLama;
+const totalLama = Number(original.Total) || 0; 
+const totalBaru = Number(r.Total) || 0;
+const selisih = totalBaru - totalLama;
+
                       const selisihClass = selisih > 0 ? 'text-success' : (selisih < 0 ? 'text-danger' : '');
                       const selisihText = selisih > 0 ? `+${selisih.toLocaleString('id-ID')}` : selisih.toLocaleString('id-ID');
                       const dataDukungLink = r.Data_Dukung ? `<a href="${escapeHtml(r.Data_Dukung)}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Lihat"><i class="bi bi-box-arrow-up-right"></i></a>` : `<span class="text-muted small fst-italic">N/A</span>`;
                       const prodiColor = getColorForProdi(r.ID_Prodi);
                       const prodiNama = prodiNameMap[r.ID_Prodi] || r.ID_Prodi;
                       const prodiInfoHtml = STATE.role === 'direktorat' ? `<div class="small text-muted">Oleh: <strong>${escapeHtml(prodiNama)}</strong></div>` : '';
-                      const idAjuanAsal = r.ID_Ajuan_Asal ? `<span class="badge bg-light text-dark fw-normal fst-italic">Asal: ${String(r.ID_Ajuan_Asal).substring(0, 6)}..</span>` : '';
+                      const idAjuanAsal = r.ID_Ajuan_Asal ? `<span class="badge bg-light text-dark fw-normal fst-italic">Asal: ${String(r.ID_Ajuan_Asal).substring(0, 6)}..</span>` : ''; // Corrected variable name
                       
                       const isBlocked = !!r.Is_Blocked;
                       const statusKey = isBlocked ? "Blocked" : r.Status;
@@ -2542,7 +3016,6 @@ EDIT_CALC_INPUTS.forEach(id => {
                                   <td class="text-end text-nowrap fw-bold ${selisihClass}">${selisihText}</td>
                                   <td class="text-center action-buttons">${dataDukungLink}</td>
                                   <td><span class="badge rounded-pill status-badge ${statusClassMap[statusKey] || statusClassMap[r.Status] || 'bg-secondary'}">${statusBadgeText}</span></td>
-                                  <td><small class="text-muted fst-italic">${escapeHtml(r.Catatan_Reviewer || '')}</small></td>
                                   <td class="text-end action-buttons">${renderActionsForRow(r, tipe)}</td>
                               </tr>`;
                   });
@@ -2596,8 +3069,12 @@ EDIT_CALC_INPUTS.forEach(id => {
     const ajuanId = String(id);
     showLoader(true);
     try {
+        // Tentukan tipe ajuan saat ini dari STATE atau fallback ke 'Awal'
+        const tipeAjuan = STATE.currentAjuanType || 'Awal';
+        const targetTableName = getAjuanTableName(tipeAjuan); // <-- REF ACT
+        
         // Supabase Query
-        const { data: ajuan, error } = await sb.from('ajuan').select('*').eq('ID_Ajuan', ajuanId).single();
+        const { data: ajuan, error } = await sb.from(targetTableName).select('*').eq('ID_Ajuan', ajuanId).maybeSingle(); // <-- REF ACT
         if (error || !ajuan) throw new Error("Ajuan tidak ditemukan atau gagal dimuat.");
         const r = ajuan;
 
@@ -2611,24 +3088,26 @@ EDIT_CALC_INPUTS.forEach(id => {
         setElValue('edit-selectRevisi', r.Status_Revisi || 'Ajuan Baru'); 
         setElValue('edit-dataDukung', r.Data_Dukung || ''); 
         
-        // --- NEW: Populate Calculation Inputs ---
+        // --- NEW: Populate Calculation Inputs (dikosongkan/disembunyikan) ---
         for (let i = 1; i <= 6; i++) {
-            // Populate numerical fields (A)
+            // Populate numerical fields (A) 
             const a_value = (r[`calcA${i}`] === null || r[`calcA${i}`] === undefined) ? '' : r[`calcA${i}`];
             setElValue(`edit-calcA${i}`, a_value); 
             // Populate unit fields (S)
             setElValue(`edit-calcS${i}`, r[`calcS${i}`] || '');
         }
         
-        // Set final fields (which are currently read-only, but should display the final stored value from DB)
-        // We set these values directly from DB, then recalculate below.
-        setElValue('edit-jumlah', r.Jumlah); 
+        // ********* KRITIS: Set fields directly from DB *********
+        // Populasikan Jumlah, Satuan, Harga Satuan, Total
+        setElValue('edit-jumlah', r.Jumlah ? Number(r.Jumlah).toLocaleString('id-ID', { maximumFractionDigits: 2 }) : '0'); 
         setElValue('edit-satuan', r.Satuan); 
-        setElValue('edit-hargaSatuan', r.Harga_Satuan); 
+        setElValue('edit-hargaSatuan', r.Harga_Satuan ? Number(r.Harga_Satuan).toLocaleString('id-ID', { maximumFractionDigits: 0 }) : '0'); 
+        setElValue('edit-total', r.Total ? Number(r.Total).toLocaleString('id-ID', { maximumFractionDigits: 0 }) : '0'); 
         
-        // Call calculation function to ensure the read-only result fields display correctly
-        calculateTotal('edit-'); 
-        // ------------------------------------------
+        // Panggil fungsi hitungTotalAjuan('edit-') untuk memastikan Total terformat dan terhitung ulang jika ada input yang diubah.
+        hitungTotalAjuan('edit-');
+
+        // ****************************************************************************
 
         setElValue('edit-keterangan', r.Keterangan); 
         
@@ -2643,66 +3122,64 @@ EDIT_CALC_INPUTS.forEach(id => {
   // --- MIGRATED TO SUPABASE: Ajuan Update (MODIFIED) ---
   document.getElementById('btn-update-ajuan').addEventListener('click', async () => {
     const idAjuan = getElValue('edit-id-ajuan');
-    const tipeAjuan = getElValue('edit-tipeAjuan');
+    const tipeAjuan = getElValue('edit-tipeAjuan'); // Akan berisi 'Awal' atau 'Perubahan X'
+    const targetTableName = getAjuanTableName(tipeAjuan); // <-- REF ACT
     showLoader(true);
 
     let prodiId = null;
 
     try {
-        // 1. Perform calculation and get results
-        const calcResults = calculateTotal('edit-');
-        const newTotal = calcResults.Total;
+        // 1. Perform simple calculation and get results from visible fields
+        const calcResults = hitungTotalAjuan('edit-');
+        const newTotal = calcResults.total;
         
-        const newSatuan = getElValue('edit-satuan').trim();
+        // Use getSafeValue for less critical inputs
+        const newSatuan = getSafeValue('edit-satuan').trim();
+        const newNamaAjuan = getSafeValue('edit-namaAjuan');
+        const newJudulKegiatan = getSafeValue('edit-judulKegiatan');
         
-        if (!newSatuan || newTotal <= 0 || !getElValue('edit-namaAjuan') || !getElValue('edit-judulKegiatan')) {
-            throw new Error('Harap lengkapi Judul, Rincian, Satuan Akhir, dan pastikan Total > 0.');
+        if (!newSatuan || newTotal <= 0 || !newNamaAjuan || !newJudulKegiatan) {
+            throw new Error('Harap lengkapi Judul, Rincian, Satuan Akhir, dan pastikan Total > 0. Total dihitung ulang dari Jumlah dan Harga Satuan.');
         }
 
-        // 2. Fetch current data for Pagu check and Change tracking
-        const { data: dataBefore, error: fetchError } = await sb.from('ajuan').select('*').eq('ID_Ajuan', idAjuan).single();
+        // 2. Fetch current data for Pagu check and Change tracking (from the correct table)
+        const { data: dataBefore, error: fetchError } = await sb.from(targetTableName).select('*').eq('ID_Ajuan', idAjuan).maybeSingle(); // <-- REF ACT
         if (fetchError || !dataBefore) throw new Error("Item ajuan tidak ditemukan.");
         prodiId = dataBefore.ID_Prodi;
 
         // Prepare data to update
         const dataAfter = { 
-            Grub_Belanja_Utama: getElValue('edit-selectGrub'),
-            Judul_Kegiatan: getElValue('edit-judulKegiatan'),
-            Nama_Ajuan: getElValue('edit-namaAjuan'),
-            ID_Kelompok: getElValue('edit-selectKelompok'),
+            Grub_Belanja_Utama: getSafeValue('edit-selectGrub'),
+            Judul_Kegiatan: newJudulKegiatan,
+            Nama_Ajuan: newNamaAjuan,
+            ID_Kelompok: getSafeValue('edit-selectKelompok'),
             
             // Use calculated results for DB fields:
-            Jumlah: calcResults.Jumlah, 
+            Jumlah: calcResults.jumlah, 
             Satuan: newSatuan, 
-            Harga_Satuan: calcResults.Harga_Satuan, 
+            Harga_Satuan: calcResults.harga, 
             Total: newTotal,
             
             Catatan_Reviewer: dataBefore.Catatan_Reviewer, // Preserve existing reviewer note
-            Keterangan: getElValue('edit-keterangan'),
-            Status_Revisi: getElValue('edit-selectRevisi'),
-            Data_Dukung: getElValue('edit-dataDukung'),
+            Keterangan: getSafeValue('edit-keterangan'),
+            Status_Revisi: getSafeValue('edit-selectRevisi'),
+            Data_Dukung: getSafeValue('edit-dataDukung'),
             
-            // NEW: Store calculation breakdown (safe numeric conversion, null if empty)
-            calcA1: document.getElementById('edit-calcA1').value ? Number(document.getElementById('edit-calcA1').value) : null,
-            calcS1: document.getElementById('edit-calcS1').value || null,
-            calcA2: document.getElementById('edit-calcA2').value ? Number(document.getElementById('edit-calcA2').value) : null,
-            calcS2: document.getElementById('edit-calcS2').value || null,
-            calcA3: document.getElementById('edit-calcA3').value ? Number(document.getElementById('edit-calcA3').value) : null,
-            calcS3: document.getElementById('edit-calcS3').value || null,
-            calcA4: document.getElementById('edit-calcA4').value ? Number(document.getElementById('edit-calcA4').value) : null,
-            calcS4: document.getElementById('edit-calcS4').value || null,
-            calcA5: document.getElementById('edit-calcA5').value ? Number(document.getElementById('edit-calcA5').value) : null,
-            calcS5: document.getElementById('edit-calcS5').value || null,
-            calcA6: document.getElementById('edit-calcA6').value ? Number(document.getElementById('edit-calcA6').value) : null,
-            calcS6: document.getElementById('edit-calcS6').value || null,
+            // NEW: Set calculation breakdown to null/empty as it is not used in this mode
+            calcA1: null, calcS1: null,
+            calcA2: null, calcS2: null,
+            calcA3: null, calcS3: null,
+            calcA4: null, calcS4: null,
+            calcA5: null, calcS5: null,
+            calcA6: null, calcS6: null,
         };
 
-        // 3. Pagu Check (existing logic remains)
-        if (STATE.role === 'prodi') {
+        // 3. Pagu Check (Only for 'Awal' in the 'ajuan' table)
+        if (STATE.role === 'prodi' && tipeAjuan === 'Awal') {
             const paguAnggaran = STATE.currentUserData.Pagu_Anggaran || 0;
-            if (tipeAjuan === 'Awal' && paguAnggaran > 0) {
+            if (paguAnggaran > 0) {
                 
-                let activeAjuanQuery = sb.from('ajuan')
+                let activeAjuanQuery = sb.from(getAjuanTableName('Awal')) // <-- Pagu check selalu ke tabel 'ajuan' untuk pagu Awal
                     .select('Total')
                     .eq('ID_Prodi', STATE.id)
                     .eq('Tipe_Ajuan', 'Awal')
@@ -2725,15 +3202,14 @@ EDIT_CALC_INPUTS.forEach(id => {
             }
         }
         
-        // 4. Change tracking and History logging (existing logic remains)
+        // 4. Change tracking and History logging 
         let changes = [];
         const allKeys = Object.keys(dataAfter);
         for (const key of allKeys) {
-            // Robust comparison needed for potential null vs 0 vs empty string changes in calc fields
             const valBefore = dataBefore[key] === null ? '' : String(dataBefore[key]);
             const valAfter = dataAfter[key] === null ? '' : String(dataAfter[key]);
             
-            if (valAfter !== valBefore && key !== 'Catatan_Reviewer') {
+            if (valAfter !== valBefore && key !== 'Catatan_Reviewer' && !key.startsWith('calc')) {
                 changes.push(`'${key}' dari '${valBefore}' menjadi '${valAfter}'`);
             }
         }
@@ -2741,11 +3217,11 @@ EDIT_CALC_INPUTS.forEach(id => {
         if (changes.length > 0) {
             const historyDetails = `Detail perubahan: ${changes.join(', ')}.`;
             await logHistory(idAjuan, "Ajuan Diedit", historyDetails);
-            await logActivity('Update Ajuan', `Mengedit ajuan ID: ${idAjuan}. Perubahan: ${historyDetails}`);
+            await logActivity('Update Ajuan', `Mengedit ajuan ID: ${idAjuan} di tabel ${targetTableName}. Perubahan: ${historyDetails}`);
         }
         
         // 5. Supabase Update
-        const { error: updateError } = await sb.from('ajuan')
+        const { error: updateError } = await sb.from(targetTableName) // <-- REF ACT
             .update(dataAfter)
             .eq('ID_Ajuan', idAjuan);
             
@@ -2760,6 +3236,7 @@ EDIT_CALC_INPUTS.forEach(id => {
         if (prodiId) await recalculateProdiSummary(prodiId);
         // --- End Trigger ---
 
+        // Refresh tabel berdasarkan tipe ajuan yang sedang diedit
         if (tipeAjuan.startsWith('Perubahan')) refreshAjuanTablePerubahan(true); else refreshAjuanTableAwal(true);
         if (STATE.role === 'prodi') updateProdiPaguInfo(STATE.currentUserData);
 
@@ -2774,30 +3251,32 @@ EDIT_CALC_INPUTS.forEach(id => {
   // --- MIGRATED TO SUPABASE: Ajuan Delete (MODIFIED) ---
   window.deleteAjuan = async (id, tipe) => {
       const ajuanId = String(id);
-      if (confirm(`Yakin ingin menghapus ajuan ID: ${ajuanId}?`)) {
+      const targetTableName = getAjuanTableName(tipe); // <-- REF ACT
+      
+      if (confirm(`Yakin ingin menghapus ajuan ID: ${ajuanId} dari tabel ${targetTableName}?`)) {
           showLoader(true);
           let prodiId = null;
           try {
-              // 1. Fetch data before deletion to get Prodi ID (necessary for recalculation)
-              const { data: ajuan, error: fetchError } = await sb.from('ajuan').select('ID_Prodi').eq('ID_Ajuan', ajuanId).single();
+              // 1. Fetch data before deletion to get Prodi ID
+              const { data: ajuan, error: fetchError } = await sb.from(targetTableName).select('ID_Prodi').eq('ID_Ajuan', ajuanId).maybeSingle(); // <-- REF ACT
               if (fetchError || !ajuan) throw new Error("Ajuan tidak ditemukan.");
               prodiId = ajuan.ID_Prodi;
 
               // 2. Supabase Delete Ajuan
-              const { error: deleteAjuanError } = await sb.from('ajuan').delete().eq('ID_Ajuan', ajuanId);
+              const { error: deleteAjuanError } = await sb.from(targetTableName).delete().eq('ID_Ajuan', ajuanId); // <-- REF ACT
               if (deleteAjuanError) throw deleteAjuanError;
               
               // 3. Supabase Delete History
               await sb.from('ajuan_history').delete().eq('ajuan_id', ajuanId);
               
-              await logActivity('Delete Ajuan', `Menghapus ajuan ID: ${ajuanId} (${tipe}).`);
+              await logActivity('Delete Ajuan', `Menghapus ajuan ID: ${ajuanId} dari tabel ${targetTableName}.`);
               showToast('Ajuan berhasil dihapus.');
               
               // --- Trigger Recalculation ---
               await recalculateProdiSummary(prodiId);
               // --- End Trigger ---
 
-              if(tipe === 'Awal') refreshAjuanTableAwal(true); else refreshAjuanTablePerubahan(true);
+              if(tipe.startsWith('Awal')) refreshAjuanTableAwal(true); else refreshAjuanTablePerubahan(true);
               if(STATE.role === 'prodi') updateProdiPaguInfo(STATE.currentUserData);
           } catch(error) { showToast(`Gagal menghapus: ${error.message}`, 'danger'); } finally { showLoader(false); }
       }
@@ -2828,17 +3307,19 @@ EDIT_CALC_INPUTS.forEach(id => {
     const newStatus = getElValue('review-action');
     const catatan = getElValue('review-catatan');
     
+    const targetTableName = getAjuanTableName(tipe); // <-- REF ACT: Tentukan tabel tujuan
+    
     const data = { Status: newStatus, Catatan_Reviewer: catatan };
     if (newStatus === 'Diterima') {
          data.Is_Blocked = false; // Ensure accepted items are not blocked by default
     }
     
     showLoader(true);
-    const ajuanProdiMap = new Map(); // prodiId -> [ajuanNames]
+    const ajuanProdiMap = new Map(); 
 
     try {
         // 1. Bulk Update in Supabase
-        const { error: updateError } = await sb.from('ajuan')
+        const { error: updateError } = await sb.from(targetTableName) // <-- REF ACT
             .update(data)
             .in('ID_Ajuan', ids);
             
@@ -2848,12 +3329,14 @@ EDIT_CALC_INPUTS.forEach(id => {
         const prodiIdsToRecalculate = new Set();
         
         for (const id of ids) {
-            const detailLog = `Status diubah dari '${oldStatus || "N/A"}' menjadi '${newStatus}'. Catatan: ${catatan || 'Tidak ada.'}`;
+            const detailLog = `Status diubah dari '${oldStatus || "N/A"}' menjadi '${newStatus}' di tabel ${targetTableName}. Catatan: ${catatan || 'Tidak ada.'}`;
             await logHistory(id, "Status Direview", detailLog);
             
             if (STATE.role === 'direktorat') {
-                const { data: ajuanData, error: fetchError } = await sb.from('ajuan').select('ID_Prodi, Nama_Ajuan').eq('ID_Ajuan', id).single();
-                if (fetchError) console.warn("Gagal fetching ajuan data for notification/recalc.");
+                // Fetch required data for notification and recalculation
+                // NOTE: This fetch can fail due to RLS 406 error if not configured correctly
+                const { data: ajuanData, error: fetchError } = await sb.from(targetTableName).select('ID_Prodi, Nama_Ajuan').eq('ID_Ajuan', id).maybeSingle(); // <-- REF ACT
+                if (fetchError) console.warn("Gagal fetching ajuan data for notification/recalc.", fetchError);
                 
                 if (ajuanData) {
                     const prodiId = ajuanData.ID_Prodi;
@@ -2873,13 +3356,13 @@ EDIT_CALC_INPUTS.forEach(id => {
         }
         // --- End Trigger ---
         
-        await logActivity('Review Ajuan', `Status ${ids.length} ajuan diubah menjadi ${newStatus}. Catatan: ${catatan || 'Tidak ada'}.`);
+        await logActivity('Review Ajuan', `Status ${ids.length} ajuan di tabel ${targetTableName} diubah menjadi ${newStatus}. Catatan: ${catatan || 'Tidak ada'}.`);
 
         if (STATE.role === 'direktorat') {
             for (const [prodiId, ajuanNames] of ajuanProdiMap.entries()) {
                 const prodiUser = STATE.allProdi.find(p => p.ID_Prodi === prodiId);
                 if (prodiUser && prodiUser.uid) {
-                    const message = `Ajuan '${ajuanNames[0]}' ${ajuanNames.length > 1 ? `dan ${ajuanNames.length-1} lainnya` : ''} telah direview menjadi: ${newStatus}.`;
+                    const message = `Ajuan '${ajuanNames[0]}' ${ajuanNames.length > 1 ? `dan ${ajuanNames.length-1} lainnya` : ''} telah direview menjadi: ${newStatus} (${tipe}).`;
                     createNotification(prodiUser.uid, message);
                 }
             }
@@ -2890,8 +3373,22 @@ EDIT_CALC_INPUTS.forEach(id => {
         const reviewModalEl = document.getElementById('reviewAjuanModal');
         if(reviewModalEl) bootstrap.Modal.getOrCreateInstance(reviewModalEl).hide();
 
-        if(tipe === 'Awal') refreshAjuanTableAwal(true); else refreshAjuanTablePerubahan(true);
-        loadDashboardData();
+        // **FIX: Clear selection state and hide bulk action bar if it was a bulk action**
+        if(tipe.startsWith('Awal')) {
+            if (ids.length > 1) {
+                STATE.selectedAjuanIdsAwal.clear();
+                updateBulkActionBar('Awal'); 
+            }
+            refreshAjuanTableAwal(true);
+        } else {
+            if (ids.length > 1) {
+                STATE.selectedAjuanIdsPerubahan.clear();
+                updateBulkActionBar('Perubahan');
+            }
+            refreshAjuanTablePerubahan(true);
+        }
+        
+        loadDashboardData(true);
 
     } catch (error) { 
         showToast(`Gagal mengirim review: ${error.message}`, 'danger'); 
@@ -2975,331 +3472,31 @@ EDIT_CALC_INPUTS.forEach(id => {
     });
     // --- End Bulk Review Handlers ---
 
-    safeAddClickListener("btn-download-user-template", () => {
-    const headers = [
-        "Email",
-        "Password",
-        "Nama_Prodi",
-        "ID_Prodi",
-        "Role",
-        "Pagu_Anggaran"
-    ];
-
-    const contoh = [
-        "unit1@example.com",
-        "password123",
-        "Keperawatan",
-        "KEP",
-        "prodi",
-        500000000
-    ];
-
-    const ws = XLSX.utils.aoa_to_sheet([headers, contoh]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Users");
-
-    XLSX.writeFile(wb, "Template_Import_Users.xlsx");
-});
-
-
-safeAddClickListener("input-upload-user-excel", async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-        const data = new Uint8Array(evt.target.result);
-        const wb = XLSX.read(data, { type: "array" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws);
-
-        if (!rows.length) {
-            showToast("File kosong!", "warning");
-            return;
-        }
-
-        // === PREVIEW TABLE ===
-        let html = `
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    Preview Data (${rows.length} baris)
-                </div>
-                <div class="card-body table-responsive">
-                    <table class="table table-bordered table-sm">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Email</th>
-                                <th>Password</th>
-                                <th>Nama Prodi</th>
-                                <th>ID Prodi</th>
-                                <th>Role</th>
-                                <th>Pagu Anggaran</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-        `;
-
-        rows.forEach(r => {
-            html += `
-                <tr>
-                    <td>${r.Email}</td>
-                    <td>${r.Password}</td>
-                    <td>${r.Nama_Prodi}</td>
-                    <td>${r.ID_Prodi}</td>
-                    <td>${r.Role}</td>
-                    <td>${r.Pagu_Anggaran}</td>
-                </tr>
-            `;
-        });
-
-        html += `
-                        </tbody>
-                    </table>
-                </div>
-                <div class="card-footer text-end">
-                    <button class="btn btn-success" id="btn-confirm-import">
-                        <i class="bi bi-check-circle"></i> Import Sekarang
-                    </button>
-                </div>
-            </div>
-        `;
-
-        document.getElementById("user-import-preview").innerHTML = html;
-
-        // === IMPORT SAAT KONFIRMASI ===
-        document.getElementById("btn-confirm-import").addEventListener("click", async () => {
-            let sukses = 0, gagal = 0;
-            showLoader(true);
-
-            for (const row of rows) {
-                try {
-                    // Buat akun di Firebase Auth
-                    const userCred = await auth.createUserWithEmailAndPassword(
-                        row.Email,
-                        row.Password
-                    );
-
-                    const uid = userCred.user.uid;
-
-                    // Simpan ke Firestore
-                    await db.collection("users").doc(uid).set({
-                        Email: row.Email,
-                        Nama_Prodi: row.Nama_Prodi,
-                        ID_Prodi: row.ID_Prodi,
-                        Role: row.Role,
-                        Pagu_Anggaran: Number(row.Pagu_Anggaran || 0),
-                        uid: uid
-                    });
-
-                    sukses++;
-                } catch (err) {
-                    console.error(err);
-                    gagal++;
-                }
-            }
-
-            showLoader(false);
-
-            document.getElementById("user-import-preview").innerHTML = `
-                <div class="alert alert-success">
-                    Import selesai:<br>
-                    ✔️ Berhasil: <strong>${sukses}</strong><br>
-                    ❌ Gagal: <strong>${gagal}</strong>
-                </div>
-            `;
-        });
-    };
-
-    reader.readAsArrayBuffer(file);
-});
-
-// ================================
-// IMPORT USER VIA CSV
-// ================================
-
-let csvUsersData = [];
-
-// Fungsi parse CSV ke array object
-function parseCSV(text) {
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    const headers = lines[0].split(',').map(h => h.trim());
-
-    return lines.slice(1).map(line => {
-        const values = line.split(',').map(v => v.trim());
-        const obj = {};
-        headers.forEach((h, i) => obj[h] = values[i]);
-        return obj;
-    });
-}
-
-// PREVIEW CSV
-safeAddClickListener("btn-preview-user-csv", () => {
-    const input = document.getElementById("input-upload-user-csv");
-
-    if (!input.files.length) {
-        showToast("Pilih file CSV dulu!", "warning");
-        return;
-    }
-
-    const file = input.files[0];
-    const reader = new FileReader();
-
-    reader.onload = function(e) {
-        try {
-            csvUsersData = parseCSV(e.target.result);
-
-            if (!csvUsersData.length) {
-                showToast("CSV kosong atau format salah", "danger");
-                return;
-            }
-
-            let html = `
-            <div class="card shadow-sm">
-              <div class="card-header bg-primary text-white">
-                Preview Data (${csvUsersData.length} user)
-              </div>
-              <div class="table-responsive" style="max-height:300px; overflow:auto;">
-                <table class="table table-sm table-bordered">
-                  <thead>
-                    <tr>
-                      <th>Email</th>
-                      <th>Password</th>
-                      <th>Nama Prodi</th>
-                      <th>ID Prodi</th>
-                      <th>Role</th>
-                      <th>Pagu</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-            `;
-
-            csvUsersData.forEach(u => {
-                html += `
-                <tr>
-                  <td>${u.Email}</td>
-                  <td>${u.Password}</td>
-                  <td>${u.Nama_Prodi}</td>
-                  <td>${u.ID_Prodi}</td>
-                  <td>${u.Role}</td>
-                  <td>${u.Pagu_Anggaran}</td>
-                </tr>
-                `;
-            });
-
-            html += `
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            `;
-
-            document.getElementById("user-csv-preview").innerHTML = html;
-            document.getElementById("btn-upload-user-csv").disabled = false;
-
-            showToast("Preview berhasil ditampilkan", "success");
-
-        } catch (err) {
-            console.error(err);
-            showToast("Error membaca CSV", "danger");
-        }
-    };
-
-    reader.readAsText(file);
-});
-
-
-// UPLOAD / IMPORT CSV KE FIREBASE
-safeAddClickListener("btn-upload-user-csv", async () => {
-    if (!csvUsersData.length) {
-        showToast("Preview dulu sebelum upload", "warning");
-        return;
-    }
-
-    if (!confirm(`Import ${csvUsersData.length} user ke sistem?`)) return;
-
-    let sukses = 0;
-    let gagal = 0;
-
-    showLoader(true);
-
-    for (let row of csvUsersData) {
-        try {
-            const email = row.Email;
-            const password = row.Password;
-            const nama = row.Nama_Prodi;
-            const idProdi = row.ID_Prodi;
-            const role = row.Role;
-            const pagu = Number(row.Pagu_Anggaran || 0);
-
-            if (!email || !password || !idProdi) {
-                gagal++;
-                continue;
-            }
-
-            // Buat akun Firebase Auth
-            const userCred = await auth.createUserWithEmailAndPassword(email, password);
-            const uid = userCred.user.uid;
-
-            // Simpan ke Firestore
-            await db.collection("users").doc(uid).set({
-                uid,
-                Email: email,
-                Nama_Prodi: nama,
-                ID_Prodi: idProdi,
-                Role: role,
-                Pagu_Anggaran: pagu,
-                created_at: new Date()
-            });
-
-            sukses++;
-        } catch (err) {
-            console.error("Gagal import:", row.Email, err.message);
-            gagal++;
-        }
-    }
-
-    showLoader(false);
-
-    document.getElementById("user-csv-preview").innerHTML = `
-        <div class="alert alert-success">
-            ✅ Import selesai <br>
-            Berhasil: <b>${sukses}</b> <br>
-            Gagal: <b>${gagal}</b>
-        </div>
-    `;
-
-    csvUsersData = [];
-    document.getElementById("btn-upload-user-csv").disabled = true;
-
-    await refreshProdiData();
-});
-
-
-
-
+    // ... (existing import user code) ...
 
     // --- MIGRATED TO SUPABASE: Bulk Delete (MODIFIED) ---
     safeAddClickListener(`bulk-delete-${lowerTipe}`, async () => {
-        // PERBAIKAN: Pastikan ID adalah string untuk Supabase IN clause
         const ids = Array.from(tipe === 'Awal' ? STATE.selectedAjuanIdsAwal : STATE.selectedAjuanIdsPerubahan).map(String); 
+        const targetTableName = getAjuanTableName(tipe); // <-- REF ACT
+        
         if (ids.length === 0) return;
-        if (confirm(`Yakin ingin menghapus ${ids.length} ajuan terpilih?`)) {
+        if (confirm(`Yakin ingin menghapus ${ids.length} ajuan terpilih dari tabel ${targetTableName}?`)) {
             showLoader(true);
             try {
                 // Fetch affected prodi IDs before deletion
-                const { data: ajuanData, error: fetchError } = await sb.from('ajuan').select('ID_Prodi').in('ID_Ajuan', ids);
+                const { data: ajuanData, error: fetchError } = await sb.from(targetTableName).select('ID_Prodi').in('ID_Ajuan', ids); // <-- REF ACT
                 if (fetchError) console.warn("Failed to fetch prodi IDs for deletion recalculation.");
                 const prodiIdsToRecalculate = [...new Set(ajuanData.map(d => d.ID_Prodi))];
 
                 // Bulk delete Ajuan
-                const { error: deleteAjuanError } = await sb.from('ajuan').delete().in('ID_Ajuan', ids);
+                const { error: deleteAjuanError } = await sb.from(targetTableName).delete().in('ID_Ajuan', ids); // <-- REF ACT
                 if (deleteAjuanError) throw deleteAjuanError;
                 
                 // Bulk delete History
                 const { error: deleteHistoryError } = await sb.from('ajuan_history').delete().in('ajuan_id', ids);
                 if (deleteHistoryError) console.warn('Failed to delete history: ', deleteHistoryError);
                 
-                await logActivity('Bulk Delete Ajuan', `Menghapus ${ids.length} ajuan (${tipe}).`);
+                await logActivity('Bulk Delete Ajuan', `Menghapus ${ids.length} ajuan dari tabel ${targetTableName}.`);
                 showToast(`${ids.length} ajuan berhasil dihapus.`);
 
                 // --- Trigger Recalculation ---
@@ -3308,33 +3505,38 @@ safeAddClickListener("btn-upload-user-csv", async () => {
                 }
                 // --- End Trigger ---
 
+                // **FIX: Clear selection state and hide bulk action bar**
+                if (tipe === 'Awal') STATE.selectedAjuanIdsAwal.clear(); else STATE.selectedAjuanIdsPerubahan.clear();
+                updateBulkActionBar(tipe); 
+                
                 if (tipe === 'Awal') refreshAjuanTableAwal(true); else refreshAjuanTablePerubahan(true);
-                loadDashboardData();
+                loadDashboardData(true);
             } catch (error) { showToast(`Gagal menghapus: ${error.message}`, 'danger'); } finally { showLoader(false); }
         }
     });
 
     // --- MIGRATED TO SUPABASE: Bulk Block/Unblock (MODIFIED) ---
     safeAddClickListener(`bulk-block-${lowerTipe}`, async () => {
-        // PERBAIKAN: Pastikan ID adalah string untuk Supabase IN clause
         const ids = Array.from(tipe === 'Awal' ? STATE.selectedAjuanIdsAwal : STATE.selectedAjuanIdsPerubahan).map(String); 
+        const targetTableName = getAjuanTableName(tipe); // <-- REF ACT
+        
         if (ids.length === 0) return;
-        if (confirm(`Yakin ingin memBLOKIR ${ids.length} ajuan terpilih? Ajuan yang diblokir TIDAK akan masuk RPD/Realisasi.`)) {
+        if (confirm(`Yakin ingin memBLOKIR ${ids.length} ajuan terpilih di tabel ${targetTableName}? Ajuan yang diblokir TIDAK akan masuk RPD/Realisasi.`)) {
             showLoader(true);
             try {
                 // Fetch affected prodi IDs before block operation
-                const { data: ajuanData, error: fetchError } = await sb.from('ajuan').select('ID_Prodi').in('ID_Ajuan', ids);
+                const { data: ajuanData, error: fetchError } = await sb.from(targetTableName).select('ID_Prodi').in('ID_Ajuan', ids); // <-- REF ACT
                 if (fetchError) console.warn("Failed to fetch prodi IDs for block recalculation.");
                 const prodiIdsToRecalculate = [...new Set(ajuanData.map(d => d.ID_Prodi))];
 
                 // Bulk Update Block status
-                const { error: blockError } = await sb.from('ajuan')
+                const { error: blockError } = await sb.from(targetTableName) // <-- REF ACT
                     .update({ Is_Blocked: true })
                     .in('ID_Ajuan', ids);
 
                 if (blockError) throw blockError;
                 
-                await logActivity('Bulk Block Ajuan', `Memblokir ${ids.length} ajuan (${tipe}).`);
+                await logActivity('Bulk Block Ajuan', `Memblokir ${ids.length} ajuan di tabel ${targetTableName}.`);
                 showToast(`${ids.length} ajuan berhasil diblokir.`);
 
                 // --- Trigger Recalculation ---
@@ -3343,130 +3545,19 @@ safeAddClickListener("btn-upload-user-csv", async () => {
                 }
                 // --- End Trigger ---
 
+                // **FIX: Clear selection state and hide bulk action bar**
+                if (tipe === 'Awal') STATE.selectedAjuanIdsAwal.clear(); else STATE.selectedAjuanIdsPerubahan.clear();
+                updateBulkActionBar(tipe); 
+
                 if (tipe === 'Awal') refreshAjuanTableAwal(true); else refreshAjuanTablePerubahan(true);
-                loadDashboardData();
+                loadDashboardData(true);
             } catch (error) { showToast(`Gagal memblokir: ${error.message}`, 'danger'); } finally { showLoader(false); }
         }
     });
   });
 
   // --- MIGRATED TO SUPABASE: Copy Accepted Ajuan (MODIFIED) ---
-  safeAddClickListener('btn-copy-accepted', async () => {
-    if (STATE.role !== 'prodi') return;
-
-    const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 1;
-    const sourceType = tahapAktif === 1 ? 'Awal' : `Perubahan ${tahapAktif - 1}`;
-    const destinationType = `Perubahan ${tahapAktif}`;
-    const prodiId = STATE.id; // Store current Prodi ID
-
-    if (!confirm(`Anda akan menyalin ajuan dari tahap "${sourceType}" yang berstatus "Diterima" dan tidak diblokir ke daftar "${destinationType}". Ajuan yang sudah pernah disalin tidak akan diduplikasi. Lanjutkan?`)) return;
-    
-    showLoader(true);
-    try {
-        // 1. Fetch ALL Prodi Ajuan from Supabase
-        const { data: allProdiAjuanData, error: fetchAllError } = await sb.from('ajuan')
-            .select('*')
-            .eq('ID_Prodi', STATE.id);
-            
-        if (fetchAllError) throw fetchAllError;
-        
-        // Convert to structure similar to Firebase docs array for easier processing
-        const allProdiAjuanSnapshot = allProdiAjuanData.map(d => {
-            // Ensure IDs are strings for reliable comparisons later
-            d.ID_Ajuan = String(d.ID_Ajuan || d.id);
-            if (d.ID_Ajuan_Asal) d.ID_Ajuan_Asal = String(d.ID_Ajuan_Asal);
-            return d;
-        });
-        
-        // 2. Identify existing copies (Ajuan in destinationType that have ID_Ajuan_Asal set)
-        const existingAsalIds = new Set();
-        allProdiAjuanSnapshot.forEach(data => {
-            if (data.Tipe_Ajuan === destinationType && data.ID_Ajuan_Asal) {
-                existingAsalIds.add(data.ID_Ajuan); // Use ID_Ajuan (PK) from the existing copy
-            }
-        });
-
-        // 3. Filter source documents
-        const sourceDocs = allProdiAjuanSnapshot.filter(data => {
-            // Only copy ACCEPTED and UNBLOCKED items from source
-            return data.Tipe_Ajuan === sourceType && data.Status === 'Diterima' && !data.Is_Blocked;
-        });
-        
-        // Find existing copies using ID_Ajuan_Asal filter for source ID
-        const sourceIdsCurrentlyCopied = new Set(allProdiAjuanSnapshot
-            .filter(d => d.Tipe_Ajuan === destinationType && d.ID_Ajuan_Asal)
-            .map(d => d.ID_Ajuan_Asal)
-        );
-
-        const ajuanToInsert = [];
-        let copyCount = 0;
-        
-        sourceDocs.forEach(data => {
-            if (!sourceIdsCurrentlyCopied.has(data.ID_Ajuan)) {
-                
-                const newData = {
-                    Grub_Belanja_Utama: data.Grub_Belanja_Utama || '', Judul_Kegiatan: data.Judul_Kegiatan || '', ID_Prodi: data.ID_Prodi, ID_Kelompok: data.ID_Kelompok || '', Nama_Ajuan: data.Nama_Ajuan || 'Salinan', 
-                    // Copy calculated fields
-                    Jumlah: data.Jumlah || 0, Satuan: data.Satuan || '', Harga_Satuan: data.Harga_Satuan || 0, Total: data.Total || 0, 
-                    Keterangan: data.Keterangan || '', Status_Revisi: data.Status_Revisi || 'Ajuan Baru', Data_Dukung: data.Data_Dukung || '',
-                    
-                    // Copy breakdown calculations if they exist (important for re-editing the item)
-                    calcA1: data.calcA1 || null, calcS1: data.calcS1 || null,
-                    calcA2: data.calcA2 || null, calcS2: data.calcS2 || null,
-                    calcA3: data.calcA3 || null, calcS3: data.calcS3 || null,
-                    calcA4: data.calcA4 || null, calcS4: data.calcS4 || null,
-                    calcA5: data.calcA5 || null, calcS5: data.calcS5 || null,
-                    calcA6: data.calcA6 || null, calcS6: data.calcS6 || null,
-                    
-                    Tipe_Ajuan: destinationType, Status: 'Menunggu Review', Komentar: [], ID_Ajuan_Asal: data.ID_Ajuan, Is_Blocked: false, Timestamp: sbTimestamp()
-                };
-                
-                ajuanToInsert.push(newData);
-                copyCount++;
-            }
-        });
-        
-        if (copyCount > 0) {
-            // 4. Perform bulk insert in Supabase
-            // Note: Supabase generates the new ID_Ajuan (PK) automatically.
-            const { data: insertedRows, error: insertError } = await sb.from('ajuan')
-                .insert(ajuanToInsert)
-                .select('ID_Ajuan, ID_Ajuan_Asal'); 
-                
-            if (insertError) {
-                 console.error("Supabase Copy Insert Error:", insertError);
-                 throw new Error("Gagal menyimpan ajuan salinan: " + insertError.message + 
-                                 ". Harap periksa Trigger atau RLS pada tabel 'ajuan' di Supabase.");
-            }
-            
-            // 5. Log History individually for newly inserted rows
-            for (const ajuan of insertedRows) {
-                await logHistory(
-                    String(ajuan.ID_Ajuan), // Ensure logging with string ID
-                    "Ajuan Dibuat (Salinan)",
-                    `Disalin dari ${sourceType} ID ${ajuan.ID_Ajuan_Asal ? String(ajuan.ID_Ajuan_Asal).substring(0,6) : 'N/A'}..`
-                );
-            }
-
-            await logActivity('Pindahkan Ajuan', `Menyalin ${copyCount} ajuan dari ${sourceType} ke ${destinationType}.`);
-            showToast(`${copyCount} ajuan baru berhasil disalin ke daftar ${destinationType}.`, 'success');
-
-            // --- Trigger Recalculation ---
-            await recalculateProdiSummary(prodiId);
-            // --- End Trigger ---
-
-            refreshAjuanTablePerubahan(true);
-        } else {
-            showToast('Tidak ada ajuan baru untuk disalin.', 'info');
-        }
-        
-    } catch (error) {
-        showToast(`Gagal memindahkan ajuan: ${error.message}`, 'danger');
-        console.error('Copy error (Supabase):', error);
-    } finally {
-        showLoader(false);
-    }
-  });
+  // (Logic moved into performPindahkanAjuan and bound via btn-copy-accepted and btn-pindahkan-ajuan-backend)
 
   // --- MIGRATED TO SUPABASE: RPD/Realisasi Fetch and Save (MODIFIED) ---
 
@@ -3481,15 +3572,17 @@ safeAddClickListener("btn-upload-user-csv", async () => {
     tableContainer.innerHTML = `<div class="text-center text-muted p-5">Memuat data...</div>`;
     showLoader(true);
     
+    const targetTableName = getAjuanTableName(tipe); // <-- REF ACT
+
     try {
-        let query = sb.from('ajuan')
-            .select(`*, ${RPD_SELECT_COLUMNS}`) // Ensure we select RPD/Realisasi columns too
+        let query = sb.from(targetTableName) // <-- REF ACT
+            .select(`ID_Ajuan, ID_Prodi, Nama_Ajuan, Judul_Kegiatan, Total, Is_Blocked, ${RPD_SELECT_COLUMNS}`) // Ensure all required fields are selected
             .eq('Status', 'Diterima')
             .eq('Tipe_Ajuan', tipe);
         
         if (STATE.role === 'direktorat') {
-            const prodiEl = document.getElementById(filterProdiId);
-            if (prodiEl && prodiEl.value) query = query.eq('ID_Prodi', prodiEl.value);
+            const prodiFilter = getSafeValue(filterProdiId);
+            if (prodiFilter) query = query.eq('ID_Prodi', prodiFilter);
         } else {
             query = query.eq('ID_Prodi', STATE.id);
         }
@@ -3497,7 +3590,7 @@ safeAddClickListener("btn-upload-user-csv", async () => {
         const { data: rawData, error } = await query;
         if (error) throw error;
         
-        let data = rawData.map(d => ({ ID_Ajuan: String(d.ID_Ajuan || d.id), ...d })); // Ensure ID is string
+        let data = rawData.map(d => ({ ID_Ajuan: String(d.ID_Ajuan || d.id), ...d })); 
         
         // Filter out blocked items locally
         data = data.filter(d => !d.Is_Blocked);
@@ -3511,7 +3604,7 @@ safeAddClickListener("btn-upload-user-csv", async () => {
         }
     } catch(error) {
         tableContainer.innerHTML = `<div class="text-center text-danger p-5">Gagal memuat data.</div>`;
-        console.error(`${baseName} ${tipe} Error (Supabase):`, error);
+        console.error(`${baseName} ${tipe} Error (Supabase, Table: ${targetTableName}):`, error);
     } finally {
         showLoader(false);
     }
@@ -3528,7 +3621,7 @@ safeAddClickListener("btn-upload-user-csv", async () => {
     const disabledBtnClass = isDirektorat ? 'disabled' : ''; 
     
     // ADJUSTED HEADER MIN-WIDTHS FOR BETTER SCALING
-    let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle">Unit</th><th rowspan="2" class="align-middle" style="min-width: 200px;">Rincian</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Total Diterima</th><th colspan="12" class="text-center">Rencana Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Total RPD</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Sisa</th><th rowspan="2" class="align-middle text-center action-buttons" style="min-width: 70px;">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 75px;">${m}</th>`).join('')}</tr>`; 
+    let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th>${isDirektorat ? '<th rowspan="2" class="align-middle">Unit</th>' : ''}<th rowspan="2" class="align-middle" style="min-width: 200px;">Rincian</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Total Diterima</th><th colspan="12" class="text-center">Rencana Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Total RPD</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Sisa</th><th rowspan="2" class="align-middle text-center action-buttons" style="min-width: 70px;">Aksi</th></th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 75px;">${m}</th>`).join('')}</tr>`; 
     
     const tableRows = data.map(r => { 
         // PERBAIKAN: Memastikan ajuanId adalah string sebelum menggunakan substring
@@ -3536,6 +3629,7 @@ safeAddClickListener("btn-upload-user-csv", async () => {
         let totalAllocated = 0; 
         
         const rpdInputs = RPD_MONTHS.map(month => { 
+            // Correctly access snake_case column names
             const value = Number(r[getMonthlyKey('RPD', month)] || 0); 
             totalAllocated += value; 
             return `<td><input type="number" class="form-control form-control-sm rpd-input" data-ajuan-id="${ajuanId}" value="${value}" oninput="window.updateRpdRowSummary('${ajuanId}', '${tipe}')" min="0" ${readOnlyAttr}></td>`; 
@@ -3545,10 +3639,12 @@ safeAddClickListener("btn-upload-user-csv", async () => {
         const sisa = totalAjuan - totalAllocated; 
         const sisaClass = sisa < 0 ? 'text-danger fw-bold' : ''; 
         
+        const prodiCell = isDirektorat ? `<td>${escapeHtml(r.ID_Prodi)}</td>` : '';
+        
         // Determine the export ID based on the rendered type
         const exportTableId = `table-export-RPD${tipe}`;
         
-        return `<tr id="rpd-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td><td>${escapeHtml(r.ID_Prodi)}</td><td><strong>${escapeHtml(r.Nama_Ajuan)}</strong><div class="small text-muted">${escapeHtml(r.Judul_Kegiatan)}</div></td><td class="text-end fw-bold" data-total="${totalAjuan}">${totalAjuan.toLocaleString('id-ID')}</td>${rpdInputs}<td class="text-end fw-bold rpd-total-allocated">${totalAllocated.toLocaleString('id-ID')}</td><td class="text-end fw-bold rpd-sisa ${sisaClass}">${sisa.toLocaleString('id-ID')}</td><td class="text-center action-buttons"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRPD('${ajuanId}', '${tipe}')" title="Simpan RPD"><i class="bi bi-save"></i></button></td></tr>`; 
+        return `<tr id="rpd-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td>${prodiCell}<td><strong>${escapeHtml(r.Nama_Ajuan)}</strong><div class="small text-muted">${escapeHtml(r.Judul_Kegiatan)}</div></td><td class="text-end fw-bold" data-total="${totalAjuan}">${totalAjuan.toLocaleString('id-ID')}</td>${rpdInputs}<td class="text-end fw-bold rpd-total-allocated">${totalAllocated.toLocaleString('id-ID')}</td><td class="text-end fw-bold rpd-sisa ${sisaClass}">${sisa.toLocaleString('id-ID')}</td><td class="text-center action-buttons"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRPD('${ajuanId}', '${tipe}')" title="Simpan RPD"><i class="bi bi-save"></i></button></td></tr>`; 
     }).join(''); 
     
     container.innerHTML = `<table class="table table-bordered table-sm small" id="table-export-RPD${tipe}"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`; 
@@ -3559,6 +3655,8 @@ safeAddClickListener("btn-upload-user-csv", async () => {
   // --- MIGRATED TO SUPABASE: Save RPD (MODIFIED) ---
   window.saveRPD = async (id, tipe) => {
     const ajuanId = String(id);
+    const targetTableName = getAjuanTableName(tipe); // <-- REF ACT
+    
     if (!window.updateRpdRowSummary(ajuanId, tipe)) {
         showToast('Gagal. Total alokasi RPD melebihi total diterima.', 'danger');
         return;
@@ -3571,27 +3669,28 @@ safeAddClickListener("btn-upload-user-csv", async () => {
 
     try {
         // 1. Fetch Prodi ID
-        const { data: ajuan, error: fetchError } = await sb.from('ajuan').select('ID_Prodi').eq('ID_Ajuan', ajuanId).single();
+        const { data: ajuan, error: fetchError } = await sb.from(targetTableName).select('ID_Prodi').eq('ID_Ajuan', ajuanId).maybeSingle(); // <-- REF ACT
         if (fetchError || !ajuan) throw new Error("Ajuan tidak ditemukan.");
         prodiId = ajuan.ID_Prodi;
 
         if (row) {
             row.querySelectorAll('.rpd-input').forEach((input, index) => {
                 const value = Number(input.value) || 0;
+                // Use snake_case column names for Supabase update
                 rpdData[getMonthlyKey('RPD', RPD_MONTHS[index])] = value;
                 totalRpd += value;
             });
         }
 
         // 2. Supabase Update
-        const { error } = await sb.from('ajuan')
+        const { error } = await sb.from(targetTableName) // <-- REF ACT
             .update(rpdData)
             .eq('ID_Ajuan', ajuanId);
         
         if (error) throw error;
         
-        await logHistory(ajuanId, "RPD Disimpan", `Total RPD yang disimpan: Rp ${totalRpd.toLocaleString('id-ID')}.`);
-        await logActivity('Save RPD', `Menyimpan RPD untuk ajuan ID ${ajuanId} (${tipe}). Total: Rp ${totalRpd.toLocaleString('id-ID')}.`);
+        await logHistory(ajuanId, `RPD Disimpan (${targetTableName})`, `Total RPD yang disimpan: Rp ${totalRpd.toLocaleString('id-ID')}.`);
+        await logActivity('Save RPD', `Menyimpan RPD untuk ajuan ID ${ajuanId} di tabel ${targetTableName}. Total: Rp ${totalRpd.toLocaleString('id-ID')}.`);
         showToast(`RPD untuk ${ajuanId.substring(0,6)}.. disimpan.`);
         
         // --- Trigger Recalculation ---
@@ -3619,13 +3718,30 @@ safeAddClickListener("btn-upload-user-csv", async () => {
     const disabledBtnClass = isDirektorat ? 'disabled' : ''; 
     
     // ADJUSTED HEADER MIN-WIDTHS FOR BETTER SCALING
-    let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th><th rowspan="2" class="align-middle" style="min-width: 200px;">Rincian</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Total RPD</th><th colspan="12" class="text-center">Realisasi Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Total Realisasi</th><th rowspan="2" class="align-middle text-center action-buttons" style="min-width: 70px;">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 75px;">${m}</th>`).join('')}</tr>`; 
+    let tableHeader = `<tr class="table-light"><th rowspan="2" class="align-middle">ID</th>${isDirektorat ? '<th rowspan="2" class="align-middle">Unit</th>' : ''}<th rowspan="2" class="align-middle" style="min-width: 200px;">Rincian</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Total RPD</th><th colspan="12" class="text-center">Realisasi Penarikan Dana per Bulan (Rp)</th><th rowspan="2" class="align-middle text-end" style="min-width: 100px;">Total Realisasi</th><th rowspan="2" class="align-middle text-center action-buttons" style="min-width: 70px;">Aksi</th></tr><tr class="table-light">${RPD_MONTHS.map(m => `<th class="text-center" style="min-width: 75px;">${m}</th>`).join('')}</tr>`; 
+    
     const tableRows = data.map(r => {  
         // PERBAIKAN: Memastikan ajuanId adalah string sebelum menggunakan substring
         const ajuanId = String(r.ID_Ajuan); 
         let totalRealisasi = 0; 
         let totalRPD = 0; 
-        const realisasiInputs = RPD_MONTHS.map(month => { const value = Number(r[getMonthlyKey('Realisasi', month)] || 0); totalRealisasi += value; totalRPD += Number(r[getMonthlyKey('RPD', month)] || 0); return `<td><input type="number" class="form-control form-control-sm realisasi-input" value="${value}" oninput="window.updateRealisasiRowSummary('${ajuanId}', '${tipe}')" min="0" ${readOnlyAttr}></td>`; }).join(''); return `<tr id="realisasi-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td><td><strong>${escapeHtml(r.Nama_Ajuan)}</strong></td><td class="text-end fw-bold">${totalRPD.toLocaleString('id-ID')}</td>${realisasiInputs}<td class="text-end fw-bold realisasi-total">${totalRealisasi.toLocaleString('id-ID')}</td><td class="text-center action-buttons"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRealisasi('${ajuanId}', '${tipe}')" title="Simpan Realisasi"><i class="bi bi-save"></i></button></td></tr>`; }).join(''); 
+
+        const realisasiInputs = RPD_MONTHS.map(month => { 
+            // Correctly access snake_case column names
+            const realisasiKey = getMonthlyKey('Realisasi', month);
+            const rpdKey = getMonthlyKey('RPD', month);
+
+            const value = Number(r[realisasiKey] || 0); 
+            totalRealisasi += value; 
+            totalRPD += Number(r[rpdKey] || 0); 
+
+            return `<td><input type="number" class="form-control form-control-sm realisasi-input" value="${value}" oninput="window.updateRealisasiRowSummary('${ajuanId}', '${tipe}')" min="0" ${readOnlyAttr}></td>`; 
+        }).join(''); 
+        
+        const prodiCell = isDirektorat ? `<td>${escapeHtml(r.ID_Prodi)}</td>` : '';
+
+        return `<tr id="realisasi-row-${tipe}-${ajuanId}"><td><span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">${ajuanId.substring(0,6)}..</span></td>${prodiCell}<td><strong>${escapeHtml(r.Nama_Ajuan)}</strong></td><td class="text-end fw-bold">${totalRPD.toLocaleString('id-ID')}</td>${realisasiInputs}<td class="text-end fw-bold realisasi-total">${totalRealisasi.toLocaleString('id-ID')}</td><td class="text-center action-buttons"><button class="btn btn-sm btn-primary ${disabledBtnClass}" onclick="window.saveRealisasi('${ajuanId}', '${tipe}')" title="Simpan Realisasi"><i class="bi bi-save"></i></button></td></tr>`; 
+    }).join(''); 
     container.innerHTML = `<table class="table table-bordered table-sm small" id="table-export-Realisasi${tipe}"><thead>${tableHeader}</thead><tbody>${tableRows}</tbody></table>`; 
   }
   
@@ -3656,6 +3772,7 @@ safeAddClickListener("btn-upload-user-csv", async () => {
   // --- MIGRATED TO SUPABASE: Save Realisasi (MODIFIED) ---
   window.saveRealisasi = async (id, tipe) => {
     const ajuanId = String(id);
+    const targetTableName = getAjuanTableName(tipe); // <-- REF ACT
     showLoader(true);
     const row = document.getElementById(`realisasi-row-${tipe}-${ajuanId}`);
     const realisasiData = {};
@@ -3664,27 +3781,28 @@ safeAddClickListener("btn-upload-user-csv", async () => {
 
     try {
         // 1. Fetch Prodi ID
-        const { data: ajuan, error: fetchError } = await sb.from('ajuan').select('ID_Prodi').eq('ID_Ajuan', ajuanId).single();
+        const { data: ajuan, error: fetchError } = await sb.from(targetTableName).select('ID_Prodi').eq('ID_Ajuan', ajuanId).maybeSingle(); // <-- REF ACT
         if (fetchError || !ajuan) throw new Error("Ajuan tidak ditemukan.");
         prodiId = ajuan.ID_Prodi;
 
         if (row) {
             row.querySelectorAll('.realisasi-input').forEach((input, index) => {
                 const value = Number(input.value) || 0;
+                // Use snake_case column names for Supabase update
                 realisasiData[getMonthlyKey('Realisasi', RPD_MONTHS[index])] = value;
                 totalRealisasi += value;
             });
         }
         
         // 2. Supabase Update
-        const { error } = await sb.from('ajuan')
+        const { error } = await sb.from(targetTableName) // <-- REF ACT
             .update(realisasiData)
             .eq('ID_Ajuan', ajuanId);
         
         if (error) throw error;
 
-        await logHistory(ajuanId, "Realisasi Disimpan", `Total Realisasi yang disimpan: Rp ${totalRealisasi.toLocaleString('id-ID')}.`);
-        await logActivity('Save Realisasi', `Menyimpan realisasi untuk ajuan ID ${ajuanId} (${tipe}). Total: Rp ${totalRealisasi.toLocaleString('id-ID')}.`);
+        await logHistory(ajuanId, `Realisasi Disimpan (${targetTableName})`, `Total Realisasi yang disimpan: Rp ${totalRealisasi.toLocaleString('id-ID')}.`);
+        await logActivity('Save Realisasi', `Menyimpan realisasi untuk ajuan ID ${ajuanId} di tabel ${targetTableName}. Total: Rp ${totalRealisasi.toLocaleString('id-ID')}.`);
         showToast(`Realisasi untuk ${ajuanId.substring(0,6)}.. disimpan.`);
         
         // --- Trigger Recalculation ---
@@ -3752,19 +3870,19 @@ safeAddClickListener("btn-upload-user-csv", async () => {
   // --- START BERITA ACARA PREVIEW HANDLERS (NEW/FIXED) ---
   
   async function handleBeritaAcaraPreview() {
-      const baTypeSelect = document.getElementById('filterTipeBA');
-      const tipeAjuan = baTypeSelect ? baTypeSelect.value : 'Awal';
+      // Use getSafeValue to ensure no error if the element is missing
+      const tipeAjuan = getSafeValue('filterTipeBA') || 'Awal';
       
       // Check if directorate needs to select a prodi for Perubahan BA
       if (STATE.role === 'direktorat' && tipeAjuan.startsWith('Perubahan')) {
-           const prodiFilterEl = document.getElementById('filterProdiBA');
-           if (!prodiFilterEl || !prodiFilterEl.value) {
-                showToast('Harap pilih Unit di filter untuk melihat Berita Acara Perubahan.', 'warning'); // CHANGED from Prodi
+           const prodiFilter = getSafeValue('filterProdiBA');
+           if (!prodiFilter) {
+                showToast('Harap pilih Unit di filter untuk melihat Berita Acara Perubahan.', 'warning'); 
                 return;
            }
       }
 
-      if (tipeAjuan === 'Awal') {
+      if (tipeAjuan.startsWith('Awal')) {
           await renderBeritaAcaraAwal(tipeAjuan);
       } else {
           await renderBeritaAcaraPerubahan(tipeAjuan);
@@ -3835,15 +3953,14 @@ safeAddClickListener("btn-upload-user-csv", async () => {
     showLoader(true);
     
     try {
-        const prodiFilterEl = document.getElementById('filterProdiBA');
-        const prodiFilter = prodiFilterEl ? prodiFilterEl.value : null;
+        const prodiFilter = getSafeValue('filterProdiBA');
         
         let targetProdiList = [];
         if (STATE.role === 'direktorat' && !prodiFilter) {
             targetProdiList = STATE.allProdi.filter(p => p.Role === 'prodi').sort((a,b) => a.ID_Prodi.localeCompare(b.ID_Prodi));
         } else {
              let prodiId = STATE.role === 'prodi' ? STATE.id : prodiFilter;
-             if (!prodiId) throw new Error('Silakan pilih Unit di filter untuk mencetak Berita Acara, atau hapus filter untuk mencetak semua Unit.'); // ADJUSTED ERROR MESSAGE
+             if (!prodiId) throw new Error('Silakan pilih Unit di filter untuk mencetak Berita Acara, atau hapus filter untuk mencetak semua Unit.'); 
              const prodiData = (STATE.role === 'direktorat') 
                 ? STATE.allProdi.find(p => p.ID_Prodi === prodiId) || { ID_Prodi: prodiId, Nama_Prodi: prodiId }
                 : STATE.currentUserData;
@@ -3852,10 +3969,12 @@ safeAddClickListener("btn-upload-user-csv", async () => {
 
         let allProdisHtml = '';
         let baGeneratedCount = 0;
+        
+        const targetTableName = getAjuanTableName(tipeAjuan); // 'ajuan'
 
         for (const prodiData of targetProdiList) {
             // Supabase Query
-            const { data: rawData, error } = await sb.from('ajuan')
+            const { data: rawData, error } = await sb.from(targetTableName) // <-- REF ACT
               .select('*')
               .eq('Tipe_Ajuan', tipeAjuan)
               .eq('ID_Prodi', prodiData.ID_Prodi)
@@ -3945,14 +4064,13 @@ safeAddClickListener("btn-upload-user-csv", async () => {
     showLoader(true);
 
     try {
-        const prodiFilterEl = document.getElementById('filterProdiBA');
-        const prodiFilter = prodiFilterEl ? prodiFilterEl.value : null;
+        const prodiFilter = getSafeValue('filterProdiBA');
         const tahapAktif = tipeAjuan;
         
         let targetProdiList = [];
         if (STATE.role === 'direktorat' && !prodiFilter) {
             // Direktorat harus memilih prodi untuk BA Perubahan
-            throw new Error('Untuk Berita Acara Perubahan, harap filter per Unit untuk memuat perbandingan.'); // CHANGED from Prodi
+            throw new Error('Untuk Berita Acara Perubahan, harap filter per Unit untuk memuat perbandingan.');
         } else {
              let prodiId = STATE.role === 'prodi' ? STATE.id : prodiFilter;
              const prodiData = (STATE.role === 'direktorat') 
@@ -3967,10 +4085,12 @@ safeAddClickListener("btn-upload-user-csv", async () => {
         for (const prodiData of targetProdiList) {
             const prodiId = prodiData.ID_Prodi;
             
-            // 1. Fetch current accepted data (Supabase Query)
-            const { data: currentRawData, error: currentError } = await sb.from('ajuan')
-                .select('*')
-                .eq('Tipe_Ajuan', tahapAktif)
+            // 1. Fetch current accepted data (from the revision table)
+            const currentTableName = getAjuanTableName(tipeAjuan); // e.g., 'ajuanrev1'
+            
+            const { data: currentRawData, error: currentError } = await sb.from(currentTableName) // <-- REF ACT
+                .select('*, ID_Ajuan_Asal') // Ensure ID_Ajuan_Asal is included
+                .eq('Tipe_Ajuan', tipeAjuan)
                 .eq('ID_Prodi', prodiId)
                 .eq('Status', 'Diterima');
             
@@ -3997,11 +4117,16 @@ safeAddClickListener("btn-upload-user-csv", async () => {
             const asalIds = [...new Set(currentData.map(d => d.ID_Ajuan_Asal).filter(Boolean))];
             const originalDataMap = new Map();
 
-            // 2. Fetch original data (Supabase Query)
+            // 2. Determine Original Table Name (Awal atau Perubahan X-1)
+            const tahapNumber = parseInt(tipeAjuan.replace('Perubahan ', ''));
+            const sourceType = tahapNumber === 1 ? 'Awal' : `Perubahan ${tahapNumber - 1}`;
+            const originalTableName = getAjuanTableName(sourceType); // <-- REF ACT
+
+            // 3. Fetch original data (Supabase Query) - from the previous stage's table
             if (asalIds.length > 0) {
-                const { data: originalData, error: originalError } = await sb.from('ajuan')
+                const { data: originalData, error: originalError } = await sb.from(originalTableName) // <-- REF ACT
                     .select('*')
-                    .in('ID_Ajuan', asalIds);
+                    .in('ID_Ajuan', asalIds); 
                 
                 if (originalError) console.warn("Error fetching original data for comparison:", originalError);
 
@@ -4117,7 +4242,7 @@ safeAddClickListener("btn-upload-user-csv", async () => {
         }
 
         if (baGeneratedCount === 0 && targetProdiList.length > 1) {
-             throw new Error(`Tidak ada data ajuan "Diterima" dan tidak diblokir yang ditemukan untuk unit manapun pada tahap ${tipeAjuan}.`); // CHANGED from Prodi
+             throw new Error(`Tidak ada data ajuan "Diterima" dan tidak diblokir yang ditemukan untuk unit manapun pada tahap ${tipeAjuan}.`); 
         }
         container.innerHTML = allProdisHtml;
 
@@ -4130,88 +4255,105 @@ safeAddClickListener("btn-upload-user-csv", async () => {
   }
 
 
-  // --- OPTIMIZED: loadDashboardData (MODIFIED) ---
+  // --- OPTIMIZED: loadDashboardData (MODIFIED FOR MULTI-TABLE AGGREGATION) ---
 async function loadDashboardData(forceRefresh = false) { 
   showLoader(true); 
 
   try {
-    const selectedYear = document.getElementById('filterTahunDashboard')?.value;
-    const selectedTipe = document.getElementById('filterTipeDashboard')?.value;
+    const selectedYear = getSafeValue('filterTahunDashboard');
+    const selectedTipe = getSafeValue('filterTipeDashboard');
 
-    // KASUS 1: PRODI ROLE ATAU FILTER WAKTU/TIPE AJUAN AKTIF (Memerlukan data mentah untuk chart dan status counts)
-    if (STATE.role === 'prodi' || selectedYear || selectedTipe) {
-      
-      // Jika forceRefresh, atau belum ada data di cache, ambil data mentah.
-      if (forceRefresh || STATE.cachedDashboardData.length === 0) {
-          console.log("Fetching raw dashboard data from SUPABASE (Filtered or Prodi Mode).");
+    // MODE 1: DIREKTORAT SUMMARY (Fast View - Uses prodi_summary table)
+    const isDirectorateSummaryMode = STATE.role === 'direktorat' && !selectedYear && !selectedTipe;
 
-          let query = sb
-            .from('ajuan')
-            .select(`ID_Ajuan, ID_Prodi, Total, Status, Tipe_Ajuan, Timestamp, Is_Blocked, ${RPD_SELECT_COLUMNS}`);
+    if (isDirectorateSummaryMode) {
+        if (forceRefresh || STATE.direktoratSummaryData.length === 0) {
+            const { data: summaryData, error: summaryError } = await sb
+                .from(PRODI_SUMMARY_TABLE)
+                .select('*'); 
 
-          if (STATE.role === 'prodi') {
-              query = query.eq('ID_Prodi', STATE.id); 
-          }
-            
-          // Filter data berdasarkan tahun langsung dari Supabase
-          if (selectedYear) {
-              const start = `${selectedYear}-01-01 00:00:00`;
-              const end   = `${selectedYear}-12-31 23:59:59`;
-              query = query.gte('Timestamp', start).lte('Timestamp', end);
-          }
+            if (summaryError) throw summaryError;
+            STATE.direktoratSummaryData = summaryData || [];
+        }
+        // Clear raw data to prevent confusion
+        STATE.allDashboardData = []; 
+        
+    } else {
+        // MODE 2: DETAILED VIEW (Prodi Role OR Direktorat with Filters)
+        // We must fetch raw data from 'ajuan' and 'ajuanrevX' tables
+        
+        const tahapAktif = STATE.globalSettings.Tahap_Perubahan_Aktif || 0;
+        let tablesToQuery = [];
 
-          const { data: rawData, error } = await query;
-          if (error) throw error;
-          
-          STATE.allDashboardData = (rawData || []).map(data => { // Added safety check here
-              if (data.Timestamp) data.Timestamp = new Date(data.Timestamp); 
-              if (data.Is_Blocked === undefined) data.Is_Blocked = false; 
-              data.ID_Ajuan = String(data.ID_Ajuan || data.id);
-              return data;
-          }); 
+        // Determine which tables to fetch based on filter
+        if (!selectedTipe) {
+            // No filter: Fetch Awal + All Active Revisions
+            tablesToQuery.push('ajuan');
+            if (tahapAktif > 0) {
+                 tablesToQuery.push(getAjuanTableName(`Perubahan ${tahapAktif}`));
+            }
+        } else if (selectedTipe === 'Awal') {
+            tablesToQuery.push('ajuan');
+        } else if (selectedTipe === 'Perubahan') {
+            if (tahapAktif > 0) {
+                tablesToQuery.push(getAjuanTableName(`Perubahan ${tahapAktif}`));
+            }
+        }
+        
+        // Execute Fetch
+        if (tablesToQuery.length > 0 && (forceRefresh || STATE.cachedDashboardData.length === 0)) { 
+            // console.log(`[Dashboard] Fetching from: ${tablesToQuery.join(', ')}`);
+            STATE.allDashboardData = [];
 
-          STATE.cachedDashboardData = STATE.allDashboardData;
-          
-      } else {
-          // Jika ada cache dan tidak force refresh, gunakan cache
-          console.log("Dashboard data loaded from CACHE (Raw Ajuan).");
-          STATE.allDashboardData = STATE.cachedDashboardData;
-      }
-      
-    } 
-    
-    // KASUS 2: DIREKTORAT ROLE TANPA FILTER WAKTU/TIPE AJUAN (Menggunakan data ringkasan)
-    if (STATE.role === 'direktorat' && !selectedYear && !selectedTipe) {
-      
-      if (forceRefresh || STATE.direktoratSummaryData.length === 0) {
-          console.log("Fetching Direktorat summary data from SUPABASE.");
-          
-          const { data: summaryData, error: summaryError } = await sb
-              .from(PRODI_SUMMARY_TABLE)
-              .select('*'); 
-              // Removed .neq('id_prodi', STATE.id) because the directorate ID might not be 'DIREKTORAT'
-              // Filter should be done locally or based on a reliable list of prodi IDs if needed.
-              // Assuming all data in prodi_summary is relevant for the directorate dashboard view.
+            for (const tableName of tablesToQuery) {
+                 // Determine pretty name for the row data
+                 const tipeLabel = tableName === 'ajuan' ? 'Awal' : `Perubahan ${tahapAktif}`;
 
-          if (summaryError) throw summaryError;
-          
-          STATE.direktoratSummaryData = summaryData || [];
-          
-      } else {
-          console.log("Direktorat Summary data loaded from CACHE (Prodi Summary).");
-      }
-      
-      // Clear raw data storage for directorate role if using summary view
-      STATE.allDashboardData = []; 
+                 let query = sb.from(tableName)
+                   .select(`ID_Ajuan, ID_Prodi, Total, Status, Tipe_Ajuan, Timestamp, Is_Blocked, ${RPD_SELECT_COLUMNS}`);
+
+                 if (STATE.role === 'prodi') {
+                     query = query.eq('ID_Prodi', STATE.id); 
+                 }
+                
+                 if (selectedYear) {
+                     const start = `${selectedYear}-01-01 00:00:00`;
+                     const end   = `${selectedYear}-12-31 23:59:59`;
+                     query = query.gte('Timestamp', start).lte('Timestamp', end);
+                 }
+
+                 const { data: rawData, error } = await query;
+                 if (error) {
+                     console.warn(`[Dashboard] Skip table ${tableName}:`, error.message);
+                     continue; 
+                 }
+                 
+                 // Normalize data
+                 const processedData = (rawData || []).map(data => {
+                    if (data.Timestamp) data.Timestamp = new Date(data.Timestamp); 
+                    data.Is_Blocked = !!data.Is_Blocked; 
+                    data.ID_Ajuan = String(data.ID_Ajuan || data.id);
+                    data.Tipe_Ajuan = tipeLabel; // Overwrite with consistent label
+                    return data;
+                 });
+                 
+                 STATE.allDashboardData.push(...processedData);
+            }
+            STATE.cachedDashboardData = STATE.allDashboardData;  
+        } else {
+            // Use cache if available and no refresh needed
+            if (STATE.cachedDashboardData.length > 0) {
+                STATE.allDashboardData = STATE.cachedDashboardData;
+            }
+        }
     }
     
-    // Fallback/Common logic
+    // Process data for charts and cards
     processDataForDashboard(); 
-    await displayGlobalAnnouncement(); 
 
   } catch(error) { 
       showToast('Gagal memuat data dashboard.', 'danger'); 
-      console.error("Dashboard error (Optimized Supabase):", error); 
+      console.error("Dashboard Error:", error); 
   } finally { 
       showLoader(false); 
   } 
@@ -4229,13 +4371,20 @@ async function loadDashboardData(forceRefresh = false) {
         return null; 
     }))].filter(Boolean).sort((a, b) => b - a); 
     
+    // Ensure current year is always an option if no data is present
+    const currentYear = new Date().getFullYear();
+    if (!years.includes(currentYear)) {
+        years.unshift(currentYear);
+    }
+    
     yearSelect.innerHTML = '<option value="">Semua Tahun</option>'; 
     years.forEach(year => { 
         if (!isNaN(year)) yearSelect.innerHTML += `<option value="${year}">${year}</option>`; 
     }); 
 }
   function setupChart(canvasId, type, data, options) { const canvas = document.getElementById(canvasId); if (!canvas) return; if (CHARTS[canvasId]) CHARTS[canvasId].destroy(); CHARTS[canvasId] = new Chart(canvas.getContext('2d'), { type, data, options }); }
-  function calculateQuarterlySummary(monthlyData, total) { const quarters = [0, 0, 0, 0]; for (let i = 0; i < 12; i++) { if (i < 3) quarters[0] += monthlyData[i]; else if (i < 6) quarters[1] += monthlyData[i]; else if (i < 9) quarters[2] += monthlyData[i]; else quarters[3] += monthlyData[i]; } return { values: quarters, percentages: quarters.map(q => total > 0 ? ((q / total) * 100).toFixed(1) + '%' : '0.0%') }; }
+  function setupChart(canvasId, type, data, options) { const canvas = document.getElementById(canvasId); if (!canvas) return; if (CHARTS[canvasId]) CHARTS[canvasId].destroy(); CHARTS[canvasId] = new Chart(canvas.getContext('2d'), { type, data, options }); }
+  function calculateQuarterlySummary(monthlyData, total) { const quarters = [0, 0, 0, 0]; for (let i = 0; i < 12; i++) { if (i < 3) quarters[0] += monthlyData[i]; else if (i < 6) quarters[1] += monthlyData[i]; else if (i < 9) quarters[2] += monthlyData[i]; else quarters[3] += monthlyData[i]; } return { values: quarters, percentages: quarters.map(q => total > 0 ? ((q /total) * 100).toFixed(1) + '%' : '0.0%') }; }
   
   function calculateSemesterSummary(monthlyData, total) {
     const semesters = [0, 0];
@@ -4283,7 +4432,7 @@ async function loadDashboardData(forceRefresh = false) {
           deadlineInfoEl.innerHTML = `<i class="bi bi-info-circle-fill me-2"></i> ${message}`; 
           deadlineInfoEl.className = `alert ${alertClass} text-center small p-2`; 
           deadlineInfoEl.style.display = 'block'; 
-      } else { 
+          } else { 
           deadlineInfoEl.innerHTML = `<i class="bi bi-info-circle-fill me-2"></i> Batas waktu pengajuan belum ditentukan oleh direktorat.`; 
           deadlineInfoEl.className = 'alert alert-warning text-center small p-2'; 
           deadlineInfoEl.style.display = 'block'; 
@@ -4296,11 +4445,10 @@ async function loadDashboardData(forceRefresh = false) {
       const yearSelect = document.getElementById('filterTahunDashboard');
       const tipeSelect = document.getElementById('filterTipeDashboard');
       
-      // Pastikan variabel ini selalu terdefinisi
-      const selectedYear = yearSelect ? yearSelect.value : null; 
-      const selectedTipe = tipeSelect ? tipeSelect.value : null; 
+      const selectedYear = getSafeValue('filterTahunDashboard'); 
+      const selectedTipe = getSafeValue('filterTipeDashboard'); 
 
-      populateDashboardFilters(STATE.allDashboardData); // Call filter population here, which now uses STATE.allDashboardData safely.
+      populateDashboardFilters(STATE.cachedDashboardData); 
 
       const filterInfoEl = document.getElementById('dashboard-filter-info');
       const yearText = yearSelect && selectedYear ? yearSelect.options[yearSelect.selectedIndex].text : "Semua Tahun";
@@ -4310,15 +4458,13 @@ async function loadDashboardData(forceRefresh = false) {
 
       let filteredData = STATE.allDashboardData;
       
-      // Hanya lakukan filtering lokal jika kita memiliki data mentah (Prodi mode atau filter aktif)
-      if (STATE.allDashboardData.length > 0) {
+      // Perform final filtering based on selected Tipe Ajuan if multi-table data was loaded
+      if (STATE.allDashboardData.length > 0 && selectedTipe) {
           filteredData = STATE.allDashboardData.filter(d => { 
-              const date = d.Timestamp ? new Date(d.Timestamp) : null; 
-              if (!date) return false; 
-              // Filtering by year already partially handled in loadDashboardData (for Supabase query efficiency)
-              const yearMatch = !selectedYear || date.getFullYear() == selectedYear; 
-              const tipeMatch = !selectedTipe || (selectedTipe === 'Awal' && (d.Tipe_Ajuan || 'Awal') === 'Awal') || (selectedTipe === 'Perubahan' && (d.Tipe_Ajuan || '').startsWith('Perubahan'));
-              return yearMatch && tipeMatch; 
+              // Check if Tipe_Ajuan matches the filtered type
+              const isPerubahanMatch = selectedTipe === 'Perubahan' && (d.Tipe_Ajuan || '').startsWith('Perubahan');
+              const isAwalMatch = selectedTipe === 'Awal' && d.Tipe_Ajuan === 'Awal';
+              return isPerubahanMatch || isAwalMatch;
           }); 
       }
       
@@ -4350,7 +4496,7 @@ async function loadDashboardData(forceRefresh = false) {
           
           // Pagu card hanya relevan untuk Prodi atau Direk (ketika filter OFF, diatur di renderDashboardSummary)
           if (paguCard) {
-              paguCard.style.display = (STATE.role === 'prodi' || STATE.allDashboardData.length > 0) ? 'block' : 'none'; 
+              paguCard.style.display = 'block'; 
           }
           
           if (rpdCard) {
@@ -4399,7 +4545,6 @@ async function loadDashboardData(forceRefresh = false) {
         const isBlocked = !!ajuan.Is_Blocked;
         
         totalDiajukanOverall += total;
-        
         if (isAwal) {
             totalDiajukanAwal += total;
         } else {
@@ -4435,8 +4580,8 @@ async function loadDashboardData(forceRefresh = false) {
     let totalRealisasiForSummary = totalRealisasi;
 
     // 3. Jika Direktorat mode TANPA FILTER, gunakan data dari summary cache
-    const selectedYear = document.getElementById('filterTahunDashboard')?.value;
-    const selectedTipe = document.getElementById('filterTipeDashboard')?.value;
+    const selectedYear = getSafeValue('filterTahunDashboard');
+    const selectedTipe = getSafeValue('filterTipeDashboard');
     const isDirectorateSummaryMode = STATE.role === 'direktorat' && !selectedYear && !selectedTipe;
 
     if (isDirectorateSummaryMode) {
@@ -4461,7 +4606,7 @@ async function loadDashboardData(forceRefresh = false) {
     
     // 4. Update UI Kartu & Chart
     
-    // Pagu Cards (Hanya relevan di mode Prodi atau Direktorat yang dihitung ulang)
+    // Pagu Cards 
     const totalPaguAwal = (STATE.role === 'direktorat') 
         ? (STATE.allProdi || []).filter(p => p.Role === 'prodi').reduce((sum, p) => sum + (Number(p.Pagu_Anggaran) || 0), 0)
         : (STATE.currentUserData?.Pagu_Anggaran || 0);
@@ -4480,7 +4625,7 @@ async function loadDashboardData(forceRefresh = false) {
     const diajukanPerubahanEl = document.getElementById(`${containerPrefix}total-diajukan-perubahan`);
     if(diajukanPerubahanEl && diajukanPerubahanEl.parentElement) diajukanPerubahanEl.parentElement.style.display = (STATE.role === 'prodi' && !isDirectorateSummaryMode) ? 'none' : 'block';
     if(diajukanPerubahanEl) diajukanPerubahanEl.textContent = 'Rp ' + totalDiajukanPerubahan.toLocaleString('id-ID');
-    
+
     const totalDiterimaTotalEl = document.getElementById(`${containerPrefix}total-diterima-total`);
     if (totalDiterimaTotalEl) totalDiterimaTotalEl.textContent = 'Rp ' + totalDiterimaOverall.toLocaleString('id-ID');
 
@@ -4885,8 +5030,8 @@ function renderProdiStatusCards(summaryData) {
   });
 
   safeAddClickListener('btn-save-grub-belanja', async () => { 
-    const id = document.getElementById('mg_ID').value.trim(); 
-    const nama = document.getElementById('mg_Nama').value.trim(); 
+    const id = getSafeValue('mg_ID').trim(); 
+    const nama = getSafeValue('mg_Nama').trim(); 
     const idEl = document.getElementById('mg_ID');
     const isNew = idEl ? !idEl.readOnly : true;
     
@@ -4993,8 +5138,8 @@ function renderProdiStatusCards(summaryData) {
   
   // --- MIGRATED TO SUPABASE: Save Kelompok ---
   safeAddClickListener('btn-save-kelompok', async () => { 
-    const id = document.getElementById('mk_ID').value.trim(); 
-    const nama = document.getElementById('mk_Nama').value.trim(); 
+    const id = getSafeValue('mk_ID').trim(); 
+    const nama = getSafeValue('mk_Nama').trim(); 
     if (!id || !nama) { showToast('ID dan Nama Kelompok wajib diisi.', 'warning'); return; } 
     showLoader(true); 
     try { 
@@ -5105,8 +5250,14 @@ function renderProdiStatusCards(summaryData) {
   
   // --- MIGRATED: Backup/Restore Logic (Split between Supabase and Firebase) ---
   const SB_COLLECTIONS = ['ajuan', 'kelompok', 'grub_belanja', 'activityLog', 'ajuan_history', PRODI_SUMMARY_TABLE]; 
+  
+  // Tambahkan semua tabel ajuanrevX ke dalam daftar backup
+  for (let i = 1; i <= 30; i++) {
+      SB_COLLECTIONS.push(`ajuanrev${i}`);
+  }
+  
   const FB_COLLECTIONS = ['users', 'appConfig', 'notifications'];
-  const ALL_COLLECTIONS_FOR_DISPLAY = [...SB_COLLECTIONS, ...FB_COLLECTIONS];
+  const ALL_COLLECTIONS_FOR_DISPLAY = [...new Set([...SB_COLLECTIONS, ...FB_COLLECTIONS])]; // Use Set to ensure uniqueness for display
 
   async function backupAllData() {
       if (STATE.role !== 'direktorat') { showToast("Hanya direktorat yang dapat melakukan backup.", "warning"); return; }
@@ -5117,8 +5268,13 @@ function renderProdiStatusCards(summaryData) {
           // 1. Backup Supabase Data
           for (const collectionName of SB_COLLECTIONS) {
               const { data, error } = await sb.from(collectionName).select('*');
-              if (error) throw new Error(`Supabase backup failed for ${collectionName}: ${error.message}`);
-              backupData[collectionName] = data;
+              // Silently ignore missing tables if they don't exist yet (e.g., ajuanrev2)
+              if (error && error.code !== '42P01') { // 42P01 is Postgres "Undefined table"
+                   throw new Error(`Supabase backup failed for ${collectionName}: ${error.message}`);
+              }
+              if (data) {
+                 backupData[collectionName] = data;
+              }
           }
 
           // 2. Backup Firebase Data
@@ -5178,9 +5334,14 @@ function renderProdiStatusCards(summaryData) {
           
           // 1. Clean and Restore Supabase Data
           for (const collectionName of SB_COLLECTIONS) {
+              // Check if data exists for this collection in the backup file
+              if (!data[collectionName]) continue;
+              
               showToast(`Menghapus data lama di Supabase '${collectionName}'...`, 'warning');
-              // Attempt generic delete condition 
+              
+              // Attempt to delete all rows in the table
               try {
+                  // Using improbable condition to ensure global delete
                   const { error: deleteError } = await sb.from(collectionName).delete().neq('id_prodi', 'non-existent-id'); 
                    if (deleteError) { 
                       console.warn(`Supabase generic delete failed for ${collectionName}:`, deleteError); 
@@ -5188,7 +5349,10 @@ function renderProdiStatusCards(summaryData) {
                       await sb.from(collectionName).delete().neq('created_at', '1900-01-01T00:00:00+00:00');
                    }
               } catch(e) {
-                 console.warn(`Supabase aggressive delete failed for ${collectionName}. May require service key access.`, e);
+                 // Ignore "relation does not exist" error for missing rev tables
+                 if (!e.message.includes("relation")) {
+                      console.warn(`Supabase aggressive delete failed for ${collectionName}:`, e);
+                 }
               }
 
 
@@ -5323,9 +5487,10 @@ function renderProdiStatusCards(summaryData) {
             .select('*', { count: 'exact' })
             .order('timestamp', { ascending: false });
 
-        const userFilter = document.getElementById('filterLogUser').value;
-        const dateStartFilter = document.getElementById('filterLogDateStart').value;
-        const dateEndFilter = document.getElementById('filterLogDateEnd').value;
+        // Use getSafeValue for log filters
+        const userFilter = getSafeValue('filterLogUser');
+        const dateStartFilter = getSafeValue('filterLogDateStart');
+        const dateEndFilter = getSafeValue('filterLogDateEnd');
 
         if (userFilter) queryBuilder = queryBuilder.eq('userId', userFilter);
       if (dateStartFilter) queryBuilder = queryBuilder.gte('timestamp', dateStartFilter);
@@ -5440,7 +5605,16 @@ if (tabLogAktivitas) {
     if (komentarModalEl) bootstrap.Modal.getOrCreateInstance(komentarModalEl).show();
 
     try {
-        const { data: ajuan, error } = await sb.from('ajuan').select('Komentar').eq('ID_Ajuan', ajuanId).single();
+        // Find which table the ajuan belongs to (based on current active tab, which should contain this ID)
+        // Note: This relies on the table list being freshly loaded into STATE.currentAjuanDataAwal/Perubahan
+        const ajuanData = STATE.currentAjuanDataAwal.find(a => String(a.ID_Ajuan) === ajuanId) || 
+                         STATE.currentAjuanDataPerubahan.find(a => String(a.ID_Ajuan) === ajuanId);
+        
+        // Fallback aggressively if local state is missing, by assuming current type
+        const tipe = ajuanData ? ajuanData.Tipe_Ajuan : (STATE.currentAjuanType || 'Awal');
+        const targetTableName = getAjuanTableName(tipe); // <-- REF ACT
+
+        const { data: ajuan, error } = await sb.from(targetTableName).select('Komentar').eq('ID_Ajuan', ajuanId).maybeSingle(); // <-- REF ACT
         if (error || !ajuan) throw new Error("Ajuan tidak ditemukan.");
         
         const comments = ajuan.Komentar || [];
@@ -5463,7 +5637,7 @@ if (tabLogAktivitas) {
     
     listEl.innerHTML = comments.map(c => {
       const isCurrentUser = c.author === STATE.id;
-      const bubbleClass = isCurrentUser ? 'comment-bubble-user' : 'comment-bubble-other';
+      const bubbleClass = c.author === STATE.id ? 'comment-bubble-user' : (c.author === 'direktorat' ? 'comment-bubble-reviewer' : 'comment-bubble-other'); // Adjusted bubble class
       // Supabase JSONB stores JS Dates/Timestamps which can be converted back
       const timestamp = c.timestamp ? new Date(c.timestamp) : null; 
       const time = timestamp ? timestamp.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
@@ -5487,12 +5661,18 @@ if (tabLogAktivitas) {
 
     showLoader(true);
     try {
+      // Find table name dynamically
+      const ajuanData = STATE.currentAjuanDataAwal.find(a => String(a.ID_Ajuan) === ajuanId) || 
+                         STATE.currentAjuanDataPerubahan.find(a => String(a.ID_Ajuan) === ajuanId);
+      
+      const tipe = ajuanData ? ajuanData.Tipe_Ajuan : (STATE.currentAjuanType || 'Awal');
+      const targetTableName = getAjuanTableName(tipe); // <-- REF ACT
       
       // 1. Fetch current comments
-      const { data: currentAjuan, error: fetchError } = await sb.from('ajuan')
+      const { data: currentAjuan, error: fetchError } = await sb.from(targetTableName) // <-- REF ACT
           .select('Komentar, Nama_Ajuan, ID_Prodi')
           .eq('ID_Ajuan', ajuanId)
-          .single();
+          .maybeSingle();
           
       if (fetchError || !currentAjuan) throw new Error("Gagal mengambil data ajuan untuk komentar.");
       
@@ -5507,7 +5687,7 @@ if (tabLogAktivitas) {
       const updatedComments = [...existingComments, newComment];
 
       // 2. Update Supabase
-      const { error: updateError } = await sb.from('ajuan')
+      const { error: updateError } = await sb.from(targetTableName) // <-- REF ACT
           .update({ Komentar: updatedComments })
           .eq('ID_Ajuan', ajuanId);
           
@@ -5520,16 +5700,16 @@ if (tabLogAktivitas) {
       // Send notifications (uses Firebase users/notifications)
       if (STATE.role === 'prodi') { 
           STATE.allDirektoratUids.forEach(uid => {
-              createNotification(uid, `${STATE.id} mengirim komentar baru pada ajuan "${currentAjuan.Nama_Ajuan}".`);
+              createNotification(uid, `${STATE.id} mengirim komentar baru pada ajuan "${currentAjuan.Nama_Ajuan}" (${tipe}).`);
           });
       } else { 
           const prodiUser = STATE.allProdi.find(p => p.ID_Prodi === currentAjuan.ID_Prodi);
           if (prodiUser && prodiUser.uid) {
-              createNotification(prodiUser.uid, `Direktorat mengirim komentar baru pada ajuan Anda "${currentAjuan.Nama_Ajuan}".`);
+              createNotification(prodiUser.uid, `Direktorat mengirim komentar baru pada ajuan Anda "${currentAjuan.Nama_Ajuan}" (${tipe}).`);
           }
       }
       
-      await logActivity('Komentar Dikirim', `Mengirim komentar pada ajuan ID ${ajuanId}: "${text}"`);
+      await logActivity('Komentar Dikirim', `Mengirim komentar pada ajuan ID ${ajuanId} di tabel ${targetTableName}: "${text}"`);
       showToast("Komentar berhasil dikirim.", "success");
 
     } catch (error) {
@@ -5656,13 +5836,16 @@ function clearUserForm() {
 
 // Save User (Add or Update) (Firebase) (MODIFIED)
 async function saveUser(isNew) {
+    // Kritis: Gunakan getElValue untuk mandatory fields agar error jika hilang
     const uid = getElValue('edit_user_uid');
     const prodiId = getElValue('edit_user_id').trim();
     const namaProdi = getElValue('edit_user_nama').trim();
     const email = getElValue('edit_user_email').trim();
     const role = getElValue('edit_user_role');
-    const ttdJabatan = getElValue('edit_user_ttd_jabatan').trim();
-    const ttdNama = getElValue('edit_user_ttd_nama').trim();
+    
+    // Aman: Gunakan getSafeValue untuk optional/conditionally rendered fields
+    const ttdJabatan = getSafeValue('edit_user_ttd_jabatan').trim();
+    const ttdNama = getSafeValue('edit_user_ttd_nama').trim();
 
     if (!prodiId || !namaProdi || !email || !role) { showToast('Semua field wajib diisi.', 'warning'); return; }
 
@@ -5806,6 +5989,8 @@ window.deleteUser = async (uid, prodiId) => {
 safeAddClickListener('btn-update-user', () => saveUser(false));
 
 // Pastikan btn-open-add-user-modal tetap memanggil clearUserForm
+safeAddClickListener('btn-add-user', () => saveUser(true)); 
+
 safeAddClickListener('btn-open-add-user-modal', () => {
     clearUserForm();
     const userModalEl = document.getElementById('userModal');
@@ -5820,8 +6005,9 @@ safeAddClickListener('btn-open-add-user-modal', () => {
       let nama;
       
       try {
-        jabatan = getElValue('input-ttd-jabatan').trim();
-        nama = getElValue('input-ttd-nama').trim();
+        // Use getSafeValue as a safety measure, though these elements should exist in the Prodi view
+        jabatan = getSafeValue('input-ttd-jabatan').trim();
+        nama = getSafeValue('input-ttd-nama').trim();
       } catch (error) {
         showToast(`Gagal memperbarui TTD: Input tidak lengkap atau hilang.`, 'danger');
         console.error("Update Prodi TTD Input Error:", error);
@@ -5832,7 +6018,7 @@ safeAddClickListener('btn-open-add-user-modal', () => {
       try {
           const settings = { TTD_Jabatan: jabatan, TTD_Nama: nama };
           
-          // KRITIS: Memerlukan izin tulis di Firebase Firestore Rules untuk koleksi 'users'
+          // KRITIS: Memerlukan izin tulis di Firebase Firestore Rules untuk koleksi 'users'.
           await db.collection('users').doc(STATE.uid).update({
               beritaAcaraSettings: settings
           });
@@ -5881,16 +6067,19 @@ safeAddClickListener('btn-open-add-user-modal', () => {
       let batasTanggalPerubahan; // NEW
 
       try {
+          // Use getSafeValue for less critical elements
           settings = {
-              Status_Ajuan_Awal: getElValue('setting-status-awal'),
-              Status_Ajuan_Perubahan: getElValue('setting-status-perubahan'),
-              Tahap_Perubahan_Aktif: Number(getElValue('setting-tahap-perubahan')) || 1,
-              Pengumuman_Aktif: getElChecked('setting-pengumuman-aktif'),
-              Pengumuman_Teks: getElValue('setting-pengumuman-teks').trim(),
+              Status_Ajuan_Awal: getSafeValue('setting-status-awal'),
+              Status_Ajuan_Perubahan: getSafeValue('setting-status-perubahan'),
+              Tahap_Perubahan_Aktif: Number(getSafeValue('setting-tahap-perubahan')) || 1,
+              // Checkboxes need special handling if they might not exist, but getElChecked throws on missing element
+              // Assuming these elements exist in the Manage tab if rendered for Direktorat
+              Pengumuman_Aktif: getElChecked('setting-pengumuman-aktif'), 
+              Pengumuman_Teks: getSafeValue('setting-pengumuman-teks').trim(),
           };
           
-          batasTanggalAwal = getElValue('setting-batas-tanggal');
-          batasTanggalPerubahan = getElValue('setting-batas-tanggal-perubahan'); // NEW
+          batasTanggalAwal = getSafeValue('setting-batas-tanggal');
+          batasTanggalPerubahan = getSafeValue('setting-batas-tanggal-perubahan'); // NEW
           
       } catch (error) {
            showToast(`Gagal menyimpan pengaturan global: Input tidak lengkap atau hilang.`, 'danger');
@@ -5924,6 +6113,7 @@ safeAddClickListener('btn-open-add-user-modal', () => {
           displayGlobalAnnouncement(); // Refresh announcement
           showToast("Pengaturan global berhasil disimpan.");
           await logActivity('Update Global Settings', `Mengubah status ajuan: Awal=${settings.Status_Ajuan_Awal}, Perubahan=${settings.Status_Ajuan_Perubahan}.`);
+          loadDashboardData(true); // Force dashboard refresh to re-evaluate table routes and summary
       } catch (error) {
           showToast(`Gagal menyimpan pengaturan: ${error.message}`, 'danger');
       } finally {
@@ -5936,16 +6126,18 @@ safeAddClickListener('btn-open-add-user-modal', () => {
       
       let settings;
       try {
+          // Use getSafeValue to prevent TypeError if elements are missing
           settings = {
-              TTD_Kanan_Jabatan: getElValue('setting-ttd-kanan-jabatan').trim(),
-              TTD_Kanan_Nama: getElValue('setting-ttd-kanan-nama').trim(),
-              TTD_Kiri_Jabatan: getElValue('setting-ttd-kiri-jabatan').trim(),
-              TTD_Kiri_Nama: getElValue('setting-ttd-kiri-nama').trim()
+              TTD_Kanan_Jabatan: getSafeValue('setting-ttd-kanan-jabatan').trim(),
+              TTD_Kanan_Nama: getSafeValue('setting-ttd-kanan-nama').trim(),
+              TTD_Kiri_Jabatan: getSafeValue('setting-ttd-kiri-jabatan').trim(),
+              TTD_Kiri_Nama: getSafeValue('setting-ttd-kiri-nama').trim()
           };
       } catch (error) {
-           showToast(`Gagal menyimpan pengaturan TTD: Input tidak lengkap atau hilang.`, 'danger');
-           console.error("Save BA Settings Input Error:", error);
-           return;
+          // If a critical element needed by getElValue failed (which shouldn't happen if using getSafeValue consistently here)
+          showToast(`Gagal menyimpan pengaturan TTD: Input tidak lengkap atau hilang.`, 'danger');
+          console.error("Save BA Settings Input Error:", error);
+          return;
       }
       
       showLoader(true);
@@ -6069,4 +6261,33 @@ safeAddClickListener('btn-open-add-user-modal', () => {
   // --- END MANAGEMENT TAB EVENT LISTENERS ---
   // ------------------------------------------------------------------
 });
-// --- END OF FILE script.js ---
+
+
+/* --- PATCH: bindOnce + safeHideModal + modal fix --- */
+
+// Prevent duplicate event bindings
+function bindOnce(selector, event, handler) {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    const key = `__bound_${event}`;
+    if (!el[key]) {
+        el.addEventListener(event, handler);
+        el[key] = true;
+    }
+}
+
+// Bootstrap-safe modal hide
+function safeHideModal(modalId) {
+    const modalEl = document.getElementById(modalId);
+    if (!modalEl) return;
+    const instance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+    instance.hide();
+}
+
+// Cleanup aria-hidden when modal is closed
+document.addEventListener("hidden.bs.modal", function (event) {
+    event.target.removeAttribute("style");
+    event.target.removeAttribute("aria-hidden");
+});
+/* --- END PATCH --- */
+    
